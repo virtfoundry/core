@@ -1,0 +1,21 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+logger:
+  level: "info"
+  format: "json"
+
+security:
+  jwt_secret: "dev-secret-change-in-prod"
+  jwt_expire: 86400
+
+kubevirt:
+  enabled: true
+  kubeconfig: ""
+  namespace: "default"
+
+# Uncomment for local MySQL (in-cluster uses ConfigMap DSN)
+# database:
+#   driver: mysql
+#   dsn: "nimbus:nimbus@tcp(localhost:3306)/nimbus?charset=utf8mb4"

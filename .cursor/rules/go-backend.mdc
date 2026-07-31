@@ -1,0 +1,55 @@
+---
+description: Padrões Go para API, service e integração K8s/KubeVirt
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go Backend — Nimbus
+
+## Camadas
+
+```
+handler → service.PlatformService (facade)
+              ├── tenant/ · identity/ · network/
+              ├── storage/ · compute/ · jobs/
+              └── shared/ (TenantNamespace, SanitizeSlug)
+         → store.Repository
+         → platform/k8s.Manager
+         → hypervisor.KubeVirtDriver
+```
+
+- Handlers só fazem HTTP (decode, auth, respond); lógica de negócio fica em `service/`
+- `store.Repository` é a interface única de persistência — nunca acoplar handler a MySQL/Memory
+- Injetar dependências via construtores (`NewPlatformHandler`, `NewPlatformService`)
+
+## API (Gorilla Mux)
+
+- Router em `cmd/server/main.go`; rotas protegidas com `middleware.JWTAuth`
+- Handlers: `func (h *XHandler) Method(w http.ResponseWriter, r *http.Request)`
+- Respostas: `respondJSON` / `respondError` de `handler/common.go`
+- Status codes explícitos; erros de tenant como 400 (`tenant_id required for root`)
+
+## Erros e contexto
+
+```go
+// ✅ Wrapped errors na service layer
+return fmt.Errorf("deploy vm %s: %w", name, err)
+
+// ✅ Context em chamadas K8s/KubeVirt
+ctx := r.Context()
+```
+
+- Propagar `context.Context` em operações K8s e DB
+- Sem estado global; logger via `internal/pkg/logger` (zap)
+
+## K8s / KubeVirt
+
+- `platform/k8s.Manager` — recursos de tenant, VPC, network, security group
+- `hypervisor.KubeVirtDriver` — VMs, snapshots, console, Multus NADs
+- Detectar in-cluster via `KUBERNETES_SERVICE_HOST`
+- Reconciliação de estado VM no worker (`ReconcileAll`, jobs `async_jobs`)
+
+## Testes
+
+- Table-driven tests; `go test ./...`
+- Mockar `store.Repository` e interfaces (`EventBroadcaster`) — não o client-go real

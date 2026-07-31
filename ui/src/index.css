@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ef-color: #EF7D00;
+  --ef-color-dark: #D66A00;
+}
+
+body {
+  @apply bg-gray-50 dark:bg-dark-200;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-dark-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100;
+  }
+
+  .btn-primary {
+    @apply btn px-4 py-2 bg-nimbus-500 text-white hover:bg-nimbus-600 hover:shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply btn px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-200;
+  }
+
+  .btn-success-soft {
+    @apply btn px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm hover:bg-green-100 dark:hover:bg-green-900/40;
+  }
+
+  .btn-danger-soft {
+    @apply btn px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm hover:bg-red-100 dark:hover:bg-red-900/40;
+  }
+
+  .btn-outline-sm {
+    @apply btn px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-50 dark:hover:bg-dark-200 disabled:opacity-40;
+  }
+
+  .btn-danger-outline {
+    @apply btn px-3 py-2 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20;
+  }
+
+  .btn-icon {
+    @apply p-1.5 rounded transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100;
+  }
+
+  .btn-icon-neutral {
+    @apply btn-icon border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-dark-200;
+  }
+
+  .btn-icon-success {
+    @apply btn-icon text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20;
+  }
+
+  .btn-icon-danger {
+    @apply btn-icon text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20;
+  }
+
+  .btn-icon-warning {
+    @apply btn-icon text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20;
+  }
+
+  .btn-ghost {
+    @apply transition-colors duration-200 hover:text-gray-900 dark:hover:text-gray-100;
+  }
+
+  .btn-ghost-muted {
+    @apply btn-ghost text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300;
+  }
+
+  .btn-ghost-brand {
+    @apply btn-ghost text-sm text-nimbus-600 hover:text-nimbus-700 hover:underline;
+  }
+
+  .btn-tab {
+    @apply pb-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200 hover:text-nimbus-600;
+  }
+
+  .btn-sidebar {
+    @apply p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-dark-200;
+  }
+
+  .btn-action-row {
+    @apply flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-sm border rounded-lg transition-all duration-200 hover:bg-gray-50 dark:hover:bg-dark-200 disabled:opacity-40;
+  }
+
+  .btn-action-danger {
+    @apply p-1.5 border border-red-200 text-red-500 rounded-lg transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20;
+  }
+
+  /* Console page — visible controls on dark background */
+  .btn-console {
+    @apply btn px-2.5 py-1 text-xs font-medium
+      bg-slate-600 text-slate-50
+      border border-slate-400/70
+      shadow-sm shadow-black/20
+      hover:bg-slate-500 hover:border-slate-300 hover:text-white hover:shadow-md
+      active:bg-slate-400
+      disabled:opacity-40 disabled:hover:bg-slate-600 disabled:hover:border-slate-400/70;
+  }
+
+  .btn-console-back {
+    @apply btn-console px-3 py-1.5 text-sm;
+  }
+
+  .btn-console-action {
+    @apply btn px-3 py-2 text-sm font-semibold
+      bg-nimbus-500 text-white
+      border border-nimbus-400
+      shadow-sm shadow-black/20
+      hover:bg-nimbus-400 hover:border-nimbus-300 hover:shadow-md
+      disabled:opacity-40;
+  }
+
+  /* VNC viewport — noVNC scaleViewport centers/scales HD framebuffer */
+  .console-viewport {
+    @apply w-full h-full bg-black;
+  }
+
+  .console-viewport > div {
+    width: 100% !important;
+    height: 100% !important;
+    background: #000 !important;
+  }
+}

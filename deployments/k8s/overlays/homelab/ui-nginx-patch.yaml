@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nimbus-ui
+  namespace: nimbus-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: ui
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+            - name: static
+              mountPath: /usr/share/nginx/html
+            - name: assets
+              mountPath: /usr/share/nginx/html/assets
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: nimbus-ui-nginx
+        - name: static
+          configMap:
+            name: nimbus-ui-static
+        - name: assets
+          configMap:
+            name: nimbus-ui-assets

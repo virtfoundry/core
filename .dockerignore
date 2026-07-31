@@ -1,0 +1,6 @@
+ui/node_modules
+.git
+**/.cursor
+**/terminals
+*.md
+!README.md

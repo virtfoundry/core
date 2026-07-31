@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nimbus-worker
+  namespace: nimbus-system
+  labels:
+    app: nimbus-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nimbus-worker
+  template:
+    metadata:
+      labels:
+        app: nimbus-worker
+    spec:
+      serviceAccountName: nimbus-api
+      containers:
+        - name: worker
+          image: nimbus/iaas-api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./worker"]
+          env:
+            - name: CONFIG_PATH
+              value: /etc/nimbus/config.yaml
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nimbus
+      volumes:
+        - name: config
+          configMap:
+            name: nimbus-config

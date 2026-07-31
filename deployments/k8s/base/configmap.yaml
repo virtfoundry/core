@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nimbus-config
+  namespace: nimbus-system
+data:
+  config.yaml: |
+    server:
+      host: "0.0.0.0"
+      port: 8080
+    logger:
+      level: "info"
+      format: "json"
+    security:
+      jwt_secret: "change-me-in-production"
+      jwt_expire: 86400
+    kubevirt:
+      enabled: true
+      kubeconfig: ""
+      namespace: "default"
+    database:
+      driver: mysql
+      dsn: "nimbus:nimbus@tcp(nimbus-mysql.nimbus-system.svc:3306)/nimbus?charset=utf8mb4"
+    observability:
+      velas_explore_url: ""

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.ssh-keys/
+.gotmp/
+ui/node_modules/
+ui/dist/
+*.exe
+*.test
+/bin/
+/vendor/
+.DS_Store
+.idea/
+.vscode/
+*.log
