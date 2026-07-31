@@ -12,7 +12,7 @@ import (
 	"github.com/virtforge-cloud/virtforge/internal/platform"
 )
 
-//go:embed migrations/schema-nimbus.sql
+//go:embed migrations/schema.sql
 var schemaFS embed.FS
 
 var _ Repository = (*MySQL)(nil)
@@ -57,7 +57,7 @@ func (m *MySQL) Close() error {
 }
 
 func (m *MySQL) Migrate() error {
-	raw, err := schemaFS.ReadFile("migrations/schema-nimbus.sql")
+	raw, err := schemaFS.ReadFile("migrations/schema.sql")
 	if err != nil {
 		return fmt.Errorf("read schema: %w", err)
 	}

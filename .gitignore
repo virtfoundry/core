@@ -3,6 +3,7 @@
 !.env.example
 .ssh-keys/
 .gotmp/
+.tmp/
 ui/node_modules/
 ui/dist/
 *.exe
@@ -12,4 +13,5 @@ ui/dist/
 .DS_Store
 .idea/
 .vscode/
+.cursor/
 *.log

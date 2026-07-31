@@ -1,10 +1,10 @@
-# Nimbus Cloud — Arquitetura
+# VirtForge Cloud — Architecture
 
-Plataforma IaaS multi-tenant nativa em Kubernetes. Este documento descreve o estado atual do projeto (jul/2026): o que existe, como se encaixa, e recomendações de evolução.
+Multi-tenant IaaS platform native to Kubernetes. This document describes the current state of the project: what exists, how it fits together, and evolution recommendations.
 
 ---
 
-## Visão geral
+## Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -28,10 +28,10 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
                   PVC, NetPol, VolSnap  VNC proxy
 ```
 
-**Produto:** Nimbus Cloud  
-**Módulo Go:** `github.com/matheusthurler/nimbus`  
-**Namespace de deploy:** `nimbus-system`  
-**Homelab UI:** `http://<node-ip>:30880` (login `root` / `nimbus`)
+**Product:** VirtForge Cloud  
+**Go module:** `github.com/virtforge-cloud/virtforge`  
+**Deploy namespace:** `nimbus-system` (legacy prefix — rename planned)  
+**Homelab UI:** `http://<node-ip>:30880` (login `root` / default dev password)
 
 ---
 
@@ -79,7 +79,7 @@ Regra central: **tenant é a unidade de isolamento**. VMs e volumes vivem no nam
 | Modelos | `internal/platform/models.go` | Entidades compartilhadas |
 | Infra K8s | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot |
 | Hypervisor | `internal/infra/hypervisor` | Interface `Driver` + KubeVirt |
-| Migração | `internal/migrate`, `cmd/migrate` | Import CloudStack → Nimbus |
+| **Migration** | `internal/migrate`, `cmd/migrate` | Import CloudStack → VirtForge |
 
 ### Fluxo típico: deploy de VM
 
@@ -183,7 +183,7 @@ Regra central: **tenant é a unidade de isolamento**. VMs e volumes vivem no nam
 
 ## Banco de dados
 
-Schema: `internal/platform/store/migrations/schema-nimbus.sql`
+Schema: `internal/platform/store/migrations/schema.sql`
 
 | Tabela | Descrição |
 |--------|-----------|
@@ -205,81 +205,58 @@ Store: MySQL se `database.dsn` configurado; senão Memory com seed de catálogo.
 
 ---
 
-## Deploy Kubernetes
+## Kubernetes deploy
+
+Manifests live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
 
 ```
-deployments/k8s/base/           # Kustomize base (nimbus-system)
-deployments/k8s/overlays/homelab/  # NodePort 30880, sem Ingress
+virtforge-chart/kustomize/base/              # Kustomize base
+virtforge-chart/kustomize/overlays/homelab/  # NodePort 30880, no Ingress
+virtforge-chart/charts/virtforge/            # Helm chart (production)
 ```
 
-| Workload | Imagem | Função |
-|----------|--------|--------|
+| Workload | Image | Role |
+|----------|-------|------|
 | `nimbus-api` | `nimbus/iaas-api` | `./server` |
 | `nimbus-worker` | `nimbus/iaas-api` | `./worker` |
 | `nimbus-ui` | `nimbus/iaas-ui` | nginx + SPA |
 | `nimbus-mysql` | mysql:8 | StatefulSet |
 
-Deploy homelab: `./scripts/deploy-nimbus-homelab.sh` (build, import containerd, restart).
+Homelab deploy: `virtforge-chart/deploy-homelab.sh` (build images from this repo, apply kustomize, import to containerd, restart).
 
 ---
 
 ## Estrutura de diretórios
 
 ```
-eficify-iaas/
+virtforge/
 ├── cmd/
-│   ├── server/           # API REST + WebSockets
-│   ├── worker/           # Jobs async + reconciliação
-│   └── migrate/          # CLI import CloudStack
+│   ├── server/           # REST API + WebSockets
+│   ├── worker/           # Async jobs + reconciliation
+│   └── migrate/          # CloudStack import CLI
 ├── internal/
 │   ├── api/              # Handlers, middleware, WS
 │   ├── auth/             # JWT
 │   ├── config/           # Viper
-│   ├── service/
-│   │   ├── platform.go     # Facade PlatformService
-│   │   ├── types.go
-│   │   ├── shared/
-│   │   ├── tenant/
-│   │   ├── identity/
-│   │   ├── network/
-│   │   ├── storage/
-│   │   ├── compute/
-│   │   └── jobs/
+│   ├── service/          # Domain services (tenant, network, compute, …)
 │   ├── platform/
-│   │   ├── models.go
 │   │   ├── store/        # Repository + MySQL/Memory
-│   │   └── k8s/          # Provisioning K8s por recurso
+│   │   └── k8s/          # K8s provisioning per resource
 │   ├── infra/hypervisor/ # KubeVirt driver
-│   └── migrate/          # Lógica de import
-├── ui/src/
-│   ├── pages/            # Uma página por domínio
-│   ├── components/
-│   ├── lib/              # API, auth, console, query-keys
-│   └── hooks/            # Realtime WS
-├── deployments/          # Dockerfiles + K8s manifests
-├── scripts/              # deploy, setup KubeVirt
-├── docs/                 # Documentação
-├── TODO.md               # Roadmap por fases
-└── AGENTS.md             # Guia para agentes Cursor
+│   └── migrate/          # Import logic
+├── ui/src/               # React SPA
+├── docker/               # Dockerfiles + nginx config (images only)
+├── docs/
+├── TODO.md
+└── AGENTS.md
 ```
 
----
+K8s manifests and homelab scripts: [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart).
 
-## Roadmap (resumo de TODO.md)
-
-**Feito (fases 0–3):** JWT, todos os recursos IaaS, MySQL, worker async, catálogo, Multus NICs, console VNC, VM snapshots, realtime WS.
-
-**Pendente (fases 4–5):**
-- Migrate CloudStack → MySQL (hoje Memory)
-- Import idempotente via `external_uuid`
-- Ingress TLS, LB, rede public/private
-- UI: catálogo dinâmico, seletor de rede, deploy async
-- Auth no console WS
+**Monorepo decision:** domain packages in `internal/service/`, single deploy unit. No separate microservice repos until API boundaries stabilize.
 
 ---
 
-## Modularização: recomendação
+## Roadmap
 
-Ver [docs/MODULARIZATION.md](./MODULARIZATION.md) para análise detalhada.
-
-**Decisão:** separação **conceitual** apenas (domínios documentados + pacotes no monorepo). Sem repos ou microserviços separados por enquanto.
+See [TODO.md](../TODO.md) for the current backlog.

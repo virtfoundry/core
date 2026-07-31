@@ -9,11 +9,24 @@ Kubernetes-native IaaS control plane — CloudStack-style operations on KubeVirt
 
 | Repository | Purpose |
 |------------|---------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | Monorepo — API, worker, UI, Kustomize |
-| [charts](https://github.com/virtforge-cloud/charts) | Helm charts for cluster install |
-| [website](https://github.com/virtforge-cloud/website) | Landing page and docs site |
+| [virtforge](https://github.com/virtforge-cloud/virtforge) | Application monorepo — API, worker, UI |
+| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart + Kustomize homelab overlay |
+| [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Landing page and docs site |
 
 Extended documentation: **[Wiki](https://github.com/virtforge-cloud/virtforge/wiki)**
+
+## Repository layout
+
+```
+cmd/                 # server, worker, migrate CLIs
+internal/            # API, services, store, KubeVirt/K8s integration
+ui/                  # React SPA (Vite + Tailwind)
+docker/              # Dockerfiles for API/worker and UI images
+docs/                # Architecture reference
+config.yaml.example  # Local dev config template
+```
+
+Cluster manifests and homelab scripts live in **[virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)**.
 
 ## Features
 
@@ -24,24 +37,15 @@ Extended documentation: **[Wiki](https://github.com/virtforge-cloud/virtforge/wi
 - CloudStack migration tool (`cmd/migrate`)
 - React UI with realtime events and noVNC console
 
-## Stack
-
-| Component | Technology |
-|-----------|------------|
-| API | Go + Gorilla Mux |
-| Worker | Go (async jobs) |
-| Auth | JWT (root + tenant admins) |
-| Hypervisor | KubeVirt |
-| UI | React + Vite + Tailwind |
-| Deploy | Kustomize (`deployments/k8s/`) or [Helm](https://github.com/virtforge-cloud/charts) |
-
 ## Quick start (local dev)
 
 ```bash
+cp config.yaml.example config.yaml   # optional — defaults work for memory store
+
 # API
 ROOT_PASSWORD=nimbus go run ./cmd/server
 
-# UI
+# UI (separate terminal)
 cd ui && npm install && npm run dev
 
 # Login: root / nimbus (change in production)
@@ -63,9 +67,12 @@ Root users must send `X-Tenant-ID` when operating inside a tenant.
 
 ## Homelab deploy
 
+Requires [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) cloned next to this repo.
+
 ```bash
-./scripts/setup-homelab-kubevirt.sh
-./scripts/deploy-nimbus-homelab.sh
+cd ../virtforge-chart
+./setup-kubevirt.sh
+./deploy-homelab.sh
 ```
 
 ## CloudStack migration

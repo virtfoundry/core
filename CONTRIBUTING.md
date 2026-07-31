@@ -30,10 +30,10 @@ go test ./...
 cd ui && npm install && npm run build
 ```
 
-For homelab testing:
+For homelab testing (from [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)):
 
 ```bash
-./scripts/deploy-nimbus-homelab.sh
+./deploy-homelab.sh
 ```
 
 ## Pull request process
@@ -48,9 +48,9 @@ For homelab testing:
 
 | Repo | When to contribute here |
 |------|-------------------------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | API, worker, UI, Kustomize, migration |
-| [charts](https://github.com/virtforge-cloud/charts) | Helm values, templates, install docs |
-| [website](https://github.com/virtforge-cloud/website) | Marketing site and published docs |
+| [virtforge](https://github.com/virtforge-cloud/virtforge) | API, worker, UI, migration |
+| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, Kustomize overlay, install docs |
+| [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Marketing site and published docs |
 
 ## Code of conduct
 
