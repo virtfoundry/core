@@ -17,7 +17,7 @@ Include:
 
 - Description of the issue and impact
 - Steps to reproduce
-- Affected component (API, UI, worker, charts)
+- Affected component (API, UI, worker, virtforge-chart)
 - Suggested fix (if any)
 
 We aim to acknowledge reports within 7 days.

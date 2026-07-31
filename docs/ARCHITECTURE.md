@@ -35,77 +35,77 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 
 ---
 
-## Domínios funcionais
+## Functional domains
 
-| Domínio | Entidades | Backend | UI | K8s / infra |
-|---------|-----------|---------|-----|-------------|
-| **Identidade** | users, JWT | `auth/login`, `auth/me` | Login | — |
+| Domain | Entities | Backend | UI | K8s / infra |
+|--------|----------|---------|-----|-------------|
+| **Identity** | users, JWT | `auth/login`, `auth/me` | Login | — |
 | **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `nimbus-tenant-{slug}` |
-| **Rede** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy |
-| **Compute** | vms, vm_nics, vm_snapshots, catálogo | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
+| **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy |
+| **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
 | **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC, VolumeSnapshot |
-| **Jobs** | async_jobs | interno (worker) | — | — |
-| **Console** | — | `GET /ws/console` | `/console` (nova aba) | KubeVirt VNC subresource |
+| **Jobs** | async_jobs | internal (worker) | — | — |
+| **Console** | — | `GET /ws/console` | `/console` (new tab) | KubeVirt VNC subresource |
 
-### Dependências entre domínios
+### Domain dependencies
 
 ```
 Tenant ─────────────────────────────────────────────┐
   │                                                  │
-  ├── VPC ── Network (NAD no NS da VPC)             │
-  │         └── Security Group (NetPol no NS tenant) │
+  ├── VPC ── Network (NAD in VPC namespace)         │
+  │         └── Security Group (NetPol in tenant NS) │
   ├── Volume ── Volume Snapshot                      │
   └── VM ── NICs (Multus) ── Network                 │
        ├── Service Offering (CPU/mem)                │
-       ├── VM Template (imagem)                      │
+       ├── VM Template (image)                       │
        └── VM Snapshot                               │
 ```
 
-Regra central: **tenant é a unidade de isolamento**. VMs e volumes vivem no namespace do tenant; VPCs têm namespace próprio; redes anexam VMs via Multus NAD.
+**Core rule:** tenant is the isolation unit. VMs and volumes live in the tenant namespace; VPCs have their own namespace; networks attach to VMs via Multus NAD.
 
 ---
 
-## Camadas do backend
+## Backend layers
 
-| Camada | Pacote | Responsabilidade |
-|--------|--------|------------------|
-| Transporte | `internal/api/handler` | HTTP decode, tenant resolution, JSON |
-| Transporte | `internal/api/middleware` | JWT, CORS, logging |
-| Transporte | `internal/api/ws` | Hub de eventos realtime |
-| Transporte | `internal/api/handler/console_handler.go` | Proxy WebSocket VNC (KubeVirt) |
+| Layer | Package | Responsibility |
+|-------|---------|----------------|
+| Transport | `internal/api/handler` | HTTP decode, tenant resolution, JSON |
+| Transport | `internal/api/middleware` | JWT, CORS, logging |
+| Transport | `internal/api/ws` | Realtime event hub |
+| Transport | `internal/api/handler/console_handler.go` | KubeVirt VNC WebSocket proxy |
 | Auth | `internal/auth` | JWT, bcrypt |
-| Serviço | `internal/service/` | Facade `platform.go` + domínios (`tenant/`, `network/`, `compute/`, …) |
-| Persistência | `internal/platform/store` | Interface `Repository` + MySQL/Memory |
-| Modelos | `internal/platform/models.go` | Entidades compartilhadas |
-| Infra K8s | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot |
-| Hypervisor | `internal/infra/hypervisor` | Interface `Driver` + KubeVirt |
-| **Migration** | `internal/migrate`, `cmd/migrate` | Import CloudStack → VirtForge |
+| Service | `internal/service/` | Facade `platform.go` + domains (`tenant/`, `network/`, `compute/`, …) |
+| Persistence | `internal/platform/store` | `Repository` interface + MySQL/Memory |
+| Models | `internal/platform/models.go` | Shared entities |
+| K8s infra | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot |
+| Hypervisor | `internal/infra/hypervisor` | `Driver` interface + KubeVirt |
+| Migration | `internal/migrate`, `cmd/migrate` | CloudStack → VirtForge import |
 
-### Fluxo típico: deploy de VM
+### Typical flow: VM deploy
 
-1. Handler valida JWT e resolve `tenant_id`
-2. `PlatformService.DeployVM` lê offering/template do catálogo (opcional)
-3. Garante namespace do tenant via `k8s.Manager`
-4. Monta NICs a partir de `network_ids` → refs Multus NAD
-5. Cria `VirtualMachine` via `KubeVirtDriver` (video virtio exceto Cirros)
-6. Persiste `vms` + `vm_nics` no store
-7. Broadcast `vm.created` no WebSocket hub
-8. Modo async: enfileira job `deploy_vm` no worker
+1. Handler validates JWT and resolves `tenant_id`
+2. `PlatformService.DeployVM` reads offering/template from catalog (optional)
+3. Ensures tenant namespace via `k8s.Manager`
+4. Builds NICs from `network_ids` → Multus NAD refs
+5. Creates `VirtualMachine` via `KubeVirtDriver` (virtio video except Cirros)
+6. Persists `vms` + `vm_nics` in store
+7. Broadcasts `vm.created` on WebSocket hub
+8. Async mode: enqueues `deploy_vm` job for worker
 
 ### Worker (`cmd/worker`)
 
-- Poll `async_jobs` a cada 3s
-- Executa `deploy_vm`, `reconcile`
-- `ReconcileAll` a cada 15s: adota VMs órfãs do KubeVirt, marca `Destroyed` se sumiram
-- `SyncAllVMStates`: sincroniza fase KubeVirt → DB + eventos WS
+- Polls `async_jobs` every 3s
+- Runs `deploy_vm`, `reconcile`
+- `ReconcileAll` every 15s: adopts orphan KubeVirt VMs, marks `Destroyed` if gone
+- `SyncAllVMStates`: syncs KubeVirt phase → DB + WS events
 
 ---
 
-## API REST (`/api/v1`)
+## REST API (`/api/v1`)
 
-| Recurso | Métodos | Auth |
-|---------|---------|------|
-| `/auth/login` | POST | público |
+| Resource | Methods | Auth |
+|----------|---------|------|
+| `/auth/login` | POST | public |
 | `/auth/me` | GET | JWT |
 | `/tenants` | GET, POST | JWT + root |
 | `/vpcs` | GET, POST | JWT |
@@ -124,90 +124,90 @@ Regra central: **tenant é a unidade de isolamento**. VMs e volumes vivem no nam
 
 **WebSockets**
 
-| Path | Uso |
-|------|-----|
-| `/ws/events` | Eventos realtime (`vm.created`, `vm.updated`, …) |
-| `/ws/console?name=&namespace=` | Proxy VNC noVNC |
+| Path | Purpose |
+|------|---------|
+| `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …) |
+| `/ws/console?name=&namespace=` | noVNC proxy |
 
-**Multi-tenancy:** usuário root envia header `X-Tenant-ID` para operar em um tenant.
+**Multi-tenancy:** root users send header `X-Tenant-ID` to operate inside a tenant.
 
-### Lacunas conhecidas da API
+### Known API gaps
 
-- CRUD de usuários (só bootstrap root + admin na criação de tenant)
-- Delete/update de VPC, network, volume, snapshot, security group
-- Endpoint de status de jobs async
-- Auth no WebSocket do console (hoje só `name` + `namespace`)
+- User CRUD (only root bootstrap + admin on tenant create)
+- Delete/update for VPC, network, volume, snapshot, security group
+- Async job status endpoint
+- Console WebSocket auth (today only `name` + `namespace`)
 
 ---
 
 ## Frontend (`ui/`)
 
-| Rota | Página | Funcionalidades |
-|------|--------|-----------------|
+| Route | Page | Features |
+|-------|------|----------|
 | `/login` | Login | JWT |
-| `/dashboard` | Dashboard | Contagens, atalhos |
-| `/tenants` | Tenants | Root: criar/listar |
-| `/vms` | VMs | Listar, deploy, start/stop/delete, console |
+| `/dashboard` | Dashboard | Counts, shortcuts |
+| `/tenants` | Tenants | Root: create/list |
+| `/vms` | VMs | List, deploy, start/stop/delete, console |
 | `/vms/:name` | VMDetail | Overview, NICs, snapshots, edit cpu/mem |
-| `/volumes` | Volumes | Listar/criar |
-| `/vpcs` | VPCs | Listar/criar |
-| `/networks` | Networks | Listar/criar |
-| `/security-groups` | SecurityGroups | Listar/criar + regras |
+| `/volumes` | Volumes | List/create |
+| `/vpcs` | VPCs | List/create |
+| `/networks` | Networks | List/create |
+| `/security-groups` | SecurityGroups | List/create + rules |
 | `/snapshots` | Snapshots | Volume snapshots |
 | `/vm-snapshots` | VMSnapshots | VM snapshots CRUD + restore |
-| `/console` | VMConsole | noVNC full-screen, comandos de teclado |
+| `/console` | VMConsole | noVNC full-screen, keyboard commands |
 
-**Stack UI:** React 18, Vite, TypeScript, Tailwind, TanStack Query, React Router, noVNC.
+**UI stack:** React 18, Vite, TypeScript, Tailwind, TanStack Query, React Router, noVNC.
 
-**Convenções:** query keys em `lib/query-keys.ts`; API client em `lib/platform-api.ts`.
+**Conventions:** query keys in `lib/query-keys.ts`; API client in `lib/platform-api.ts`.
 
-### Lacunas conhecidas da UI
+### Known UI gaps
 
-- Catálogo hardcoded (`VM_IMAGES`, `VM_SIZES`) — API `/service-offerings` e `/vm-templates` existem mas não são usadas
-- Sem seletor de rede no deploy de VM (backend já suporta `network_ids`)
-- Sem toggle de deploy async
-- Sem página de usuários
-
----
-
-## Console VNC
-
-- Abre em **nova aba** (`/console?name=&namespace=`), estilo AWS
-- Proxy WebSocket em `console_handler.go` (padrão KubeVirt `CopyFrom`/`CopyTo`)
-- Comandos: Ctrl+Alt+Del, Esc, Tab, Enter, F1–F12, colar texto
-- **Cirros:** VGA fixo ~720×400 — funciona com `scaleViewport`; aviso amarelo é esperado
-- **Ubuntu/Fedora:** `video: virtio` + resize remoto quando KubeVirt anuncia suporte
-- Feature gate `VideoConfig` habilitado no homelab via script de deploy
+- Hardcoded catalog (`VM_IMAGES`, `VM_SIZES`) — `/service-offerings` and `/vm-templates` exist but are unused
+- No network selector on VM deploy (backend supports `network_ids`)
+- No async deploy toggle
+- No users page
 
 ---
 
-## Banco de dados
+## VNC console
+
+- Opens in a **new tab** (`/console?name=&namespace=`), AWS-style
+- WebSocket proxy in `console_handler.go` (KubeVirt `CopyFrom`/`CopyTo` pattern)
+- Commands: Ctrl+Alt+Del, Esc, Tab, Enter, F1–F12, paste text
+- **Cirros:** fixed VGA ~720×400 — works with `scaleViewport`; yellow warning is expected
+- **Ubuntu/Fedora:** `video: virtio` + remote resize when KubeVirt advertises support
+- `VideoConfig` feature gate enabled on homelab via `virtforge-chart/deploy-homelab.sh`
+
+---
+
+## Database
 
 Schema: `internal/platform/store/migrations/schema.sql`
 
-| Tabela | Descrição |
-|--------|-----------|
+| Table | Description |
+|-------|-------------|
 | `users` | root / tenant_admin |
-| `tenants` | slug, namespace, campos de import |
-| `vpcs` | VPC por tenant |
-| `networks` | NAD Multus (namespace + nome) |
-| `security_groups` | Regras em JSON |
-| `service_offerings` | Catálogo CPU/mem |
-| `vm_templates` | Imagens container disk |
-| `vms` | Metadados KubeVirt |
-| `vm_nics` | NICs por VM |
+| `tenants` | slug, namespace, import fields |
+| `vpcs` | VPC per tenant |
+| `networks` | Multus NAD (namespace + name) |
+| `security_groups` | Rules as JSON |
+| `service_offerings` | CPU/mem catalog |
+| `vm_templates` | Container disk images |
+| `vms` | KubeVirt metadata |
+| `vm_nics` | NICs per VM |
 | `volumes` | PVCs |
 | `snapshots` | VolumeSnapshots |
 | `vm_snapshots` | VirtualMachineSnapshots |
-| `async_jobs` | Fila do worker |
+| `async_jobs` | Worker queue |
 
-Store: MySQL se `database.dsn` configurado; senão Memory com seed de catálogo.
+Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
 
 ---
 
 ## Kubernetes deploy
 
-Manifests live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
+Manifests and homelab scripts live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
 
 ```
 virtforge-chart/kustomize/base/              # Kustomize base
@@ -222,11 +222,11 @@ virtforge-chart/charts/virtforge/            # Helm chart (production)
 | `nimbus-ui` | `nimbus/iaas-ui` | nginx + SPA |
 | `nimbus-mysql` | mysql:8 | StatefulSet |
 
-Homelab deploy: `virtforge-chart/deploy-homelab.sh` (build images from this repo, apply kustomize, import to containerd, restart).
+Homelab: `./deploy-homelab.sh` from `virtforge-chart` (builds images from sibling `virtforge`, applies kustomize, imports to containerd, restarts).
 
 ---
 
-## Estrutura de diretórios
+## Repository layout
 
 ```
 virtforge/
@@ -250,8 +250,6 @@ virtforge/
 ├── TODO.md
 └── AGENTS.md
 ```
-
-K8s manifests and homelab scripts: [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart).
 
 **Monorepo decision:** domain packages in `internal/service/`, single deploy unit. No separate microservice repos until API boundaries stabilize.
 

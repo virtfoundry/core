@@ -27,7 +27,7 @@
 ## Homelab
 
 - [x] KubeVirt Snapshot + VideoConfig feature gates
-- [x] Multus CNI + bridge setup (`virtforge-chart/setup-multus.sh`)
+- [x] Multus CNI + bridge setup (`../virtforge-chart/setup-multus.sh`)
 - [ ] Ingress TLS
 
-Deploy: `virtforge-chart/deploy-homelab.sh`
+Deploy: `../virtforge-chart/deploy-homelab.sh`
