@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import clsx from 'clsx';
+import { useI18n } from '../lib/i18n';
 
 interface Column<T> {
   key: string;
@@ -16,11 +17,14 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void;
 }
 
-export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = 'Nenhum registro', onRowClick }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data, keyExtractor, emptyMessage, onRowClick }: DataTableProps<T>) {
+  const { t } = useI18n();
+  const resolvedEmptyMessage = emptyMessage ?? t('common.emptyRecords');
+
   if (data.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
-        <p className="text-gray-500 dark:text-gray-400">{emptyMessage}</p>
+        <p className="text-gray-500 dark:text-gray-400">{resolvedEmptyMessage}</p>
       </div>
     );
   }
@@ -55,7 +59,7 @@ export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = 'Nenh
             >
               {columns.map((col) => (
                 <td key={col.key} className={clsx('px-6 py-4 text-sm text-gray-900 dark:text-gray-100', col.className)}>
-                  {col.render ? col.render(item) : (item as any)[col.key]}
+                  {col.render ? col.render(item) : (item as Record<string, ReactNode>)[col.key]}
                 </td>
               ))}
             </tr>

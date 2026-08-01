@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,13 +24,13 @@ func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, 
   "cniVersion": "0.3.1",
   "name": %q,
   "type": "bridge",
-  "bridge": "nimbus-br0",
+  "bridge": %q,
   "ipam": {
     "type": "host-local",
     "subnet": %q,
     "routes": [{ "dst": "0.0.0.0/0" }]
   }
-}`, name, cidr)
+}`, name, branding.BridgeName, cidr)
 
 	labels := map[string]interface{}{
 		LabelManagedBy: ManagedByValue,

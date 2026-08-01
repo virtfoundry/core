@@ -43,12 +43,12 @@ Cluster manifests and homelab scripts live in **[virtforge-chart](https://github
 cp config.yaml.example config.yaml   # optional — defaults work for memory store
 
 # API
-ROOT_PASSWORD=nimbus go run ./cmd/server
+ROOT_PASSWORD=virtforge go run ./cmd/server
 
 # UI (separate terminal)
 cd ui && npm install && npm run dev
 
-# Login: root / nimbus (change in production)
+# Login: root / virtforge (change in production)
 ```
 
 ## API (`/api/v1`)

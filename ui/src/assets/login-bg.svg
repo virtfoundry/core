@@ -2,11 +2,8 @@
 <!-- VirtForge login background decoration: brand chevrons on the left, faint. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 1000" width="600" height="1000" preserveAspectRatio="xMinYMid slice">
   <g fill="none" stroke-linecap="butt" stroke-linejoin="miter">
-    <!-- top chevron: light orange -->
-    <path d="M-40 120 L150 250 L-40 380" stroke="#EF7D00" stroke-width="70" opacity="0.22"/>
-    <!-- middle chevron: warm gray -->
-    <path d="M-40 470 L150 600 L-40 730" stroke="#C5BFB6" stroke-width="70" opacity="0.5"/>
-    <!-- bottom chevron: dark -->
-    <path d="M-60 780 L120 900 L-60 1020" stroke="#3C3C3B" stroke-width="70" opacity="0.10"/>
+    <path d="M-40 120 L150 250 L-40 380" stroke="#2563EB" stroke-width="70" opacity="0.22"/>
+    <path d="M-40 470 L150 600 L-40 730" stroke="#93C5FD" stroke-width="70" opacity="0.45"/>
+    <path d="M-60 780 L120 900 L-60 1020" stroke="#1E3A8A" stroke-width="70" opacity="0.12"/>
   </g>
 </svg>

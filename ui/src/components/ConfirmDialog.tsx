@@ -1,6 +1,7 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect, useRef } from 'react';
+import { useI18n } from '../lib/i18n';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -28,11 +29,14 @@ export function ConfirmDialog({
   title,
   message,
   resourceName,
-  confirmLabel = 'Remover',
-  cancelLabel = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   loading = false,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const resolvedConfirmLabel = confirmLabel ?? t('common.delete');
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
 
   useEffect(() => {
     if (open) cancelRef.current?.focus();
@@ -80,7 +84,7 @@ export function ConfirmDialog({
               disabled={loading}
               className="btn-secondary"
             >
-              {cancelLabel}
+              {resolvedCancelLabel}
             </button>
             <button
               type="button"
@@ -92,7 +96,7 @@ export function ConfirmDialog({
               )}
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </button>
           </div>
         </div>

@@ -7,8 +7,10 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useI18n } from '../lib/i18n';
 
 export function Tenants() {
+  const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ name: '', slug: '', admin_password: '' });
@@ -34,28 +36,28 @@ export function Tenants() {
   if (!isRoot) {
     return (
       <div className="text-center py-12 text-gray-500">
-        Apenas usuários root podem gerenciar tenants.
+        {t('tenants.rootOnly')}
       </div>
     );
   }
 
   const tenants = data?.tenants || [];
-  const filtered = tenants.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.slug.toLowerCase().includes(search.toLowerCase())
+  const filtered = tenants.filter((tenant) =>
+    tenant.name.toLowerCase().includes(search.toLowerCase()) ||
+    tenant.slug.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tenants</h1>
-          <p className="text-gray-500">{tenants.length} tenants na plataforma</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.tenants')}</h1>
+          <p className="text-gray-500">{tenants.length} {t('tenants.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> Criar Tenant
+            <Plus size={18} /> {t('tenants.create')}
           </button>
         </div>
       </div>
@@ -66,7 +68,7 @@ export function Tenants() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar tenants..."
+          placeholder={t('tenants.searchPlaceholder')}
           className="w-full pl-10 pr-4 py-3 border rounded-lg"
         />
       </div>
@@ -74,20 +76,20 @@ export function Tenants() {
       <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <div className="col-span-full text-center py-12">Carregando...</div>
+          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <Users size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Nenhum tenant criado</p>
+            <p className="text-gray-500">{t('tenants.empty')}</p>
           </div>
         ) : (
-          filtered.map((t) => (
-            <div key={t.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
-              <h3 className="font-semibold text-lg">{t.name}</h3>
-              <p className="text-sm text-gray-500 mb-3">{t.slug}</p>
+          filtered.map((tenant) => (
+            <div key={tenant.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
+              <h3 className="font-semibold text-lg">{tenant.name}</h3>
+              <p className="text-sm text-gray-500 mb-3">{tenant.slug}</p>
               <div className="text-sm space-y-1">
-                <p><span className="text-gray-500">Região:</span> {t.slug}</p>
-                <p><span className="text-gray-500">Estado:</span> {t.state}</p>
+                <p><span className="text-gray-500">{t('common.region')}:</span> {tenant.slug}</p>
+                <p><span className="text-gray-500">{t('common.state')}:</span> {tenant.state}</p>
               </div>
             </div>
           ))
@@ -95,7 +97,7 @@ export function Tenants() {
       </div>
       </RefreshingPanel>
 
-      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Criar Tenant">
+      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('tenants.modalTitle')}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -104,7 +106,7 @@ export function Tenants() {
           className="space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium mb-1">Nome</label>
+            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input
               required
               value={form.name}
@@ -125,7 +127,7 @@ export function Tenants() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Senha do admin do tenant</label>
+            <label className="block text-sm font-medium mb-1">{t('tenants.adminPassword')}</label>
             <input
               required
               type="password"
@@ -138,9 +140,9 @@ export function Tenants() {
             <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">Cancelar</button>
+            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" disabled={createMutation.isPending} className="btn-primary">
-              {createMutation.isPending ? 'Criando...' : 'Criar'}
+              {createMutation.isPending ? t('common.creating') : t('common.create')}
             </button>
           </div>
         </form>

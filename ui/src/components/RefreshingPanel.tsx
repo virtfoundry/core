@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 import { ReactNode } from 'react';
+import { useI18n } from '../lib/i18n';
 
 interface RefreshingPanelProps {
   isFetching: boolean;
@@ -16,6 +17,7 @@ export function RefreshingPanel({
   children,
   className,
 }: RefreshingPanelProps) {
+  const { t } = useI18n();
   const showOverlay = isFetching && !isLoading;
 
   return (
@@ -26,9 +28,9 @@ export function RefreshingPanel({
           aria-live="polite"
           aria-busy="true"
         >
-          <div className="absolute top-3 right-3 flex items-center gap-2 bg-nimbus-500 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+          <div className="absolute top-3 right-3 flex items-center gap-2 bg-brand-500 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg animate-pulse">
             <Loader2 size={14} className="animate-spin" />
-            Sincronizando...
+            {t('refresh.syncing')}
           </div>
           <div className="absolute inset-0 bg-white/30 dark:bg-dark-100/30 rounded-xl backdrop-blur-[1px]" />
         </div>

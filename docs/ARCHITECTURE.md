@@ -30,8 +30,8 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 
 **Product:** VirtForge Cloud  
 **Go module:** `github.com/virtforge-cloud/virtforge`  
-**Deploy namespace:** `nimbus-system` (legacy prefix — rename planned)  
-**Homelab UI:** `http://<node-ip>:30880` (login `root` / default dev password)
+**Deploy namespace:** `virtforge-system`  
+**Homelab UI:** `http://<node-ip>:30880` (login `root` / `virtforge`)
 
 ---
 
@@ -40,7 +40,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 | Domain | Entities | Backend | UI | K8s / infra |
 |--------|----------|---------|-----|-------------|
 | **Identity** | users, JWT | `auth/login`, `auth/me` | Login | — |
-| **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `nimbus-tenant-{slug}` |
+| **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `virtforge-tenant-{slug}` |
 | **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy |
 | **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
 | **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC, VolumeSnapshot |
@@ -210,19 +210,19 @@ Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
 Manifests and homelab scripts live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
 
 ```
-virtforge-chart/kustomize/base/              # Kustomize base
-virtforge-chart/kustomize/overlays/homelab/  # NodePort 30880, no Ingress
-virtforge-chart/charts/virtforge/            # Helm chart (production)
+virtforge-chart/charts/virtforge/             # Helm chart
+virtforge-chart/charts/virtforge/values-homelab.yaml  # Homelab: NodePort 30880, platform bootstrap
+virtforge-chart/scripts/image-import-pod.yaml # Image sideload (no registry)
 ```
 
 | Workload | Image | Role |
 |----------|-------|------|
-| `nimbus-api` | `nimbus/iaas-api` | `./server` |
-| `nimbus-worker` | `nimbus/iaas-api` | `./worker` |
-| `nimbus-ui` | `nimbus/iaas-ui` | nginx + SPA |
-| `nimbus-mysql` | mysql:8 | StatefulSet |
+| `virtforge-api` | `virtforge/iaas-api` | `./server` |
+| `virtforge-worker` | `virtforge/iaas-api` | `./worker` |
+| `virtforge-ui` | `virtforge/iaas-ui` | nginx + SPA |
+| `virtforge-mysql` | mysql:8 | StatefulSet |
 
-Homelab: `./deploy-homelab.sh` from `virtforge-chart` (builds images from sibling `virtforge`, applies kustomize, imports to containerd, restarts).
+Homelab: `./deploy-homelab.sh` from `virtforge-chart` (builds images, `helm upgrade` with `values-homelab.yaml`, imports to containerd, restarts).
 
 ---
 

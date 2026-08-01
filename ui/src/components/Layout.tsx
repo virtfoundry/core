@@ -3,8 +3,9 @@ import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Server, HardDrive, Network, Globe, Shield,
-  Users, LogOut, Menu, X, Camera, Cloud, Key,
+  Users, LogOut, Menu, X, Camera, Key,
 } from 'lucide-react';
+import { VirtForgeLogo } from './VirtForgeLogo';
 import { authService } from '../lib/auth';
 import { listTenants } from '../lib/platform-api';
 import { useNavigate } from 'react-router-dom';
@@ -91,9 +92,7 @@ export function Layout() {
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-dark-100 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 fixed h-full z-40`}>
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-nimbus-500 rounded-xl flex items-center justify-center">
-              <Cloud size={22} className="text-white" />
-            </div>
+            <VirtForgeLogo size={40} />
             {sidebarOpen && (
               <div>
                 <h1 className="font-bold text-gray-900 dark:text-white">VirtForge</h1>
@@ -111,7 +110,7 @@ export function Layout() {
                   to={item.path}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${
-                      isActive ? 'bg-nimbus-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                      isActive ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-100'
                     }`
                   }
                 >
@@ -130,7 +129,7 @@ export function Layout() {
                         to={sub.path}
                         className={({ isActive }) =>
                           `flex items-center gap-3 px-3 py-2 rounded-lg transition ml-1 ${
-                            isActive ? 'bg-nimbus-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                            isActive ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-100'
                           }`
                         }
                       >

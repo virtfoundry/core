@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,8 +14,8 @@ func (m *Manager) EnsureVPCNamespace(ctx context.Context, tenantID, tenantSlug, 
 		LabelManagedBy: ManagedByValue,
 		LabelTenantID:  tenantID,
 		LabelVPCID:     vpcID,
-		"nimbus.io/vpc-name": vpcName,
-		"nimbus.io/cidr":     cidr,
+		branding.LabelVPCName: vpcName,
+		branding.LabelCIDR:    cidr,
 	}
 
 	ns := &corev1.Namespace{

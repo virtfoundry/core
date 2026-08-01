@@ -18,4 +18,4 @@ kubevirt:
 # Uncomment for local MySQL (in-cluster uses ConfigMap DSN)
 # database:
 #   driver: mysql
-#   dsn: "nimbus:nimbus@tcp(localhost:3306)/nimbus?charset=utf8mb4"
+#   dsn: "virtforge:virtforge@tcp(localhost:3306)/virtforge?charset=utf8mb4"

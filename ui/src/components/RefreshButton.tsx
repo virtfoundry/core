@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { useI18n } from '../lib/i18n';
 
 interface RefreshButtonProps {
   onRefresh: () => void;
@@ -16,13 +16,16 @@ export function RefreshButton({
   onRefresh,
   isFetching,
   dataUpdatedAt,
-  label = 'Atualizar',
+  label,
   compact = false,
   className,
 }: RefreshButtonProps) {
+  const { t, dateLocale } = useI18n();
+  const refreshLabel = label ?? t('refresh.label');
+
   const lastUpdate =
     dataUpdatedAt && dataUpdatedAt > 0
-      ? formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: ptBR })
+      ? formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: dateLocale })
       : null;
 
   return (
@@ -36,12 +39,12 @@ export function RefreshButton({
         type="button"
         onClick={onRefresh}
         disabled={isFetching}
-        title={isFetching ? 'Atualizando...' : 'Atualizar dados'}
+        title={isFetching ? t('refresh.fetching') : t('refresh.title')}
         className={clsx(
           'flex items-center gap-2 border rounded-lg transition-all duration-200',
           compact ? 'p-2' : 'px-4 py-2',
           isFetching
-            ? 'opacity-80 cursor-wait border-nimbus-300 bg-nimbus-50 dark:bg-nimbus-900/20 text-nimbus-700'
+            ? 'opacity-80 cursor-wait border-brand-300 bg-brand-50 dark:bg-brand-900/20 text-brand-700'
             : 'hover:bg-gray-50 dark:hover:bg-dark-200 active:scale-95'
         )}
       >
@@ -49,12 +52,12 @@ export function RefreshButton({
           size={18}
           className={clsx(
             'transition-transform',
-            isFetching && 'animate-spin text-nimbus-600'
+            isFetching && 'animate-spin text-brand-600'
           )}
         />
         {!compact && (
           <span className="text-sm font-medium">
-            {isFetching ? 'Atualizando...' : label}
+            {isFetching ? t('refresh.fetching') : refreshLabel}
           </span>
         )}
       </button>

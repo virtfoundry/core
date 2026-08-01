@@ -27,4 +27,4 @@ We aim to acknowledge reports within 7 days.
 - Change default `ROOT_PASSWORD` and `JWT_SECRET` before any non-lab deployment
 - Use external MySQL with strong credentials when `mysql.enabled=false` in Helm
 - Restrict API ingress and enable TLS at the ingress controller
-- Run worker and API service accounts with least-privilege RBAC (review `virtforge-chart/kustomize/base/rbac.yaml`)
+- Run worker and API service accounts with least-privilege RBAC (review `virtforge-chart/charts/virtforge/templates/rbac.yaml`)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/virtforge-cloud/virtforge/internal/auth"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 )
 
@@ -27,7 +28,7 @@ func (s *Service) BootstrapRoot(username, password string) (*platform.User, erro
 		Username:     username,
 		Role:         platform.RoleRoot,
 		PasswordHash: hash,
-		Email:        username + "@nimbus.local",
+		Email:        username + "@" + branding.EmailDomain,
 		CreatedAt:    store.Now(),
 	}
 	s.store.SaveUser(u)

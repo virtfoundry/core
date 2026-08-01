@@ -13,10 +13,12 @@ import {
   scheduleHdDesktopSize,
   supportsDesktopResize,
 } from '../lib/console-display';
+import { useI18n } from '../lib/i18n';
 
 type Status = 'connecting' | 'connected' | 'error';
 
 export function VMConsole() {
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const name = params.get('name') ?? '';
   const namespace = params.get('namespace') ?? undefined;
@@ -84,12 +86,12 @@ export function VMConsole() {
       rfb.addEventListener('disconnect', (e: CustomEvent) => {
         if (cancelled || e.detail?.clean) return;
         setStatus('error');
-        setError(e.detail?.reason || 'Conexão VNC encerrada');
+        setError(e.detail?.reason || t('console.vncDisconnected'));
       });
       rfb.addEventListener('securityfailure', (e: CustomEvent) => {
         if (cancelled) return;
         setStatus('error');
-        setError(e.detail?.reason || 'Falha de autenticação VNC');
+        setError(e.detail?.reason || t('console.vncAuthFailed'));
       });
     });
 
@@ -118,7 +120,7 @@ export function VMConsole() {
       rfbRef.current?.disconnect();
       rfbRef.current = null;
     };
-  }, [name, namespace]);
+  }, [name, namespace, t]);
 
   if (!name) {
     return <Navigate to="/vms" replace />;
@@ -150,7 +152,7 @@ export function VMConsole() {
               to={`/vms/${encodeURIComponent(name)}`}
               className="btn-console-back shrink-0"
             >
-              <ArrowLeft size={16} /> Voltar
+              <ArrowLeft size={16} /> {t('console.back')}
             </Link>
             <div className="min-w-0 border-l border-slate-600 pl-3">
               <h1 className="font-semibold truncate text-white">Console — {name}</h1>
@@ -165,13 +167,13 @@ export function VMConsole() {
             {status === 'connecting' && (
               <span className="inline-flex items-center gap-1.5 text-sm text-amber-300 bg-amber-950/60 border border-amber-700/50 px-2.5 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                Conectando...
+                {t('console.connecting')}
               </span>
             )}
             {status === 'connected' && (
               <span className="inline-flex items-center gap-1.5 text-sm text-green-300 bg-green-950/60 border border-green-700/50 px-2.5 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-green-400" />
-                Conectado
+                {t('console.connected')}
               </span>
             )}
             {status === 'error' && (
@@ -184,7 +186,7 @@ export function VMConsole() {
 
         <div className="px-4 pb-2.5 flex flex-wrap items-center gap-2 bg-slate-700/30">
           <span className="text-[11px] uppercase tracking-wider text-slate-300 font-semibold flex items-center gap-1.5 mr-1 px-2 py-1 rounded-md bg-slate-700/80 border border-slate-500/50">
-            <Keyboard size={13} /> Comandos
+            <Keyboard size={13} /> {t('console.commands')}
           </span>
 
           {systemCommands.map((cmd) => (
@@ -219,7 +221,7 @@ export function VMConsole() {
             onClick={() => setPasteOpen((v) => !v)}
             className="btn-console"
           >
-            <ClipboardPaste size={14} /> Colar texto
+            <ClipboardPaste size={14} /> {t('console.pasteText')}
           </button>
 
           <details className="relative">
@@ -244,9 +246,11 @@ export function VMConsole() {
 
         {lowResWarning && status === 'connected' && (
           <div className="mx-4 mb-2 px-3 py-2 text-xs text-amber-200/90 bg-amber-950/50 border border-amber-700/40 rounded-lg">
-            Resolução baixa ({resolution}) — Cirros/VGA fica em 720×400; use Ubuntu ou Fedora para{' '}
-            {CONSOLE_HD.width}×{CONSOLE_HD.height}.
-            {!supportsDesktopResize(rfbRef.current) && ' Resize remoto indisponível nesta sessão.'}
+            {t('console.lowResWarning')
+              .replace('{resolution}', resolution ?? '—')
+              .replace('{width}', String(CONSOLE_HD.width))
+              .replace('{height}', String(CONSOLE_HD.height))}
+            {!supportsDesktopResize(rfbRef.current) && ` ${t('console.remoteResizeUnavailable')}`}
           </div>
         )}
 
@@ -255,9 +259,9 @@ export function VMConsole() {
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder="Cole ou digite o texto para enviar ao console..."
+              placeholder={t('console.pastePlaceholder')}
               rows={2}
-              className="flex-1 px-3 py-2 text-sm bg-slate-700 border border-slate-500 rounded-lg text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-nimbus-500/50"
+              className="flex-1 px-3 py-2 text-sm bg-slate-700 border border-slate-500 rounded-lg text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
             />
             <button
               type="button"
@@ -265,7 +269,7 @@ export function VMConsole() {
               onClick={handlePaste}
               className="btn-console-action"
             >
-              Enviar
+              {t('console.send')}
             </button>
           </div>
         )}
@@ -275,9 +279,9 @@ export function VMConsole() {
         <div ref={containerRef} className="console-viewport absolute inset-0" />
         {status === 'connecting' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-slate-300 text-sm pointer-events-none gap-2">
-            <span>Aguardando console VNC...</span>
+            <span>{t('console.waiting')}</span>
             <span className="text-xs text-slate-500">
-              Resolução alvo: {CONSOLE_HD.width}×{CONSOLE_HD.height}
+              {t('console.targetResolution')}: {CONSOLE_HD.width}×{CONSOLE_HD.height}
             </span>
           </div>
         )}

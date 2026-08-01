@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --ef-color: #EF7D00;
-  --ef-color-dark: #D66A00;
+  --brand-color: #2563eb;
+  --brand-color-dark: #1d4ed8;
 }
 
 body {
@@ -36,7 +36,7 @@ body {
   }
 
   .btn-primary {
-    @apply btn px-4 py-2 bg-nimbus-500 text-white hover:bg-nimbus-600 hover:shadow-sm;
+    @apply btn px-4 py-2 bg-brand-500 text-white hover:bg-brand-600 hover:shadow-sm;
   }
 
   .btn-secondary {
@@ -88,11 +88,11 @@ body {
   }
 
   .btn-ghost-brand {
-    @apply btn-ghost text-sm text-nimbus-600 hover:text-nimbus-700 hover:underline;
+    @apply btn-ghost text-sm text-brand-600 hover:text-brand-700 hover:underline;
   }
 
   .btn-tab {
-    @apply pb-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200 hover:text-nimbus-600;
+    @apply pb-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200 hover:text-brand-600;
   }
 
   .btn-sidebar {
@@ -124,10 +124,10 @@ body {
 
   .btn-console-action {
     @apply btn px-3 py-2 text-sm font-semibold
-      bg-nimbus-500 text-white
-      border border-nimbus-400
+      bg-brand-500 text-white
+      border border-brand-400
       shadow-sm shadow-black/20
-      hover:bg-nimbus-400 hover:border-nimbus-300 hover:shadow-md
+      hover:bg-brand-400 hover:border-brand-300 hover:shadow-md
       disabled:opacity-40;
   }
 

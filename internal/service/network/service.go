@@ -7,6 +7,7 @@ import (
 
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 	"github.com/virtforge-cloud/virtforge/internal/service/shared"
@@ -68,8 +69,8 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 	labels := platformk8s.NADLabels{
 		platformk8s.LabelTenantID: tenantID,
 		platformk8s.LabelVPCID:    vpcID,
-		"nimbus.io/vpc-name":      name,
-		"nimbus.io/network-role":  "default",
+		branding.LabelVPCName:     name,
+		branding.LabelNetworkRole: "default",
 	}
 	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, defaultNetCIDR, labels); err != nil {
 		return nil, nil, err
@@ -189,7 +190,7 @@ func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subn
 	labels := platformk8s.NADLabels{
 		platformk8s.LabelTenantID: tenantID,
 		platformk8s.LabelVPCID:    vpcID,
-		"nimbus.io/vpc-name":      vpc.Name,
+		branding.LabelVPCName: vpc.Name,
 	}
 	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, labels); err != nil {
 		return nil, err

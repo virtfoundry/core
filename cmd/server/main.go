@@ -14,6 +14,7 @@ import (
 	"github.com/virtforge-cloud/virtforge/internal/api/ws"
 	"github.com/virtforge-cloud/virtforge/internal/auth"
 	"github.com/virtforge-cloud/virtforge/internal/config"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
@@ -29,7 +30,7 @@ func main() {
 	cfg := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
 	log := logger.Get()
-	log.Info("starting Nimbus Cloud", zap.Int("port", cfg.Server.Port))
+	log.Info("starting VirtForge Cloud", zap.Int("port", cfg.Server.Port))
 
 	hub := ws.NewHub()
 
@@ -72,7 +73,7 @@ func main() {
 	if !repo.HasRootUser() {
 		rootPass := os.Getenv("ROOT_PASSWORD")
 		if rootPass == "" {
-			rootPass = "nimbus"
+			rootPass = branding.DefaultRootPassword
 		}
 		if _, err := platformSvc.BootstrapRoot("root", rootPass); err != nil {
 			log.Fatal("bootstrap root", zap.Error(err))
@@ -87,7 +88,7 @@ func main() {
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok","service":"nimbus-iaas","hypervisor":"kubevirt"}`))
+		w.Write([]byte(`{"status":"ok","service":"virtforge-iaas","hypervisor":"kubevirt"}`))
 	}).Methods("GET")
 
 	router.HandleFunc("/ws/events", func(w http.ResponseWriter, r *http.Request) {

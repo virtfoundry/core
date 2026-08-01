@@ -6,10 +6,12 @@ import { authService } from '../lib/auth';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { isVMTransitional } from '../hooks/useRealtimeEvents';
+import { useI18n } from '../lib/i18n';
 
 const pollOpts = { refetchInterval: 12_000 as const };
 
 export function Dashboard() {
+  const { t } = useI18n();
   const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
   const enabled = !needsTenant;
 
@@ -34,17 +36,17 @@ export function Dashboard() {
   const running = vms.filter((v) => v.state?.toLowerCase() === 'running').length;
 
   const stats = [
-    { label: 'VMs', value: vms.length, sub: `${running} running`, icon: Server, color: 'bg-blue-500' },
-    { label: 'Volumes', value: volData?.volumes?.length || 0, icon: HardDrive, color: 'bg-purple-500' },
-    { label: 'VPCs', value: vpcData?.vpcs?.length || 0, icon: Globe, color: 'bg-nimbus-500' },
-    { label: 'Security Groups', value: sgData?.security_groups?.length || 0, icon: Shield, color: 'bg-green-500' },
-    { label: 'Networks', value: netData?.networks?.length || 0, icon: Network, color: 'bg-indigo-500' },
+    { label: 'VMs', value: vms.length, sub: `${running} ${t('dashboard.running')}`, icon: Server, color: 'bg-blue-500' },
+    { label: t('nav.volumes'), value: volData?.volumes?.length || 0, icon: HardDrive, color: 'bg-purple-500' },
+    { label: t('nav.vpcs'), value: vpcData?.vpcs?.length || 0, icon: Globe, color: 'bg-brand-500' },
+    { label: t('nav.securityGroups'), value: sgData?.security_groups?.length || 0, icon: Shield, color: 'bg-green-500' },
+    { label: t('nav.networks'), value: netData?.networks?.length || 0, icon: Network, color: 'bg-indigo-500' },
   ];
 
   if (needsTenant) {
     return (
       <div className="text-center py-16 text-amber-600">
-        Selecione um tenant no header para ver o dashboard do ambiente.
+        {t('dashboard.selectTenant')}
       </div>
     );
   }
@@ -52,8 +54,8 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-500">Visão geral do tenant · sincronização automática</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.dashboard')}</h1>
+        <p className="text-gray-500">{t('dashboard.subtitle')}</p>
       </div>
 
       <RefreshingPanel isFetching={isFetching} isLoading={vmLoading}>
@@ -76,13 +78,13 @@ export function Dashboard() {
       </RefreshingPanel>
 
       <div className="bg-white dark:bg-dark-100 rounded-xl p-6 border">
-        <h3 className="font-semibold mb-4">Ações rápidas</h3>
+        <h3 className="font-semibold mb-4">{t('dashboard.quickActions')}</h3>
         <div className="flex flex-wrap gap-3">
           {[
-            { to: '/vms', label: 'Deploy VM' },
-            { to: '/volumes', label: 'Criar volume' },
-            { to: '/vpcs', label: 'Nova VPC' },
-            { to: '/snapshots', label: 'Snapshot' },
+            { to: '/vms', label: t('dashboard.deployVm') },
+            { to: '/volumes', label: t('dashboard.createVolume') },
+            { to: '/vpcs', label: t('dashboard.newVpc') },
+            { to: '/snapshots', label: t('dashboard.snapshot') },
           ].map((a) => (
             <Link key={a.to} to={a.to} className="btn-primary text-sm">
               {a.label}
@@ -93,4 +95,3 @@ export function Dashboard() {
     </div>
   );
 }
-

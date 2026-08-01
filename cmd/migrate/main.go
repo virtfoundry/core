@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/virtforge-cloud/virtforge/internal/config"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/migrate"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
@@ -36,7 +37,7 @@ func runCloudStack(args []string) {
 	dryRun := fs.Bool("dry-run", false, "Report only, do not create resources")
 	deployVMs := fs.Bool("deploy-vms", false, "Deploy VMs in KubeVirt (metadata-only by default)")
 	templateMap := fs.String("template-map", "", "Comma-separated template=image pairs")
-	rootPassword := fs.String("root-password", "nimbus", "Bootstrap root password if needed")
+	rootPassword := fs.String("root-password", branding.DefaultRootPassword, "Bootstrap root password if needed")
 	_ = fs.Parse(args)
 
 	if *dsn == "" {
@@ -102,7 +103,7 @@ func runCloudStack(args []string) {
 }
 
 func printReport(r *migrate.Report) {
-	fmt.Println("=== Nimbus CloudStack Migration ===")
+	fmt.Println("=== VirtForge CloudStack Migration ===")
 	fmt.Printf("Tenants:  %d\n", r.TenantsCreated)
 	fmt.Printf("VPCs:     %d\n", r.VPCsCreated)
 	fmt.Printf("Networks: %d\n", r.NetworksCreated)
@@ -144,7 +145,7 @@ func loadConfig() *config.Config {
 }
 
 func printUsage() {
-	fmt.Println(`Nimbus migration tool
+	fmt.Println(`VirtForge migration tool
 
 Usage:
   go run ./cmd/migrate cloudstack --dsn "user:pass@tcp(host:3306)/cloud" [options]
@@ -153,5 +154,5 @@ Options:
   --dry-run          Report counts without creating resources
   --deploy-vms       Recreate VMs in KubeVirt (requires kubeconfig)
   --template-map     e.g. "CentOS 7=quay.io/kubevirt/cirros-container-disk-demo"
-  --root-password    Root bootstrap password (default: nimbus)`)
+  --root-password    Root bootstrap password (default: virtforge)`)
 }

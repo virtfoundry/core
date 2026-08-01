@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -18,9 +19,9 @@ type TenantResources struct {
 func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug string, quota TenantQuotaSpec) (*TenantResources, error) {
 	nsName := TenantNamespace(slug)
 	labels := map[string]string{
-		LabelManagedBy: ManagedByValue,
-		LabelTenantID:  tenantID,
-		"nimbus.io/tenant-slug": slug,
+		LabelManagedBy:           ManagedByValue,
+		LabelTenantID:            tenantID,
+		branding.LabelTenantSlug: slug,
 	}
 
 	ns := &corev1.Namespace{
@@ -36,14 +37,14 @@ func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug stri
 
 	rq := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nimbus-quota",
+			Name:      branding.ResourceQuotaName,
 			Namespace: nsName,
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourcePods:   resource.MustParse(fmt.Sprintf("%d", quota.MaxVMs*2+10)),
-				corev1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", quota.CPULimit)),
-				corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dGi", quota.MemoryGiLimit)),
+				corev1.ResourcePods:                   resource.MustParse(fmt.Sprintf("%d", quota.MaxVMs*2+10)),
+				corev1.ResourceCPU:                    resource.MustParse(fmt.Sprintf("%d", quota.CPULimit)),
+				corev1.ResourceMemory:                 resource.MustParse(fmt.Sprintf("%dGi", quota.MemoryGiLimit)),
 				corev1.ResourcePersistentVolumeClaims: resource.MustParse(fmt.Sprintf("%d", quota.MaxVolumes)),
 			},
 		},

@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 )
 
 func (m *Manager) ApplySecurityGroup(ctx context.Context, namespace string, sg *platform.SecurityGroup) error {
@@ -76,13 +77,13 @@ func (m *Manager) ApplySecurityGroup(ctx context.Context, namespace string, sg *
 			Namespace: namespace,
 			Labels: map[string]string{
 				LabelManagedBy:       ManagedByValue,
-				"nimbus.io/sg-id":    sg.ID,
-				"nimbus.io/sg-name":  sg.Name,
+				branding.LabelSGID:   sg.ID,
+				branding.LabelSGName: sg.Name,
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{"nimbus.io/sg": sg.ID},
+				MatchLabels: map[string]string{branding.LabelSG: sg.ID},
 			},
 			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress},
 			Ingress:     ingress,

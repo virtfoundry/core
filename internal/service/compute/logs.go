@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+
 	logutil "github.com/virtforge-cloud/virtforge/internal/platform/logs"
 	"github.com/virtforge-cloud/virtforge/internal/service/shared"
 )
@@ -41,6 +43,6 @@ func (s *Service) LogExploreURL(tenantID, vmName string) string {
 	if tpl == "" {
 		return ""
 	}
-	query := fmt.Sprintf(`{nimbus_vm="%s",nimbus_tenant="%s"}`, vmName, tenantID)
+	query := fmt.Sprintf(`{%s="%s",%s="%s"}`, branding.LogLabelVM, vmName, branding.LogLabelTenant, tenantID)
 	return strings.NewReplacer("{query}", query, "{vm}", vmName, "{tenant}", tenantID).Replace(tpl)
 }

@@ -134,7 +134,7 @@ export function VMs() {
   if (needsTenant) {
     return (
       <div className="text-center py-12 text-amber-600">
-        Selecione um tenant no menu superior para gerenciar VMs.
+        {t('vms.selectTenant')}
       </div>
     );
   }
@@ -143,8 +143,8 @@ export function VMs() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Virtual Machines</h1>
-          <p className="text-gray-500">{vms.length} instâncias · atualização automática</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.vms')}</h1>
+          <p className="text-gray-500">{vms.length} {t('vms.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <RefreshButton
@@ -170,7 +170,7 @@ export function VMs() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nome, display name ou IP..."
+          placeholder={t('vms.searchPlaceholder')}
           className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white dark:bg-dark-100"
         />
       </div>
@@ -180,27 +180,27 @@ export function VMs() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-dark-200 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-3 font-medium">Nome</th>
-              <th className="text-left px-4 py-3 font-medium">Display name</th>
-              <th className="text-left px-4 py-3 font-medium">Estado</th>
+              <th className="text-left px-4 py-3 font-medium">{t('common.name')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('vms.col.displayName')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('common.state')}</th>
               <th className="text-left px-4 py-3 font-medium">IP</th>
               <th className="text-left px-4 py-3 font-medium">Zone</th>
               <th className="text-left px-4 py-3 font-medium">Host</th>
               <th className="text-left px-4 py-3 font-medium">Offering</th>
               <th className="text-left px-4 py-3 font-medium">Template</th>
-              <th className="text-right px-4 py-3 font-medium">Ações</th>
+              <th className="text-right px-4 py-3 font-medium">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-500">Carregando...</td></tr>
+              <tr><td colSpan={9} className="text-center py-12 text-gray-500">{t('common.loading')}</td></tr>
             ) : filteredVMs.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-500">Nenhuma VM no tenant</td></tr>
+              <tr><td colSpan={9} className="text-center py-12 text-gray-500">{t('vms.empty')}</td></tr>
             ) : (
               filteredVMs.map((vm: PlatformVM) => (
                 <tr key={vm.id || vm.name} className="border-t hover:bg-gray-50/80 dark:hover:bg-dark-200/50">
                   <td className="px-4 py-3">
-                    <Link to={`/vms/${vm.name}`} className="font-medium text-nimbus-600 hover:underline">
+                    <Link to={`/vms/${vm.name}`} className="font-medium text-brand-600 hover:underline">
                       {vm.name}
                     </Link>
                   </td>
@@ -218,11 +218,11 @@ export function VMs() {
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       {vm.state?.toLowerCase() === 'running' ? (
-                        <button onClick={() => stopMutation.mutate(vm.name)} className="btn-icon-warning" title="Parar">
+                        <button onClick={() => stopMutation.mutate(vm.name)} className="btn-icon-warning" title={t('vms.stop')}>
                           <Power size={16} />
                         </button>
                       ) : (
-                        <button onClick={() => startMutation.mutate(vm.name)} className="btn-icon-success" title="Iniciar">
+                        <button onClick={() => startMutation.mutate(vm.name)} className="btn-icon-success" title={t('vms.start')}>
                           <Play size={16} />
                         </button>
                       )}
@@ -242,7 +242,7 @@ export function VMs() {
                       >
                         <Camera size={16} />
                       </button>
-                      <button onClick={() => destroyMutation.mutate(vm.name)} className="btn-icon-danger" title="Destruir">
+                      <button onClick={() => destroyMutation.mutate(vm.name)} className="btn-icon-danger" title={t('vms.destroy')}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -255,10 +255,10 @@ export function VMs() {
       </div>
       </RefreshingPanel>
 
-      <Modal isOpen={deployModal} onClose={() => setDeployModal(false)} title="Nova virtual machine" size="lg">
+      <Modal isOpen={deployModal} onClose={() => setDeployModal(false)} title={t('vms.deployModalTitle')} size="lg">
         <form onSubmit={handleDeploy} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Nome</label>
+            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input
               type="text"
               required
@@ -271,7 +271,7 @@ export function VMs() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Imagem</label>
+              <label className="block text-sm font-medium mb-1">{t('common.image')}</label>
               <select
                 value={form.image}
                 onChange={(e) => {
@@ -301,7 +301,7 @@ export function VMs() {
           </div>
           {networks.length > 0 && (
             <div>
-              <label className="block text-sm font-medium mb-1">Redes privadas (opcional)</label>
+              <label className="block text-sm font-medium mb-1">{t('vms.privateNetworks')}</label>
               <select
                 multiple
                 value={form.network_ids}
@@ -315,36 +315,36 @@ export function VMs() {
                   <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">Segure Cmd/Ctrl para selecionar várias redes.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('vms.multiSelectHint')}</p>
             </div>
           )}
           {!isWindowsImage(form.image) && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1">Chave SSH (opcional)</label>
+                <label className="block text-sm font-medium mb-1">{t('vms.sshKeyOptional')}</label>
                 <select
                   value={form.ssh_key_id}
                   onChange={(e) => setForm({ ...form, ssh_key_id: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 >
-                  <option value="">— Nenhuma —</option>
+                  <option value="">{t('common.noneFem')}</option>
                   {sshKeys.map((k) => (
                     <option key={k.id} value={k.id}>{k.name} ({k.fingerprint})</option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {t('ssh.deployHint')}{' '}
-                  <Link to="/ssh-keys" className="text-nimbus-600 hover:underline">Gerenciar chaves</Link>
+                  <Link to="/ssh-keys" className="text-brand-600 hover:underline">{t('vms.manageKeys')}</Link>
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Volume de dados (opcional)</label>
+                <label className="block text-sm font-medium mb-1">{t('vms.dataVolumeOptional')}</label>
                 <select
                   value={form.data_volume_id}
                   onChange={(e) => setForm({ ...form, data_volume_id: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 >
-                  <option value="">— Nenhum —</option>
+                  <option value="">{t('common.none')}</option>
                   {volumes.map((v) => (
                     <option key={v.id} value={v.id}>{v.name} ({v.size_gi} Gi)</option>
                   ))}
@@ -358,7 +358,7 @@ export function VMs() {
                   onChange={(e) => setForm({ ...form, expose_ssh: e.target.checked })}
                   className="rounded border-gray-300"
                 />
-                Expor SSH via NodePort
+                {t('vms.exposeSsh')}
                 <span className="text-xs text-gray-500">({t('ssh.exposeHint')})</span>
               </label>
             </>
@@ -367,9 +367,9 @@ export function VMs() {
             <p className="text-red-500 text-sm">{(deployMutation.error as Error)?.message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setDeployModal(false)} className="btn-secondary">Cancelar</button>
+            <button type="button" onClick={() => setDeployModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" disabled={deployMutation.isPending} className="btn-primary">
-              {deployMutation.isPending ? 'Deploying...' : 'Deploy'}
+              {deployMutation.isPending ? t('common.deploying') : 'Deploy'}
             </button>
           </div>
         </form>
@@ -393,8 +393,8 @@ export function VMs() {
             className="w-full px-4 py-2 border rounded-lg"
           />
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setSnapshotModal(null)} className="btn-secondary">Cancelar</button>
-            <button type="submit" disabled={snapshotMutation.isPending} className="btn-primary">Criar</button>
+            <button type="button" onClick={() => setSnapshotModal(null)} className="btn-secondary">{t('common.cancel')}</button>
+            <button type="submit" disabled={snapshotMutation.isPending} className="btn-primary">{t('common.create')}</button>
           </div>
         </form>
       </Modal>

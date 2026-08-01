@@ -142,7 +142,7 @@ export function SSHKeys() {
             <div className="col-span-full text-center py-12">
               <Key size={48} className="mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500 mb-4">{t('ssh.empty')}</p>
-              <Link to="/vms" className="text-nimbus-600 hover:underline text-sm">
+              <Link to="/vms" className="text-brand-600 hover:underline text-sm">
                 → Deploy VM com chave SSH
               </Link>
             </div>
@@ -150,8 +150,8 @@ export function SSHKeys() {
             filtered.map((key: SSHKeyPair) => (
               <div key={key.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-nimbus-100 dark:bg-nimbus-900/30 rounded-lg flex items-center justify-center">
-                    <Key size={20} className="text-nimbus-600" />
+                  <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
+                    <Key size={20} className="text-brand-600" />
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-semibold truncate">{key.name}</h3>

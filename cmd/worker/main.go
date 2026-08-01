@@ -20,7 +20,7 @@ func main() {
 	cfg := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
 	log := logger.Get()
-	log.Info("starting Nimbus worker")
+	log.Info("starting VirtForge worker")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

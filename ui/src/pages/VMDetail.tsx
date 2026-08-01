@@ -8,6 +8,7 @@ import {
 import {
   getVM, updateVM, startVM, stopVM, deleteVM, createVMSnapshot,
   listVMSnapshots, fetchVMLogs, getVMSSH, exposeVMSSH, VM_SIZES,
+  type PlatformVM,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { openConsole } from '../lib/console-url';
@@ -29,11 +30,6 @@ function stateColor(state: string) {
   }
 }
 
-function fmtDate(v?: string) {
-  if (!v) return '—';
-  return new Date(v).toLocaleString('pt-BR');
-}
-
 function fmtMem(mi: number) {
   if (mi >= 1024) return `${(mi / 1024).toFixed(1)} GB`;
   return `${mi} MiB`;
@@ -45,7 +41,7 @@ export function VMDetail() {
   const { name = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [tab, setTab] = useState<Tab>('overview');
   const [snapshotModal, setSnapshotModal] = useState(false);
   const [snapshotName, setSnapshotName] = useState('');
@@ -139,15 +135,15 @@ export function VMDetail() {
   });
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">Selecione um tenant no menu superior.</div>;
+    return <div className="text-center py-12 text-amber-600">{t('vmDetail.selectTenant')}</div>;
   }
 
-  if (isLoading) return <div className="text-center py-12 text-gray-500">Carregando VM...</div>;
+  if (isLoading) return <div className="text-center py-12 text-gray-500">{t('vmDetail.loading')}</div>;
   if (error || !vm) {
     return (
       <div className="space-y-4">
-        <Link to="/vms" className="inline-flex items-center gap-2 text-nimbus-600"><ArrowLeft size={18} /> Voltar</Link>
-        <p className="text-red-600">{(error as Error)?.message || 'VM não encontrada'}</p>
+        <Link to="/vms" className="inline-flex items-center gap-2 text-brand-600"><ArrowLeft size={18} /> {t('common.back')}</Link>
+        <p className="text-red-600">{(error as Error)?.message || t('vmDetail.notFound')}</p>
       </div>
     );
   }
@@ -166,8 +162,8 @@ export function VMDetail() {
   const running = vm.state?.toLowerCase() === 'running';
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview', label: 'Visão geral' },
-    { id: 'networking', label: 'Rede' },
+    { id: 'overview', label: t('vmDetail.overview') },
+    { id: 'networking', label: t('vmDetail.networking') },
     ...(!isWindowsVM(vm) ? [{ id: 'ssh' as Tab, label: t('ssh.connectTitle') }] : []),
     { id: 'logs', label: 'Logs' },
     { id: 'snapshots', label: 'Snapshots' },
@@ -189,8 +185,8 @@ export function VMDetail() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link to="/vms" className="inline-flex items-center gap-2 text-sm text-nimbus-600 mb-2">
-            <ArrowLeft size={16} /> Virtual Machines
+          <Link to="/vms" className="inline-flex items-center gap-2 text-sm text-brand-600 mb-2">
+            <ArrowLeft size={16} /> {t('nav.vms')}
           </Link>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -213,11 +209,11 @@ export function VMDetail() {
           />
           {running ? (
             <button onClick={() => stopMutation.mutate()} className="btn-danger-soft">
-              <Power size={16} /> Parar
+              <Power size={16} /> {t('vms.stop')}
             </button>
           ) : (
             <button onClick={() => startMutation.mutate()} className="btn-success-soft">
-              <Play size={16} /> Iniciar
+              <Play size={16} /> {t('vms.start')}
             </button>
           )}
           <button
@@ -238,7 +234,7 @@ export function VMDetail() {
             onClick={() => deleteMutation.mutate()}
             className="btn-danger-outline"
           >
-            <Trash2 size={16} /> Destruir
+            <Trash2 size={16} /> {t('vms.destroy')}
           </button>
         </div>
       </div>
@@ -248,15 +244,15 @@ export function VMDetail() {
       )}
 
       <div className="border-b flex gap-6">
-        {tabs.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className={`btn-tab ${
-              tab === t.id ? 'border-nimbus-500 text-nimbus-600' : 'border-transparent text-gray-500'
+              tab === tabItem.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'
             }`}
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -265,7 +261,7 @@ export function VMDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white dark:bg-dark-100 rounded-xl border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Detalhes (CloudStack parity)</h2>
+              <h2 className="font-semibold">{t('vmDetail.detailsTitle')}</h2>
               {!editMode ? (
                 <button
                   onClick={() => {
@@ -277,18 +273,18 @@ export function VMDetail() {
                   }}
                   className="btn-ghost-brand"
                 >
-                  Editar
+                  {t('common.edit')}
                 </button>
               ) : (
                 <div className="flex gap-2">
-                  <button onClick={() => setEditMode(false)} className="btn-ghost-muted">Cancelar</button>
+                  <button onClick={() => setEditMode(false)} className="btn-ghost-muted">{t('common.cancel')}</button>
                   <button
                     onClick={() => updateMutation.mutate()}
                     disabled={updateMutation.isPending || !stopped}
                     className="btn-ghost-brand flex items-center gap-1 disabled:opacity-40"
-                    title={!stopped ? 'Pare a VM para redimensionar' : undefined}
+                    title={!stopped ? t('vmDetail.stopToResize') : undefined}
                   >
-                    <Save size={14} /> Salvar
+                    <Save size={14} /> {t('common.save')}
                   </button>
                 </div>
               )}
@@ -316,33 +312,33 @@ export function VMDetail() {
                     ))}
                   </select>
                   {!stopped && (
-                    <p className="text-xs text-amber-600 mt-1">Redimensionar exige VM parada.</p>
+                    <p className="text-xs text-amber-600 mt-1">{t('vmDetail.resizeRequiresStopped')}</p>
                   )}
                 </div>
               </div>
             ) : (
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
                 <div><dt className="text-gray-500">ID</dt><dd className="font-mono text-xs break-all">{vm.id}</dd></div>
-                <div><dt className="text-gray-500">Nome interno</dt><dd>{vm.name}</dd></div>
-                <div><dt className="text-gray-500">Display name</dt><dd>{vm.display_name || vm.name}</dd></div>
-                <div><dt className="text-gray-500">Estado</dt><dd>{vm.state}</dd></div>
-                <div><dt className="text-gray-500">Região</dt><dd>{vm.zone || '—'}</dd></div>
-                <div><dt className="text-gray-500">Host</dt><dd>{vm.host_name || '—'}</dd></div>
-                <div><dt className="text-gray-500">Plataforma</dt><dd>VirtForge Compute</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.internalName')}</dt><dd>{vm.name}</dd></div>
+                <div><dt className="text-gray-500">{t('vms.col.displayName')}</dt><dd>{vm.display_name || vm.name}</dd></div>
+                <div><dt className="text-gray-500">{t('common.state')}</dt><dd>{vm.state}</dd></div>
+                <div><dt className="text-gray-500">{t('common.region')}</dt><dd>{vm.zone || '—'}</dd></div>
+                <div><dt className="text-gray-500">{t('common.host')}</dt><dd>{vm.host_name || '—'}</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.platform')}</dt><dd>VirtForge Compute</dd></div>
                 <div><dt className="text-gray-500">Template</dt><dd>{vm.template || '—'}</dd></div>
-                <div><dt className="text-gray-500">Imagem</dt><dd className="font-mono text-xs break-all">{vm.image || '—'}</dd></div>
+                <div><dt className="text-gray-500">{t('common.image')}</dt><dd className="font-mono text-xs break-all">{vm.image || '—'}</dd></div>
                 <div><dt className="text-gray-500">vCPUs</dt><dd>{vm.cpu}</dd></div>
                 <div><dt className="text-gray-500">RAM</dt><dd>{fmtMem(vm.memory_mi)}</dd></div>
-                <div><dt className="text-gray-500">IP principal</dt><dd className="font-mono">{vm.ip || '—'}</dd></div>
-                <div><dt className="text-gray-500">Criada em</dt><dd>{fmtDate(vm.created_at)}</dd></div>
-                <div><dt className="text-gray-500">Atualizada em</dt><dd>{fmtDate(vm.updated_at)}</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.primaryIp')}</dt><dd className="font-mono">{vm.ip || '—'}</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.createdAt')}</dt><dd>{formatDate(vm.created_at)}</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.updatedAt')}</dt><dd>{formatDate(vm.updated_at)}</dd></div>
               </dl>
             )}
           </div>
           <div className="bg-white dark:bg-dark-100 rounded-xl border p-6">
-            <h2 className="font-semibold mb-4">Ações rápidas</h2>
+            <h2 className="font-semibold mb-4">{t('vmDetail.quickActions')}</h2>
             <p className="text-sm text-gray-500">
-              Estado sincronizado automaticamente via WebSocket — sem precisar atualizar a página.
+              {t('vmDetail.syncHint')}
             </p>
           </div>
         </div>
@@ -376,19 +372,19 @@ export function VMDetail() {
       {tab === 'ssh' && !isWindowsVM(vm) && (
         <div className="bg-white dark:bg-dark-100 rounded-xl border p-6 space-y-6 max-w-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-nimbus-100 rounded-lg flex items-center justify-center">
-              <Key size={20} className="text-nimbus-600" />
+            <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center">
+              <Key size={20} className="text-brand-600" />
             </div>
             <div>
               <h2 className="font-semibold">{t('ssh.connectTitle')}</h2>
-              <p className="text-sm text-gray-500">IP interno: {sshData?.vm_ip || vm.ip || '—'}</p>
+              <p className="text-sm text-gray-500">{t('vmDetail.internalIp')}: {sshData?.vm_ip || vm.ip || '—'}</p>
             </div>
           </div>
 
           {sshData?.exposed && sshData.node_port ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">Exposto</span>
+                <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{t('vmDetail.exposed')}</span>
                 <span className="text-sm">NodePort: <strong>{sshData.node_port}</strong></span>
               </div>
               <div>
@@ -403,8 +399,8 @@ export function VMDetail() {
                 </div>
               </div>
               <p className="text-xs text-gray-500">
-                Use a chave privada correspondente à chave pública injetada no deploy.
-                Gerencie chaves em <Link to="/ssh-keys" className="text-nimbus-600 hover:underline">Chaves SSH</Link>.
+                {t('vmDetail.sshKeyHint')}{' '}
+                <Link to="/ssh-keys" className="text-brand-600 hover:underline">{t('vmDetail.manageKeysLink')}</Link>.
               </p>
             </div>
           ) : (
@@ -419,7 +415,7 @@ export function VMDetail() {
                 {exposeSSHMutation.isPending ? t('common.loading') : t('ssh.expose')}
               </button>
               {!running && (
-                <p className="text-xs text-amber-600">A VM precisa estar Running com IP atribuído.</p>
+                <p className="text-xs text-amber-600">{t('vmDetail.vmMustBeRunning')}</p>
               )}
               {exposeSSHMutation.isError && (
                 <p className="text-red-500 text-sm">{(exposeSSHMutation.error as Error).message}</p>
@@ -457,14 +453,14 @@ export function VMDetail() {
       {tab === 'snapshots' && (
         <div className="bg-white dark:bg-dark-100 rounded-xl border overflow-hidden">
           {vmSnaps.length === 0 ? (
-            <p className="p-6 text-gray-500 text-sm">Nenhum snapshot desta VM.</p>
+            <p className="p-6 text-gray-500 text-sm">{t('vmDetail.noSnapshots')}</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-4 py-3">Nome</th>
-                  <th className="text-left px-4 py-3">Fase</th>
-                  <th className="text-left px-4 py-3">Criado</th>
+                  <th className="text-left px-4 py-3">{t('common.name')}</th>
+                  <th className="text-left px-4 py-3">{t('common.phase')}</th>
+                  <th className="text-left px-4 py-3">{t('common.created')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -472,7 +468,7 @@ export function VMDetail() {
                   <tr key={s.id} className="border-t">
                     <td className="px-4 py-3">{s.name}</td>
                     <td className="px-4 py-3">{s.phase}</td>
-                    <td className="px-4 py-3">{fmtDate(s.created_at)}</td>
+                    <td className="px-4 py-3">{formatDate(s.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -481,7 +477,7 @@ export function VMDetail() {
         </div>
       )}
 
-      <Modal isOpen={snapshotModal} onClose={() => setSnapshotModal(false)} title="Criar snapshot">
+      <Modal isOpen={snapshotModal} onClose={() => setSnapshotModal(false)} title={t('vmDetail.createSnapshot')}>
         <form
           onSubmit={(e) => { e.preventDefault(); snapshotMutation.mutate(); }}
           className="space-y-4"
@@ -492,12 +488,12 @@ export function VMDetail() {
             value={snapshotName}
             onChange={(e) => setSnapshotName(e.target.value.toLowerCase())}
             className="w-full px-4 py-2 border rounded-lg"
-            placeholder="nome-do-snapshot"
+            placeholder={t('vmDetail.snapshotPlaceholder')}
           />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setSnapshotModal(false)} className="btn-secondary">Cancelar</button>
+            <button type="button" onClick={() => setSnapshotModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" disabled={snapshotMutation.isPending} className="btn-primary">
-              Criar
+              {t('common.create')}
             </button>
           </div>
         </form>

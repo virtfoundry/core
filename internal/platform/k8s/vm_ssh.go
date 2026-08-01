@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	LabelVMSSH = "nimbus.io/vm-ssh"
+	LabelVMSSH = branding.LabelVMSSH
 )
 
 // EnsureVMSSHService exposes guest SSH via NodePort targeting the VM pod network IP.

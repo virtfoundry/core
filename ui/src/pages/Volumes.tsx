@@ -7,8 +7,10 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useI18n } from '../lib/i18n';
 
 export function Volumes() {
+  const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ name: '', size_gi: 10 });
@@ -35,27 +37,27 @@ export function Volumes() {
   const filtered = volumes.filter((v) => v.name?.toLowerCase().includes(search.toLowerCase()));
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">Selecione um tenant para gerenciar volumes.</div>;
+    return <div className="text-center py-12 text-amber-600">{t('volumes.selectTenant')}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Volumes</h1>
-          <p className="text-gray-500">{volumes.length} volumes no ambiente</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.volumes')}</h1>
+          <p className="text-gray-500">{volumes.length} {t('volumes.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> Criar Volume
+            <Plus size={18} /> {t('volumes.create')}
           </button>
         </div>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar volumes..."
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('volumes.searchPlaceholder')}
           className="w-full pl-10 pr-4 py-3 border rounded-lg" />
       </div>
 
@@ -64,23 +66,23 @@ export function Volumes() {
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-dark-200">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Volume</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Tamanho</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('volumes.col.volume')}</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('volumes.size')}</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('common.state')}</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">PVC</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {isLoading ? (
-              <tr><td colSpan={4} className="text-center py-8">Carregando...</td></tr>
+              <tr><td colSpan={4} className="text-center py-8">{t('common.loading')}</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-8 text-gray-500">Nenhum volume encontrado</td></tr>
+              <tr><td colSpan={4} className="text-center py-8 text-gray-500">{t('volumes.empty')}</td></tr>
             ) : (
               filtered.map((vol) => (
                 <tr key={vol.id} className="hover:bg-gray-50 dark:hover:bg-dark-200">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <HardDrive size={16} className="text-nimbus-500" />
+                      <HardDrive size={16} className="text-brand-500" />
                       <span className="font-medium">{vol.name}</span>
                     </div>
                   </td>
@@ -97,7 +99,7 @@ export function Volumes() {
       </div>
       </RefreshingPanel>
 
-      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Criar Volume (PVC)">
+      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('volumes.modalTitle')}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -106,13 +108,13 @@ export function Volumes() {
           className="space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium mb-1">Nome</label>
+            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input required pattern="[-a-z0-9]+" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
               className="w-full px-4 py-2 border rounded-lg" placeholder="data-disk-01" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Tamanho (Gi)</label>
+            <label className="block text-sm font-medium mb-1">{t('volumes.sizeGi')}</label>
             <input type="number" min={1} required value={form.size_gi}
               onChange={(e) => setForm({ ...form, size_gi: parseInt(e.target.value, 10) })}
               className="w-full px-4 py-2 border rounded-lg" />
@@ -121,9 +123,9 @@ export function Volumes() {
             <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">Cancelar</button>
+            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" disabled={createMutation.isPending} className="btn-primary">
-              {createMutation.isPending ? 'Criando...' : 'Criar'}
+              {createMutation.isPending ? t('common.creating') : t('common.create')}
             </button>
           </div>
         </form>

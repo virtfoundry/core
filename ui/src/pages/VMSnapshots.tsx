@@ -9,8 +9,10 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useI18n } from '../lib/i18n';
 
 export function VMSnapshots() {
+  const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ vm_name: '', name: '' });
@@ -67,38 +69,38 @@ export function VMSnapshots() {
   };
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">Selecione um tenant para gerenciar snapshots de VM.</div>;
+    return <div className="text-center py-12 text-amber-600">{t('vmSnapshots.selectTenant')}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">VM Snapshots</h1>
-          <p className="text-gray-500">{snapshots.length} snapshots de instância</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.vmSnapshots')}</h1>
+          <p className="text-gray-500">{snapshots.length} {t('vmSnapshots.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> Snapshot VM
+            <Plus size={18} /> {t('vmSnapshots.create')}
           </button>
         </div>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar snapshots..."
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('vmSnapshots.searchPlaceholder')}
           className="w-full pl-10 pr-4 py-3 border rounded-lg" />
       </div>
 
       <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <div className="col-span-full text-center py-12">Carregando...</div>
+          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <Camera size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Nenhum snapshot de VM</p>
+            <p className="text-gray-500">{t('vmSnapshots.empty')}</p>
           </div>
         ) : (
           filtered.map((snap) => (
@@ -121,7 +123,7 @@ export function VMSnapshots() {
                   disabled={restoreMutation.isPending || snap.phase !== 'ready'}
                   className="btn-action-row"
                 >
-                  <RotateCcw size={14} /> Restaurar
+                  <RotateCcw size={14} /> {t('vmSnapshots.restore')}
                 </button>
                 <button
                   onClick={() => deleteMutation.mutate({ name: snap.name })}
@@ -136,20 +138,20 @@ export function VMSnapshots() {
       </div>
       </RefreshingPanel>
 
-      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title="Snapshot de VM">
+      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('vmSnapshots.modalTitle')}>
         <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(form); }} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">VM</label>
             <select required value={form.vm_name} onChange={(e) => setForm({ ...form, vm_name: e.target.value })}
               className="w-full px-4 py-2 border rounded-lg">
-              <option value="">Selecione...</option>
+              <option value="">{t('common.select')}</option>
               {vms.map((v) => (
                 <option key={v.id || v.name} value={v.name}>{v.name} ({v.state})</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Nome do snapshot</label>
+            <label className="block text-sm font-medium mb-1">{t('vmSnapshots.snapshotName')}</label>
             <input required pattern="[-a-z0-9]+" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
               className="w-full px-4 py-2 border rounded-lg" placeholder="snap-before-upgrade" />
@@ -158,8 +160,8 @@ export function VMSnapshots() {
             <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">Cancelar</button>
-            <button type="submit" disabled={createMutation.isPending} className="btn-primary">Criar</button>
+            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
+            <button type="submit" disabled={createMutation.isPending} className="btn-primary">{t('common.create')}</button>
           </div>
         </form>
       </Modal>

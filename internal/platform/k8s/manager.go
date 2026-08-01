@@ -3,6 +3,7 @@ package k8s
 import (
 	"fmt"
 
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -11,10 +12,10 @@ import (
 )
 
 const (
-	LabelManagedBy = "nimbus.io/managed-by"
-	LabelTenantID  = "nimbus.io/tenant-id"
-	LabelVPCID     = "nimbus.io/vpc-id"
-	ManagedByValue = "nimbus-iaas"
+	LabelManagedBy = branding.LabelManagedBy
+	LabelTenantID  = branding.LabelTenantID
+	LabelVPCID     = branding.LabelVPCID
+	ManagedByValue = branding.ManagedByValue
 )
 
 type Manager struct {
@@ -65,9 +66,9 @@ func NewManager(opts Options) (*Manager, error) {
 }
 
 func TenantNamespace(slug string) string {
-	return "nimbus-tenant-" + slug
+	return branding.TenantNamespacePrefix + slug
 }
 
 func VPCNamespace(tenantSlug, vpcID string) string {
-	return fmt.Sprintf("nimbus-vpc-%s-%s", tenantSlug, vpcID[:8])
+	return fmt.Sprintf("%s%s-%s", branding.VPCNamespacePrefix, tenantSlug, vpcID[:8])
 }

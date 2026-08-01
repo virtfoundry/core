@@ -179,7 +179,7 @@ func (r *CloudStackReader) ListNetworks(ctx context.Context) ([]CloudStackNetwor
 	return nil, nil // networks optional
 }
 
-// ImportCloudStack imports CloudStack metadata into Nimbus via PlatformService.
+// ImportCloudStack imports CloudStack metadata into VirtForge via PlatformService.
 func ImportCloudStack(ctx context.Context, reader *CloudStackReader, svc *service.PlatformService, opts Options) (*Report, error) {
 	report := &Report{}
 

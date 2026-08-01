@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 export interface CIDRBlock {
   cidr: string;
@@ -28,6 +29,7 @@ export function CIDRPicker({
   loading,
   customPlaceholder = '10.0.0.0/16',
 }: CIDRPickerProps) {
+  const { t } = useI18n();
   const selectedAuto = autoValue || suggestions.find((s) => s.available)?.cidr || '';
 
   return (
@@ -42,7 +44,7 @@ export function CIDRPicker({
               if (selectedAuto) onChange(selectedAuto);
             }}
           />
-          Alocação automática (recomendado)
+          {t('cidr.autoAllocation')}
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -50,21 +52,21 @@ export function CIDRPicker({
             checked={mode === 'custom'}
             onChange={() => onModeChange('custom')}
           />
-          Intervalo personalizado
+          {t('cidr.customRange')}
         </label>
       </div>
 
       {mode === 'auto' ? (
         <div className="rounded-lg border bg-gray-50 dark:bg-dark-200 px-4 py-3">
           {loading ? (
-            <p className="text-sm text-gray-500">Calculando intervalo livre...</p>
+            <p className="text-sm text-gray-500">{t('cidr.calculating')}</p>
           ) : selectedAuto ? (
             <p className="font-mono text-sm">
-              <span className="text-gray-500">Será usado: </span>
+              <span className="text-gray-500">{t('cidr.willUse')} </span>
               {selectedAuto}
             </p>
           ) : (
-            <p className="text-sm text-amber-600">Nenhum bloco livre encontrado — use personalizado.</p>
+            <p className="text-sm text-amber-600">{t('cidr.noFreeBlocks')}</p>
           )}
         </div>
       ) : (
@@ -78,7 +80,7 @@ export function CIDRPicker({
           />
           {suggestions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Sugestões disponíveis</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">{t('cidr.suggestions')}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {suggestions.map((block) => (
                   <button
@@ -102,7 +104,7 @@ export function CIDRPicker({
                     <span>
                       <span className="font-mono block">{block.cidr}</span>
                       <span className="text-xs text-gray-500">
-                        {block.available ? block.label : block.reason || 'indisponível'}
+                        {block.available ? block.label : block.reason || t('common.unavailable')}
                       </span>
                     </span>
                   </button>
@@ -124,9 +126,11 @@ interface SubnetPrefixSelectProps {
 const SUBNET_PREFIXES = [24, 25, 26, 27, 28];
 
 export function SubnetPrefixSelect({ prefix, onChange }: SubnetPrefixSelectProps) {
+  const { t } = useI18n();
+
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">Tamanho da sub-rede</label>
+      <label className="block text-sm font-medium mb-1">{t('cidr.subnetSize')}</label>
       <select
         value={prefix}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -134,7 +138,7 @@ export function SubnetPrefixSelect({ prefix, onChange }: SubnetPrefixSelectProps
       >
         {SUBNET_PREFIXES.map((p) => (
           <option key={p} value={p}>
-            /{p} ({Math.pow(2, 32 - p) - 2} endereços utilizáveis)
+            /{p} ({Math.pow(2, 32 - p) - 2} {t('cidr.usableAddresses')})
           </option>
         ))}
       </select>

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/virtforge-cloud/virtforge/internal/platform/cloudinit"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -142,7 +143,7 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 
 	networks, ifaces, defaultNet := buildNetworks(spec.Networks)
 	annotations := map[string]string{
-		"app.kubernetes.io/managed-by": "nimbus-iaas",
+		"app.kubernetes.io/managed-by": branding.ManagedByValue,
 	}
 	if defaultNet != "" {
 		annotations["v1.multus-cni.io/default-network"] = defaultNet
@@ -163,7 +164,7 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        spec.Name,
 			Namespace:   ns,
-			Labels:      map[string]string{"app.kubernetes.io/managed-by": "nimbus-iaas", "nimbus.io/os": strings.ToLower(spec.OSType)},
+			Labels:      map[string]string{branding.AppManagedByKey: branding.ManagedByValue, branding.LabelOS: strings.ToLower(spec.OSType)},
 			Annotations: annotations,
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
@@ -172,8 +173,8 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"kubevirt.io/domain":   spec.Name,
-						"nimbus.io/vm":         spec.Name,
-						"nimbus.io/log-source": "velas",
+						branding.LabelVM:         spec.Name,
+						branding.LabelLogSource: "velas",
 					},
 				},
 				Spec: vmiSpec,
@@ -322,7 +323,7 @@ func (d *KubeVirtDriver) GetClusterInfo(ctx context.Context) (*ClusterInfo, erro
 	}
 
 	return &ClusterInfo{
-		Name:        "nimbus-kubevirt",
+		Name:        branding.KubeVirtSecretName,
 		Hypervisor:  "KubeVirt",
 		State:       state,
 		NodeCount:   len(nodes),
@@ -580,8 +581,8 @@ func (d *KubeVirtDriver) CreateVMSnapshot(ctx context.Context, vmName, snapName 
 			Name:      snapName,
 			Namespace: ns,
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "nimbus-iaas",
-				"nimbus.io/vm":                 vmName,
+				"app.kubernetes.io/managed-by": branding.ManagedByValue,
+				branding.LabelVM: vmName,
 			},
 		},
 		Spec: snapshotv1.VirtualMachineSnapshotSpec{
@@ -602,7 +603,7 @@ func (d *KubeVirtDriver) CreateVMSnapshot(ctx context.Context, vmName, snapName 
 
 func (d *KubeVirtDriver) ListVMSnapshots(ctx context.Context) ([]VMSnapshotInfo, error) {
 	list, err := d.virtClient.VirtualMachineSnapshot(d.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/managed-by=nimbus-iaas",
+		LabelSelector: branding.AppManagedByKey + "=" + branding.ManagedByValue,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list vm snapshots: %w", err)
@@ -621,7 +622,7 @@ func (d *KubeVirtDriver) ListVMSnapshots(ctx context.Context) ([]VMSnapshotInfo,
 			}
 		}
 		if item.Labels != nil {
-			info.VMName = item.Labels["nimbus.io/vm"]
+			info.VMName = item.Labels[branding.LabelVM]
 		}
 		out = append(out, info)
 	}
@@ -644,7 +645,7 @@ func (d *KubeVirtDriver) RestoreVMSnapshot(ctx context.Context, snapName, target
 			Name:      snapName + "-restore",
 			Namespace: ns,
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "nimbus-iaas",
+				"app.kubernetes.io/managed-by": branding.ManagedByValue,
 			},
 		},
 		Spec: snapshotv1.VirtualMachineRestoreSpec{
