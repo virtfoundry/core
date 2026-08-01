@@ -16,5 +16,7 @@ ui/dist/
 .DS_Store
 .idea/
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 *.log

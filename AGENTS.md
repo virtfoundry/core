@@ -6,6 +6,7 @@ Cursor rules (optional, local): `.cursor/rules/`. This project is open source un
 
 | File | Scope |
 |------|-------|
+| `feature-branch-workflow.mdc` | Branch per feature, homelab validation, merge after approval |
 | `virtforge-project.mdc` | Project context, stack, multi-tenant model, OSS conventions |
 | `go-backend.mdc` | `**/*.go` — handler/service/store layers |
 | `react-ui.mdc` | `ui/**/*.{tsx,ts}` — TanStack Query, query-keys, realtime |
@@ -41,4 +42,5 @@ Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`config/README.md`](con
 - Couple handlers directly to `store.Memory` or MySQL — use `store.Repository`
 - Hardcode query keys in the UI — use `lib/query-keys.ts`
 - Add K8s manifests or Helm values here — they belong in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)
+- Commit features directly to `main` — use a feature branch, validate on homelab, merge after approval (see CONTRIBUTING.md)
 - Reference employer-specific projects, paths, or secrets in public docs or commits

@@ -33,6 +33,17 @@ cd ui && npm install && npm run build
 
 Cluster deploy and homelab testing: [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) (`make deploy-homelab`).
 
+## Branch workflow
+
+**Do not commit directly to `main`.** Every feature or fix uses its own branch:
+
+1. Branch from `main`: `feat/<name>`, `fix/<name>`, or `chore/<name>`
+2. Implement + local tests (`go test ./...`, UI build if touched)
+3. Deploy and validate on **homelab** before opening a PR
+4. Open PR → maintainer reviews and tests on homelab → **merge only after approval**
+
+Cross-repo changes: use the same branch name in `virtforge` and `virtforge-chart` when both are needed.
+
 ## Pull request process
 
 1. Fork `virtforge-cloud/virtforge` and create a feature branch

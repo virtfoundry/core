@@ -1,0 +1,30 @@
+---
+description: Feature branch workflow — one branch per feature, homelab validation before merge
+alwaysApply: true
+---
+
+# Feature branch workflow
+
+Every feature or fix must follow this flow. Do **not** commit directly to `main`.
+
+## Branch
+
+1. Create a branch from `main`: `feat/<short-name>`, `fix/<short-name>`, or `chore/<short-name>`
+2. Keep scope focused (one feature per branch)
+3. Commits: English, [Conventional Commits](https://www.conventionalcommits.org/)
+
+## Validation
+
+1. Run local tests (`go test ./...`, UI build if touched)
+2. Deploy and test on **homelab** via virtforge-chart `make deploy-homelab` before opening a PR
+3. Document what was tested in the PR body
+
+## Merge
+
+1. Open a PR to `main` — do **not** merge without maintainer approval
+2. Maintainer validates on homelab and approves merge
+3. After merge: CI builds images; chart tag `v*` publishes to GitHub Pages when chart changes
+
+## Cross-repo features
+
+When virtforge app and chart change together, use the same branch name in both repos and deploy from the chart repo with sibling `../virtforge` checkout.
