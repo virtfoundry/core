@@ -58,7 +58,9 @@ export interface Network {
   id: string;
   name: string;
   cidr: string;
-  vpc_id: string;
+  vpc_id?: string;
+  network_type?: 'isolated' | 'shared';
+  gateway?: string;
   state: string;
 }
 

@@ -68,6 +68,10 @@ const dict = {
     'login.invalidCredentials': 'Credenciais inválidas',
     'login.managedVms': 'VMs Gerenciadas',
     'login.support': 'Suporte',
+    'login.tagline': 'Plataforma Cloud',
+    'login.uptimeSla': 'SLA de disponibilidade',
+    'login.version': 'VirtForge Cloud v1.0.0',
+    'login.usernamePlaceholder': 'admin',
     'dashboard.selectTenant': 'Selecione um tenant no header para ver o dashboard do ambiente.',
     'dashboard.subtitle': 'Visão geral do tenant · sincronização automática',
     'dashboard.quickActions': 'Ações rápidas',
@@ -190,6 +194,14 @@ const dict = {
     'networks.defaultHint': 'Criada automaticamente com a VPC — necessária para conectar VMs (padrão GCP).',
     'networks.emptyHint': 'Crie uma VPC primeiro — cada VPC provisiona uma sub-rede padrão automaticamente.',
     'networks.deleteTitle': 'Remover sub-rede',
+    'networks.platformSection': 'Redes da plataforma',
+    'networks.tenantSection': 'Sub-redes (VPC)',
+    'networks.typeShared': 'Compartilhada',
+    'networks.typeIsolated': 'Isolada',
+    'networks.platformScope': 'Plataforma · Shared',
+    'networks.sharedHint': 'Rede pública configurada via Helm — pool IP gerenciado pela plataforma. Somente leitura.',
+    'networks.publicAvailableHint': 'A rede pública já está disponível para VMs. Crie uma VPC para adicionar sub-redes isoladas.',
+    'networks.vpcLabel': 'VPC: {name}',
     'sg.title': 'Grupos de Segurança',
     'sg.subtitle': 'regras de firewall',
     'sg.create': 'Criar Grupo',
@@ -293,6 +305,10 @@ const dict = {
     'login.invalidCredentials': 'Invalid credentials',
     'login.managedVms': 'Managed VMs',
     'login.support': 'Support',
+    'login.tagline': 'Cloud Platform',
+    'login.uptimeSla': 'Uptime SLA',
+    'login.version': 'VirtForge Cloud v1.0.0',
+    'login.usernamePlaceholder': 'admin',
     'dashboard.selectTenant': 'Select a tenant in the header to view the environment dashboard.',
     'dashboard.subtitle': 'Tenant overview · automatic sync',
     'dashboard.quickActions': 'Quick actions',
@@ -415,6 +431,14 @@ const dict = {
     'networks.defaultHint': 'Auto-created with the VPC — required to attach VMs (GCP-style).',
     'networks.emptyHint': 'Create a VPC first — each VPC auto-provisions a default subnet.',
     'networks.deleteTitle': 'Delete subnet',
+    'networks.platformSection': 'Platform networks',
+    'networks.tenantSection': 'Subnets (VPC)',
+    'networks.typeShared': 'Shared',
+    'networks.typeIsolated': 'Isolated',
+    'networks.platformScope': 'Platform · Shared',
+    'networks.sharedHint': 'Public network configured via Helm — IP pool managed by the platform. Read-only.',
+    'networks.publicAvailableHint': 'The public network is already available for VMs. Create a VPC to add isolated subnets.',
+    'networks.vpcLabel': 'VPC: {name}',
     'sg.title': 'Security Groups',
     'sg.subtitle': 'firewall rules',
     'sg.create': 'Create Group',
@@ -511,21 +535,23 @@ export function useI18n() {
   return ctx;
 }
 
-export function LanguageToggle() {
+export function LanguageToggle({ onDark = false }: { onDark?: boolean }) {
   const { locale, setLocale, t } = useI18n();
+  const inactive = onDark ? 'text-white/80 hover:bg-white/10' : 'hover:bg-gray-100';
+  const active = onDark ? 'bg-white text-brand-700' : 'bg-brand-500 text-white';
   return (
-    <div className="flex rounded-lg border overflow-hidden text-sm">
+    <div className={`flex rounded-lg border overflow-hidden text-sm ${onDark ? 'border-white/30' : ''}`}>
       <button
         type="button"
         onClick={() => setLocale('pt')}
-        className={`px-3 py-1.5 ${locale === 'pt' ? 'bg-brand-500 text-white' : 'hover:bg-gray-100'}`}
+        className={`px-3 py-1.5 ${locale === 'pt' ? active : inactive}`}
       >
         {t('lang.pt')}
       </button>
       <button
         type="button"
         onClick={() => setLocale('en')}
-        className={`px-3 py-1.5 ${locale === 'en' ? 'bg-brand-500 text-white' : 'hover:bg-gray-100'}`}
+        className={`px-3 py-1.5 ${locale === 'en' ? active : inactive}`}
       >
         {t('lang.en')}
       </button>

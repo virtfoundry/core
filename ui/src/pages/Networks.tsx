@@ -13,10 +13,114 @@ import { CIDRPicker, SubnetPrefixSelect } from '../components/CIDRPicker';
 import { ResourceActions } from '../components/ResourceActions';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
-import { useI18n } from '../lib/i18n';
-import type { Network } from '../lib/platform-api';
+import { useI18n, type TranslationKey } from '../lib/i18n';
+import type { Network, VPC } from '../lib/platform-api';
 
 type DeleteTarget = { id: string; name: string };
+
+function isSharedNetwork(net: Network) {
+  return net.network_type === 'shared';
+}
+
+function NetworkCard({
+  net,
+  vpcs,
+  onEdit,
+  onDelete,
+  t,
+}: {
+  net: Network;
+  vpcs: VPC[];
+  onEdit: (net: Network) => void;
+  onDelete: (target: DeleteTarget) => void;
+  t: (key: TranslationKey) => string;
+}) {
+  const shared = isSharedNetwork(net);
+  const vpc = vpcs.find((v) => v.id === net.vpc_id);
+  const scopeLabel = shared
+    ? t('networks.platformScope')
+    : vpc
+      ? t('networks.vpcLabel').replace('{name}', vpc.name)
+      : t('networks.typeIsolated');
+
+  return (
+    <div className="bg-white dark:bg-dark-100 rounded-xl border p-5 hover:shadow-lg transition">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            shared ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
+          }`}>
+            <NetworkIcon size={20} className={shared ? 'text-purple-500' : 'text-blue-500'} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold">{net.name}</h3>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                shared
+                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+              }`}>
+                {shared ? t('networks.typeShared') : t('networks.typeIsolated')}
+              </span>
+              {!shared && net.name === 'default' && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  {t('networks.defaultBadge')}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500">{scopeLabel}</p>
+          </div>
+        </div>
+        <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{net.state}</span>
+      </div>
+      {shared ? (
+        <p className="text-xs text-gray-500 mb-3">{t('networks.sharedHint')}</p>
+      ) : net.name === 'default' ? (
+        <p className="text-xs text-gray-500 mb-3">{t('networks.defaultHint')}</p>
+      ) : null}
+      <div className="text-sm">
+        <p className="text-gray-500">{t('networks.cidr')}</p>
+        <p className="font-medium font-mono">{net.cidr}</p>
+      </div>
+      {!shared && (
+        <ResourceActions
+          editLabel={t('common.edit')}
+          deleteLabel={t('common.delete')}
+          onEdit={() => onEdit(net)}
+          onDelete={() => onDelete({ id: net.id, name: net.name })}
+        />
+      )}
+    </div>
+  );
+}
+
+function NetworkSection({
+  title,
+  networks,
+  vpcs,
+  onEdit,
+  onDelete,
+  t,
+}: {
+  title: string;
+  networks: Network[];
+  vpcs: VPC[];
+  onEdit: (net: Network) => void;
+  onDelete: (target: DeleteTarget) => void;
+  t: (key: TranslationKey) => string;
+}) {
+  if (networks.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {networks.map((net) => (
+          <NetworkCard key={net.id} net={net} vpcs={vpcs} onEdit={onEdit} onDelete={onDelete} t={t} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function Networks() {
   const { t } = useI18n();
@@ -90,6 +194,9 @@ export function Networks() {
   const networks = data?.networks ?? [];
   const vpcs = vpcData?.vpcs ?? [];
   const filtered = networks.filter((n) => n.name?.toLowerCase().includes(search.toLowerCase()));
+  const sharedNetworks = filtered.filter(isSharedNetwork);
+  const isolatedNetworks = filtered.filter((n) => !isSharedNetwork(n));
+  const hasSharedNetwork = networks.some(isSharedNetwork);
 
   if (needsTenant) {
     return <div className="text-center py-12 text-amber-600">{t('common.selectTenant')}</div>;
@@ -121,8 +228,14 @@ export function Networks() {
 
       {vpcs.length === 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          {t('networks.emptyHint')}{' '}
-          <Link to="/vpcs" className="font-medium underline">{t('vpcs.create')}</Link>
+          {hasSharedNetwork ? (
+            t('networks.publicAvailableHint')
+          ) : (
+            <>
+              {t('networks.emptyHint')}{' '}
+              <Link to="/vpcs" className="font-medium underline">{t('vpcs.create')}</Link>
+            </>
+          )}
         </div>
       )}
 
@@ -133,56 +246,34 @@ export function Networks() {
       </div>
 
       <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
+          <div className="text-center py-12">{t('common.loading')}</div>
         ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12">
+          <div className="text-center py-12">
             <NetworkIcon size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500">{t('networks.empty')}</p>
             <p className="text-sm text-gray-400 mt-2 max-w-md mx-auto">{t('networks.emptyHint')}</p>
           </div>
         ) : (
-          filtered.map((net) => (
-            <div key={net.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5 hover:shadow-lg transition">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                    <NetworkIcon size={20} className="text-blue-500" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold">{net.name}</h3>
-                      {net.name === 'default' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                          {t('networks.defaultBadge')}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      {vpcs.find((v) => v.id === net.vpc_id)?.name || 'VPC'}
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{net.state}</span>
-              </div>
-              {net.name === 'default' && (
-                <p className="text-xs text-gray-500 mb-3">{t('networks.defaultHint')}</p>
-              )}
-              <div className="text-sm">
-                <p className="text-gray-500">{t('networks.cidr')}</p>
-                <p className="font-medium font-mono">{net.cidr}</p>
-              </div>
-              <ResourceActions
-                editLabel={t('common.edit')}
-                deleteLabel={t('common.delete')}
-                onEdit={() => setEditNet(net)}
-                onDelete={() => setDeleteTarget({ id: net.id, name: net.name })}
-              />
-            </div>
-          ))
+          <div className="space-y-8">
+            <NetworkSection
+              title={t('networks.platformSection')}
+              networks={sharedNetworks}
+              vpcs={vpcs}
+              onEdit={setEditNet}
+              onDelete={setDeleteTarget}
+              t={t}
+            />
+            <NetworkSection
+              title={t('networks.tenantSection')}
+              networks={isolatedNetworks}
+              vpcs={vpcs}
+              onEdit={setEditNet}
+              onDelete={setDeleteTarget}
+              t={t}
+            />
+          </div>
         )}
-      </div>
       </RefreshingPanel>
 
       <ConfirmDialog
