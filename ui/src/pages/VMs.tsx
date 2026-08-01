@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Play, Trash2, Plus, Search, Power, Monitor, Camera } from 'lucide-react';
 import {
   listVMs, startVM, stopVM, deleteVM, deployVM, createVMSnapshot, listNetworks,
-  listSSHKeys, listVolumes, VM_IMAGES, VM_SIZES, VM_WINDOWS_IMAGES,
+  listSSHKeys, listVolumes, listSecurityGroups, VM_IMAGES, VM_SIZES, VM_WINDOWS_IMAGES,
   PlatformVM,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
@@ -15,7 +15,7 @@ import { isVMTransitional } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
-import { isIsolatedNetwork, isPublicNetwork } from '../lib/networks';
+import { isIsolatedNetwork } from '../lib/networks';
 
 function stateColor(state: string) {
   switch (state?.toLowerCase()) {
@@ -50,7 +50,9 @@ export function VMs() {
     name: '',
     image: VM_IMAGES[0].image,
     offering: 'small',
+    network_mode: 'private' as 'private' | 'public',
     network_ids: [] as string[],
+    security_group_id: '',
     ssh_key_id: '',
     data_volume_id: '',
     expose_ssh: false,
@@ -72,9 +74,14 @@ export function VMs() {
     queryFn: listVolumes,
     enabled: !needsTenant && deployModal,
   });
+  const { data: sgData } = useQuery({
+    queryKey: queryKeys.securityGroups,
+    queryFn: listSecurityGroups,
+    enabled: !needsTenant && deployModal,
+  });
   const networks = netData?.networks || [];
   const privateNetworks = networks.filter(isIsolatedNetwork);
-  const hasPublicNetwork = networks.some(isPublicNetwork);
+  const securityGroups = sgData?.security_groups || [];
   const sshKeys = sshData?.ssh_keys || [];
   const volumes = volData?.volumes || [];
 
@@ -107,7 +114,11 @@ export function VMs() {
     onSuccess: () => {
       invalidate();
       setDeployModal(false);
-      setForm({ name: '', image: VM_IMAGES[0].image, offering: 'small', network_ids: [], ssh_key_id: '', data_volume_id: '', expose_ssh: false });
+      setForm({
+        name: '', image: VM_IMAGES[0].image, offering: 'small',
+        network_mode: 'private', network_ids: [], security_group_id: '',
+        ssh_key_id: '', data_volume_id: '', expose_ssh: false,
+      });
     },
   });
 
@@ -122,12 +133,22 @@ export function VMs() {
     e.preventDefault();
     const size = VM_SIZES.find((s) => s.id === form.offering) || VM_SIZES[0];
     const linux = !isWindowsImage(form.image);
+    const isPublic = form.network_mode === 'public';
+
+    if (!isPublic && form.network_ids.length === 0) {
+      return;
+    }
+    if (isPublic && !form.security_group_id) {
+      return;
+    }
+
     deployMutation.mutate({
       name: form.name,
       image: form.image,
       cpu: size.cpu,
       memory_mi: size.memory_mi,
       ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
+      ...(isPublic ? { public_ip: true, security_group_ids: [form.security_group_id] } : {}),
       ...(linux && form.ssh_key_id ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
       ...(linux && form.expose_ssh ? { expose_ssh: true } : {}),
@@ -302,31 +323,95 @@ export function VMs() {
               </select>
             </div>
           </div>
-          {hasPublicNetwork && (
-            <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-900">
-              <p className="font-medium">{t('vms.publicNetworkDefault')}</p>
-              <p className="text-xs mt-1 text-purple-800">{t('vms.publicNetworkDefaultHint')}</p>
+          <div className="space-y-3 rounded-lg border p-4">
+            <label className="block text-sm font-medium">{t('vms.networkMode')}</label>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${form.network_mode === 'private' ? 'border-brand-500 bg-brand-50' : ''}`}>
+                <input
+                  type="radio"
+                  name="network_mode"
+                  className="mr-2"
+                  checked={form.network_mode === 'private'}
+                  onChange={() => setForm({ ...form, network_mode: 'private', security_group_id: '' })}
+                />
+                <span className="font-medium">{t('vms.networkModePrivate')}</span>
+                <p className="text-xs text-gray-500 mt-1 ml-5">{t('vms.networkModePrivateHint')}</p>
+              </label>
+              <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${form.network_mode === 'public' ? 'border-brand-500 bg-brand-50' : ''}`}>
+                <input
+                  type="radio"
+                  name="network_mode"
+                  className="mr-2"
+                  checked={form.network_mode === 'public'}
+                  onChange={() => setForm({ ...form, network_mode: 'public' })}
+                />
+                <span className="font-medium">{t('vms.networkModePublic')}</span>
+                <p className="text-xs text-gray-500 mt-1 ml-5">{t('vms.networkModePublicHint')}</p>
+              </label>
             </div>
-          )}
-          {privateNetworks.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium mb-1">{t('vms.privateNetworks')}</label>
-              <select
-                multiple
-                value={form.network_ids}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                  setForm({ ...form, network_ids: selected });
-                }}
-                className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
-              >
-                {privateNetworks.map((n) => (
-                  <option key={n.id} value={n.id}>{n.name} ({n.cidr}) · {t('networks.typeIsolated')}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">{t('vms.multiSelectHint')}</p>
-            </div>
-          )}
+
+            {form.network_mode === 'private' && (
+              privateNetworks.length > 0 ? (
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetRequired')}</label>
+                  <select
+                    multiple
+                    required
+                    value={form.network_ids}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                      setForm({ ...form, network_ids: selected });
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
+                  >
+                    {privateNetworks.map((n) => (
+                      <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">{t('vms.multiSelectHint')}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-700">{t('vms.noPrivateSubnets')}</p>
+              )
+            )}
+
+            {form.network_mode === 'public' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t('vms.securityGroupRequired')}</label>
+                  <select
+                    required
+                    value={form.security_group_id}
+                    onChange={(e) => setForm({ ...form, security_group_id: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  >
+                    <option value="">{t('vms.selectSecurityGroup')}</option>
+                    {securityGroups.map((sg) => (
+                      <option key={sg.id} value={sg.id}>{sg.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {privateNetworks.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetsOptional')}</label>
+                    <select
+                      multiple
+                      value={form.network_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                        setForm({ ...form, network_ids: selected });
+                      }}
+                      className="w-full px-4 py-2 border rounded-lg min-h-[72px]"
+                    >
+                      {privateNetworks.map((n) => (
+                        <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
           {!isWindowsImage(form.image) && (
             <>
               <div>
@@ -377,7 +462,15 @@ export function VMs() {
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setDeployModal(false)} className="btn-secondary">{t('common.cancel')}</button>
-            <button type="submit" disabled={deployMutation.isPending} className="btn-primary">
+            <button
+              type="submit"
+              disabled={
+                deployMutation.isPending ||
+                (form.network_mode === 'private' && form.network_ids.length === 0) ||
+                (form.network_mode === 'public' && !form.security_group_id)
+              }
+              className="btn-primary"
+            >
               {deployMutation.isPending ? t('common.deploying') : 'Deploy'}
             </button>
           </div>

@@ -585,6 +585,8 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		ServiceOfferingID string   `json:"service_offering_id"`
 		TemplateID        string   `json:"template_id"`
 		NetworkIDs        []string `json:"network_ids"`
+		PublicIP          bool     `json:"public_ip"`
+		SecurityGroupIDs  []string `json:"security_group_ids"`
 		SSHKeyID          string   `json:"ssh_key_id"`
 		DataVolumeID      string   `json:"data_volume_id"`
 		ExposeSSH         bool     `json:"expose_ssh"`
@@ -598,7 +600,8 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		Name: req.Name, DisplayName: req.DisplayName, Image: req.Image,
 		CPU: req.CPU, MemoryMi: req.MemoryMi, Start: true,
 		ServiceOfferingID: req.ServiceOfferingID, TemplateID: req.TemplateID,
-		NetworkIDs: req.NetworkIDs, SSHKeyID: req.SSHKeyID,
+		NetworkIDs: req.NetworkIDs, PublicIP: req.PublicIP, SecurityGroupIDs: req.SecurityGroupIDs,
+		SSHKeyID: req.SSHKeyID,
 		DataVolumeID: req.DataVolumeID, ExposeSSH: req.ExposeSSH,
 	}
 	if req.Async {

@@ -140,6 +140,7 @@ export function Layout() {
                       <NavLink
                         key={sub.path}
                         to={sub.path}
+                        end={sub.path === '/networks'}
                         className={({ isActive }) =>
                           `flex items-center gap-3 px-3 py-2 rounded-lg transition ml-1 ${
                             isActive ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-100'

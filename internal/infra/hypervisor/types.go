@@ -18,6 +18,7 @@ type VMDeploySpec struct {
 	CloudInitSSHKeys  []string
 	CloudInitPassword string
 	FormatDataDisk    bool
+	Labels            map[string]string // applied to VM and VMI template (e.g. security group)
 }
 
 // VMNetworkSpec describes a NIC backed by pod network or Multus NAD.

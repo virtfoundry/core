@@ -251,6 +251,8 @@ export async function deployVM(data: {
   cpu?: number;
   memory_mi?: number;
   network_ids?: string[];
+  public_ip?: boolean;
+  security_group_ids?: string[];
   ssh_key_id?: string;
   data_volume_id?: string;
   expose_ssh?: boolean;

@@ -8,6 +8,7 @@ import (
 
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 	"github.com/virtforge-cloud/virtforge/internal/service/shared"
@@ -55,6 +56,8 @@ type DeployVMInput struct {
 	ServiceOfferingID string
 	TemplateID        string
 	NetworkIDs        []string
+	PublicIP          bool
+	SecurityGroupIDs  []string
 	DisplayName       string
 	SSHKeyID          string
 	DataVolumeID      string
@@ -107,13 +110,24 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		image = "quay.io/kubevirt/cirros-container-disk-demo"
 	}
 
-	netSpecs, vmNics := s.buildVMNetworks(tenantID, in.NetworkIDs)
+	networkIDs, err := s.resolveDeployNetworks(tenantID, in.PublicIP, in.NetworkIDs)
+	if err != nil {
+		return nil, err
+	}
+	if in.PublicIP {
+		if err := s.validatePublicSecurityGroups(tenantID, in.SecurityGroupIDs); err != nil {
+			return nil, err
+		}
+	}
+
+	netSpecs, vmNics := s.buildVMNetworks(tenantID, networkIDs)
 
 	kv := s.kvBase.WithNamespace(ns)
 	spec := hypervisor.VMDeploySpec{
 		Name: name, Namespace: ns,
 		CPU: cpu, MemoryMi: memMi, Image: image, Start: true,
 		Networks: netSpecs,
+		Labels:   sgLabels(in.SecurityGroupIDs),
 	}
 	if in.SSHKeyID != "" {
 		if k, ok := s.store.GetSSHKeyPair(in.SSHKeyID); ok && k.TenantID == tenantID {
@@ -510,11 +524,6 @@ func templateLabel(image string) string {
 }
 
 func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hypervisor.VMNetworkSpec, []platform.VMNic) {
-	if len(networkIDs) == 0 && s.defaultNetwork == "public" {
-		if sharedNet, ok := s.store.GetSharedNetwork(); ok {
-			networkIDs = []string{sharedNet.ID}
-		}
-	}
 	if len(networkIDs) == 0 {
 		if s.allowPodNetwork {
 			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
@@ -597,4 +606,49 @@ func (s *Service) GetVMSSH(ctx context.Context, tenantID, vmName string) (*VMSSH
 	}
 	out := &VMSSHInfo{Exposed: ok, NodePort: port, VMIP: info.IP}
 	return out, nil
+}
+
+func (s *Service) resolveDeployNetworks(tenantID string, publicIP bool, networkIDs []string) ([]string, error) {
+	ids := append([]string{}, networkIDs...)
+	if publicIP {
+		sharedNet, ok := s.store.GetSharedNetwork()
+		if !ok {
+			return nil, fmt.Errorf("public network is not configured")
+		}
+		ids = append([]string{sharedNet.ID}, ids...)
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("select a VPC subnet or enable public IP")
+	}
+	for _, id := range ids {
+		net, ok := s.store.GetNetwork(id)
+		if !ok {
+			return nil, fmt.Errorf("network not found: %s", id)
+		}
+		if net.NetworkType != platform.NetworkTypeShared && net.TenantID != tenantID {
+			return nil, fmt.Errorf("network not available for tenant")
+		}
+	}
+	return ids, nil
+}
+
+func (s *Service) validatePublicSecurityGroups(tenantID string, sgIDs []string) error {
+	if len(sgIDs) == 0 {
+		return fmt.Errorf("security group required for public IP access")
+	}
+	for _, id := range sgIDs {
+		sg, ok := s.store.GetSG(id)
+		if !ok || sg.TenantID != tenantID {
+			return fmt.Errorf("security group not found")
+		}
+	}
+	return nil
+}
+
+func sgLabels(sgIDs []string) map[string]string {
+	if len(sgIDs) == 0 {
+		return nil
+	}
+	// NetworkPolicy pod selector matches one SG label; use the primary group.
+	return map[string]string{branding.LabelSG: sgIDs[0]}
 }

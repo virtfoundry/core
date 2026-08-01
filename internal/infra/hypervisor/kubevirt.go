@@ -164,18 +164,18 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        spec.Name,
 			Namespace:   ns,
-			Labels:      map[string]string{branding.AppManagedByKey: branding.ManagedByValue, branding.LabelOS: strings.ToLower(spec.OSType)},
+			Labels:      mergeLabels(map[string]string{branding.AppManagedByKey: branding.ManagedByValue, branding.LabelOS: strings.ToLower(spec.OSType)}, spec.Labels),
 			Annotations: annotations,
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: &runStrategy,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
+					Labels: mergeLabels(map[string]string{
 						"kubevirt.io/domain":   spec.Name,
 						branding.LabelVM:         spec.Name,
 						branding.LabelLogSource: "velas",
-					},
+					}, spec.Labels),
 				},
 				Spec: vmiSpec,
 			},
@@ -847,4 +847,15 @@ func buildNetworks(specs []VMNetworkSpec) ([]kubevirtv1.Network, []kubevirtv1.In
 		ifaces = append(ifaces, iface)
 	}
 	return networks, ifaces, defaultNet
+}
+
+func mergeLabels(base, extra map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(extra))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
 }
