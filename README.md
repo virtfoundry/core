@@ -10,7 +10,7 @@ Kubernetes-native IaaS control plane — CloudStack-style operations on KubeVirt
 | Repository | Purpose |
 |------------|---------|
 | [virtforge](https://github.com/virtforge-cloud/virtforge) | Application monorepo — API, worker, UI |
-| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart + Kustomize homelab overlay |
+| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart + homelab tooling |
 | [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Landing page and docs site |
 
 Extended documentation: **[Wiki](https://github.com/virtforge-cloud/virtforge/wiki)**
@@ -71,8 +71,8 @@ Requires [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) c
 
 ```bash
 cd ../virtforge-chart
-./setup-kubevirt.sh
-./deploy-homelab.sh
+make setup-kubevirt
+make deploy-homelab
 ```
 
 ## CloudStack migration

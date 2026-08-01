@@ -26,16 +26,15 @@ go build ./...
 cd ui && npm run build
 
 # Deploy homelab (rebuild + in-cluster; run from virtforge-chart sibling repo)
-cd ../virtforge-chart && ./deploy-homelab.sh
+cd ../virtforge-chart && make deploy-homelab
 ```
 
 Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [Wiki](https://github.com/virtforge-cloud/virtforge/wiki)
 
 ## Preferences
 
-- After changes affecting UI/API/worker, run `../virtforge-chart/deploy-homelab.sh` without asking for confirmation when working in homelab
 - VNC console opens in a new tab (`/console?name=&namespace=`); Cirros uses VGA (~720×400); Ubuntu/Fedora use `video: virtio`
-- Homelab requires KubeVirt `VideoConfig` feature gate (applied by deploy script)
+- Homelab deploy: `make -C ../virtforge-chart deploy-homelab` (optional)
 
 ## Do not
 
@@ -43,5 +42,4 @@ Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [Wiki](https://github.co
 - Hardcode query keys in the UI — use `lib/query-keys.ts`
 - Deploy API/UI locally on homelab — in-cluster manifests only
 - Add K8s manifests here — they belong in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)
-- Delete homelab cluster resources without explicit user request
 - Reference employer-specific projects, paths, or secrets in public docs or commits

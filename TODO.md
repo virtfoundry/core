@@ -24,10 +24,4 @@
 - [ ] Public/private networks + load balancer
 - [ ] UI: offering/template selector on VM create
 
-## Homelab
-
-- [x] KubeVirt Snapshot + VideoConfig feature gates
-- [x] Multus CNI + bridge setup (`../virtforge-chart/setup-multus.sh`)
-- [ ] Ingress TLS
-
-Deploy: `../virtforge-chart/deploy-homelab.sh`
+Homelab deploy (optional): `make -C ../virtforge-chart deploy-homelab`

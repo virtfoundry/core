@@ -6,7 +6,7 @@
 
 - [ ] `go test ./...`
 - [ ] `cd ui && npm run build`
-- [ ] Homelab deploy from `virtforge-chart` (if applicable): `./deploy-homelab.sh`
+- [ ] Homelab deploy from `virtforge-chart` (if applicable): `make deploy-homelab`
 - [ ] Wiki updated (if behavior or ops changed)
 
 ## Conventions

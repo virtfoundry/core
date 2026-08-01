@@ -33,7 +33,7 @@ cd ui && npm install && npm run build
 For homelab testing (from [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)):
 
 ```bash
-./deploy-homelab.sh
+make deploy-homelab
 ```
 
 ## Pull request process

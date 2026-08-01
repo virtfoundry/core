@@ -1,6 +1,9 @@
 .env
 .env.*
 !.env.example
+config.yaml
+config.local.yaml
+*.local.yaml
 .ssh-keys/
 .gotmp/
 .tmp/

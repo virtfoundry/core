@@ -177,7 +177,7 @@ Tenant ────────────────────────�
 - Commands: Ctrl+Alt+Del, Esc, Tab, Enter, F1–F12, paste text
 - **Cirros:** fixed VGA ~720×400 — works with `scaleViewport`; yellow warning is expected
 - **Ubuntu/Fedora:** `video: virtio` + remote resize when KubeVirt advertises support
-- `VideoConfig` feature gate enabled on homelab via `virtforge-chart/deploy-homelab.sh`
+- `VideoConfig` feature gate enabled on homelab via `virtforge-chart` (`make deploy-homelab`)
 
 ---
 
@@ -222,7 +222,7 @@ virtforge-chart/scripts/image-import-pod.yaml # Image sideload (no registry)
 | `virtforge-ui` | `virtforge/iaas-ui` | nginx + SPA |
 | `virtforge-mysql` | mysql:8 | StatefulSet |
 
-Homelab: `./deploy-homelab.sh` from `virtforge-chart` (builds images, `helm upgrade` with `values-homelab.yaml`, imports to containerd, restarts).
+Homelab: `make deploy-homelab` from `virtforge-chart` (builds images, `helm upgrade` with `values-homelab.yaml`, optional containerd sideload).
 
 ---
 
