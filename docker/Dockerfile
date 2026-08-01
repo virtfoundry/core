@@ -11,6 +11,7 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /server ./server
 COPY --from=builder /worker ./worker
-COPY config.yaml.example ./config.yaml
+COPY config/config.yaml.example ./config/config.yaml
+ENV CONFIG_PATH=/app/config/config.yaml
 EXPOSE 8080
 CMD ["./server"]

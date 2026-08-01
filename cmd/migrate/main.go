@@ -135,7 +135,7 @@ func parseTemplateMap(s string) map[string]string {
 func loadConfig() *config.Config {
 	cfgPath := os.Getenv("CONFIG_PATH")
 	if cfgPath == "" {
-		cfgPath = "config.yaml"
+		cfgPath = config.DefaultConfigPath
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {

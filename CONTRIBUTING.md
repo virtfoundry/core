@@ -25,16 +25,13 @@ chore(deploy): bump KubeVirt chart reference
 ## Development setup
 
 ```bash
+cp config/config.yaml.example config/config.yaml   # optional
 go build ./...
 go test ./...
 cd ui && npm install && npm run build
 ```
 
-For homelab testing (from [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)):
-
-```bash
-make deploy-homelab
-```
+Cluster deploy and homelab testing: [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) (`make deploy-homelab`).
 
 ## Pull request process
 
@@ -48,8 +45,8 @@ make deploy-homelab
 
 | Repo | When to contribute here |
 |------|-------------------------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | API, worker, UI, migration |
-| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, Kustomize overlay, install docs |
+| [virtforge](https://github.com/virtforge-cloud/virtforge) | API, worker, UI, migration CLI, local dev config |
+| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, cluster values, deploy scripts |
 | [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Marketing site and published docs |
 
 ## Code of conduct

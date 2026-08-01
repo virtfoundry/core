@@ -9,8 +9,8 @@ Kubernetes-native IaaS control plane — CloudStack-style operations on KubeVirt
 
 | Repository | Purpose |
 |------------|---------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | Application monorepo — API, worker, UI |
-| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart + homelab tooling |
+| [virtforge](https://github.com/virtforge-cloud/virtforge) | Application — API, worker, UI, migration CLI |
+| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, cluster config, homelab deploy |
 | [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Landing page and docs site |
 
 Extended documentation: **[Wiki](https://github.com/virtforge-cloud/virtforge/wiki)**
@@ -22,11 +22,11 @@ cmd/                 # server, worker, migrate CLIs
 internal/            # API, services, store, KubeVirt/K8s integration
 ui/                  # React SPA (Vite + Tailwind)
 docker/              # Dockerfiles for API/worker and UI images
+config/              # Local dev config only (see config/README.md)
 docs/                # Architecture reference
-config.yaml.example  # Local dev config template
 ```
 
-Cluster manifests and homelab scripts live in **[virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)**.
+Kubernetes manifests, Helm values, and deploy scripts live in **[virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)**.
 
 ## Features
 
@@ -40,7 +40,7 @@ Cluster manifests and homelab scripts live in **[virtforge-chart](https://github
 ## Quick start (local dev)
 
 ```bash
-cp config.yaml.example config.yaml   # optional — defaults work for memory store
+cp config/config.yaml.example config/config.yaml   # optional — defaults work for memory store
 
 # API
 ROOT_PASSWORD=virtforge go run ./cmd/server
@@ -50,6 +50,19 @@ cd ui && npm install && npm run dev
 
 # Login: root / virtforge (change in production)
 ```
+
+## Deploy to Kubernetes
+
+Use [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
+
+```bash
+helm upgrade --install virtforge ./charts/virtforge \
+  -n virtforge-system --create-namespace \
+  --set secrets.rootPassword='your-root-password' \
+  --set secrets.jwtSecret='your-jwt-secret'
+```
+
+Homelab profile and optional image-build workflow: see the chart repo README.
 
 ## API (`/api/v1`)
 
@@ -64,16 +77,6 @@ cd ui && npm install && npm run dev
 | Realtime | WebSocket `/ws/events` |
 
 Root users must send `X-Tenant-ID` when operating inside a tenant.
-
-## Homelab deploy
-
-Requires [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) cloned next to this repo.
-
-```bash
-cd ../virtforge-chart
-make setup-kubevirt
-make deploy-homelab
-```
 
 ## CloudStack migration
 

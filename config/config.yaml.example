@@ -15,7 +15,7 @@ kubevirt:
   kubeconfig: ""
   namespace: "default"
 
-# Uncomment for local MySQL (in-cluster uses ConfigMap DSN from virtforge-chart)
+# Uncomment for local MySQL. In-cluster config is rendered by virtforge-chart (see config/README.md).
 # database:
 #   driver: mysql
 #   dsn: "virtforge:virtforge@tcp(localhost:3306)/virtforge?charset=utf8mb4"

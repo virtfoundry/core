@@ -30,8 +30,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 
 **Product:** VirtForge Cloud  
 **Go module:** `github.com/virtforge-cloud/virtforge`  
-**Deploy namespace:** `virtforge-system`  
-**Homelab UI:** `http://<node-ip>:30880` (login `root` / `virtforge`)
+**Deploy:** [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) (`virtforge-system` namespace)
 
 ---
 
@@ -207,22 +206,22 @@ Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
 
 ## Kubernetes deploy
 
-Manifests and homelab scripts live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
+Manifests, Helm values, and homelab scripts live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
 
 ```
-virtforge-chart/charts/virtforge/             # Helm chart
-virtforge-chart/charts/virtforge/values-homelab.yaml  # Homelab: NodePort 30880, platform bootstrap
-virtforge-chart/scripts/image-import-pod.yaml # Image sideload (no registry)
+virtforge-chart/charts/virtforge/                    # Helm chart + values profiles
+virtforge-chart/scripts/deploy/homelab.sh            # Optional: build + sideload workflow
+virtforge-chart/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
 ```
 
 | Workload | Image | Role |
 |----------|-------|------|
-| `virtforge-api` | `virtforge/iaas-api` | `./server` |
-| `virtforge-worker` | `virtforge/iaas-api` | `./worker` |
-| `virtforge-ui` | `virtforge/iaas-ui` | nginx + SPA |
+| `virtforge-api` | `ghcr.io/virtforge-cloud/iaas-api` | `./server` |
+| `virtforge-worker` | `ghcr.io/virtforge-cloud/iaas-api` | `./worker` |
+| `virtforge-ui` | `ghcr.io/virtforge-cloud/iaas-ui` | nginx + SPA |
 | `virtforge-mysql` | mysql:8 | StatefulSet |
 
-Homelab: `make deploy-homelab` from `virtforge-chart` (builds images, `helm upgrade` with `values-homelab.yaml`, optional containerd sideload).
+Homelab: `make deploy-homelab` from `virtforge-chart` (see chart README).
 
 ---
 
@@ -245,6 +244,7 @@ virtforge/
 │   ├── infra/hypervisor/ # KubeVirt driver
 │   └── migrate/          # Import logic
 ├── ui/src/               # React SPA
+├── config/               # Local dev config (cluster config → virtforge-chart)
 ├── docker/               # Dockerfiles + nginx config (images only)
 ├── docs/
 ├── TODO.md

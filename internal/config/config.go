@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// DefaultConfigPath is the local-dev config file (gitignored). In-cluster pods use CONFIG_PATH.
+const DefaultConfigPath = "config/config.yaml"
+
 type Config struct {
 	Server         ServerConfig         `mapstructure:"server"`
 	Logger         LoggerConfig         `mapstructure:"logger"`
