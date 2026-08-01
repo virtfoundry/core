@@ -80,3 +80,13 @@ jobs:
           labels: ${{ steps.meta-ui.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Make GHCR packages public
+        if: github.event_name != 'pull_request'
+        run: |
+          for pkg in iaas-api iaas-ui; do
+            gh api --method PATCH "/orgs/${{ github.repository_owner }}/packages/container/${pkg}" \
+              -f visibility=public || true
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
