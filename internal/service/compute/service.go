@@ -25,12 +25,24 @@ type Service struct {
 	kvBase *hypervisor.KubeVirtDriver
 	hub    shared.EventBroadcaster
 
-	vmStateMu sync.Mutex
-	vmStates  map[vmStateKey]string
+	vmStateMu       sync.Mutex
+	vmStates        map[vmStateKey]string
+	allowPodNetwork bool
+	defaultNetwork  string
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub shared.EventBroadcaster) *Service {
-	return &Service{store: st, k8s: k8s, kvBase: kv, hub: hub, vmStates: make(map[vmStateKey]string)}
+	return &Service{
+		store: st, k8s: k8s, kvBase: kv, hub: hub,
+		vmStates: make(map[vmStateKey]string), allowPodNetwork: true, defaultNetwork: "pod",
+	}
+}
+
+func (s *Service) ConfigureVMNetworking(defaultNetwork string, allowPodNetwork bool) {
+	if defaultNetwork != "" {
+		s.defaultNetwork = defaultNetwork
+	}
+	s.allowPodNetwork = allowPodNetwork
 }
 
 // DeployVMInput is the payload for synchronous or async VM deployment.
@@ -498,14 +510,25 @@ func templateLabel(image string) string {
 }
 
 func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hypervisor.VMNetworkSpec, []platform.VMNic) {
+	if len(networkIDs) == 0 && s.defaultNetwork == "public" {
+		if sharedNet, ok := s.store.GetSharedNetwork(); ok {
+			networkIDs = []string{sharedNet.ID}
+		}
+	}
 	if len(networkIDs) == 0 {
-		return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+		if s.allowPodNetwork {
+			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+		}
+		return nil, nil
 	}
 	var specs []hypervisor.VMNetworkSpec
 	var nics []platform.VMNic
 	for i, netID := range networkIDs {
 		net, ok := s.store.GetNetwork(netID)
-		if !ok || net.TenantID != tenantID {
+		if !ok {
+			continue
+		}
+		if net.NetworkType != platform.NetworkTypeShared && net.TenantID != tenantID {
 			continue
 		}
 		ifaceName := shared.SanitizeSlug(net.Name)
@@ -523,7 +546,13 @@ func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hyper
 		}
 	}
 	if len(specs) == 0 {
-		return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+		if s.allowPodNetwork {
+			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+		}
+		return nil, nil
+	}
+	if !s.allowPodNetwork {
+		return specs, nics
 	}
 	specs = append([]hypervisor.VMNetworkSpec{{Name: "default", Default: true}}, specs...)
 	nics = append([]platform.VMNic{{Name: "default", Type: "pod"}}, nics...)

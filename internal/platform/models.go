@@ -61,9 +61,10 @@ type SecurityGroupRule struct {
 
 type Network struct {
 	ID           string    `json:"id"`
-	TenantID     string    `json:"tenant_id"`
-	VPCID        string    `json:"vpc_id"`
+	TenantID     string    `json:"tenant_id,omitempty"`
+	VPCID        string    `json:"vpc_id,omitempty"`
 	Name         string    `json:"name"`
+	NetworkType  string    `json:"network_type,omitempty"` // isolated | shared
 	CIDR         string    `json:"cidr"`
 	Gateway      string    `json:"gateway,omitempty"`
 	NADNamespace string    `json:"nad_namespace,omitempty"`
@@ -72,6 +73,34 @@ type Network struct {
 	ExternalUUID string    `json:"external_uuid,omitempty"`
 	ImportSource string    `json:"import_source,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+const (
+	NetworkTypeIsolated = "isolated"
+	NetworkTypeShared   = "shared"
+	SharedNetworkID       = "00000000-0000-4000-8000-000000000001"
+)
+
+type AuditEvent struct {
+	ID             string    `json:"id"`
+	ActorUserID    string    `json:"actor_user_id"`
+	ActorRole      string    `json:"actor_role"`
+	TargetTenantID string    `json:"target_tenant_id"`
+	Action         string    `json:"action"`
+	Method         string    `json:"method"`
+	Path           string    `json:"path"`
+	ResourceType   string    `json:"resource_type,omitempty"`
+	ResourceID     string    `json:"resource_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type IPAddress struct {
+	ID        string    `json:"id"`
+	NetworkID string    `json:"network_id"`
+	Address   string    `json:"address"`
+	Status    string    `json:"status"` // available | allocated
+	VMNicID   string    `json:"vm_nic_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Volume struct {

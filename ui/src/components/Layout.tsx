@@ -178,6 +178,11 @@ export function Layout() {
             )}
           </div>
         </header>
+        {isRoot && selectedTenant && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-6 py-2 text-sm">
+            {t('nav.impersonatingTenant')}: {tenants.find((tn) => tn.id === selectedTenant)?.name || selectedTenant}
+          </div>
+        )}
         <div className="p-6">
           <Outlet />
         </div>

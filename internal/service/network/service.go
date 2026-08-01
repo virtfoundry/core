@@ -17,12 +17,19 @@ var errVPCNotFound = errors.New("vpc not found")
 
 // Service manages VPCs, private networks and security groups.
 type Service struct {
-	store store.Repository
-	k8s   *platformk8s.Manager
+	store          store.Repository
+	k8s            *platformk8s.Manager
+	isolatedBridge string
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager) *Service {
-	return &Service{store: st, k8s: k8s}
+	return &Service{store: st, k8s: k8s, isolatedBridge: branding.BridgeName}
+}
+
+func (s *Service) ConfigureBridges(isolated string) {
+	if isolated != "" {
+		s.isolatedBridge = isolated
+	}
 }
 
 func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string) (*platform.VPC, *platform.Network, error) {
@@ -72,7 +79,7 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 		branding.LabelVPCName:     name,
 		branding.LabelNetworkRole: "default",
 	}
-	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, defaultNetCIDR, labels); err != nil {
+	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, defaultNetCIDR, s.isolatedBridge, labels); err != nil {
 		return nil, nil, err
 	}
 
@@ -84,7 +91,7 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 
 	defNet := &platform.Network{
 		ID: store.NewID(), TenantID: tenantID, VPCID: vpcID,
-		Name: "default", CIDR: defaultNetCIDR,
+		Name: "default", CIDR: defaultNetCIDR, NetworkType: platform.NetworkTypeIsolated,
 		NADNamespace: tenantNS, NADName: nadName,
 		State: "active", CreatedAt: store.Now(),
 	}
@@ -192,13 +199,14 @@ func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subn
 		platformk8s.LabelVPCID:    vpcID,
 		branding.LabelVPCName: vpc.Name,
 	}
-	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, labels); err != nil {
+	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, s.isolatedBridge, labels); err != nil {
 		return nil, err
 	}
 
 	net := &platform.Network{
 		ID: store.NewID(), TenantID: tenantID, VPCID: vpcID,
-		Name: name, CIDR: subnetCIDR, NADNamespace: tenantNS, NADName: nadName,
+		Name: name, CIDR: subnetCIDR, NetworkType: platform.NetworkTypeIsolated,
+		NADNamespace: tenantNS, NADName: nadName,
 		State: "active", CreatedAt: store.Now(),
 	}
 	s.store.SaveNetwork(net)

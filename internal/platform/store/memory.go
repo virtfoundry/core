@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,6 +18,8 @@ type Memory struct {
 	vpcs             map[string]*platform.VPC
 	securityGroups   map[string]*platform.SecurityGroup
 	networks         map[string]*platform.Network
+	auditEvents      []*platform.AuditEvent
+	ipAddresses      map[string]*platform.IPAddress
 	volumes          map[string]*platform.Volume
 	snapshots        map[string]*platform.Snapshot
 	vmSnapshots      map[string]*platform.VMSnapshot
@@ -35,6 +38,8 @@ func NewMemory() *Memory {
 		vpcs:             make(map[string]*platform.VPC),
 		securityGroups:   make(map[string]*platform.SecurityGroup),
 		networks:         make(map[string]*platform.Network),
+		auditEvents:      make([]*platform.AuditEvent, 0),
+		ipAddresses:      make(map[string]*platform.IPAddress),
 		volumes:          make(map[string]*platform.Volume),
 		snapshots:        make(map[string]*platform.Snapshot),
 		vmSnapshots:      make(map[string]*platform.VMSnapshot),
@@ -188,11 +193,90 @@ func (m *Memory) ListNetworks(tenantID string) []*platform.Network {
 	defer m.mu.RUnlock()
 	var out []*platform.Network
 	for _, n := range m.networks {
-		if n.TenantID == tenantID {
+		if n.TenantID == tenantID || n.NetworkType == platform.NetworkTypeShared {
 			out = append(out, n)
 		}
 	}
 	return out
+}
+
+func (m *Memory) GetSharedNetwork() (*platform.Network, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, n := range m.networks {
+		if n.NetworkType == platform.NetworkTypeShared {
+			return n, true
+		}
+	}
+	return nil, false
+}
+
+func (m *Memory) SaveAuditEvent(e *platform.AuditEvent) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.auditEvents = append(m.auditEvents, e)
+}
+
+func (m *Memory) ListAuditEvents(targetTenantID string, limit int) []*platform.AuditEvent {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if limit <= 0 {
+		limit = 100
+	}
+	var out []*platform.AuditEvent
+	for i := len(m.auditEvents) - 1; i >= 0 && len(out) < limit; i-- {
+		if m.auditEvents[i].TargetTenantID == targetTenantID {
+			out = append(out, m.auditEvents[i])
+		}
+	}
+	return out
+}
+
+func (m *Memory) AllocateIPAddress(networkID string) (*platform.IPAddress, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var best *platform.IPAddress
+	for _, ip := range m.ipAddresses {
+		if ip.NetworkID == networkID && ip.Status == "available" {
+			if best == nil || ip.Address < best.Address {
+				best = ip
+			}
+		}
+	}
+	if best == nil {
+		return nil, fmt.Errorf("no available IP in pool")
+	}
+	best.Status = "allocated"
+	return best, nil
+}
+
+func (m *Memory) ReleaseIPAddressByVMNic(vmNicID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, ip := range m.ipAddresses {
+		if ip.VMNicID == vmNicID {
+			ip.Status = "available"
+			ip.VMNicID = ""
+		}
+	}
+}
+
+func (m *Memory) SeedIPPool(networkID, start, end string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return seedIPRangeLocked(m, networkID, start, end)
+}
+
+func (m *Memory) saveIPAddressQuiet(networkID, addr string) {
+	for _, existing := range m.ipAddresses {
+		if existing.NetworkID == networkID && existing.Address == addr {
+			return
+		}
+	}
+	id := NewID()
+	m.ipAddresses[id] = &platform.IPAddress{
+		ID: id, NetworkID: networkID, Address: addr, Status: "available", CreatedAt: Now(),
+	}
 }
 
 func (m *Memory) SaveVolume(v *platform.Volume) {

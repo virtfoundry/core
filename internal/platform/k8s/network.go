@@ -13,24 +13,60 @@ import (
 // NADLabels optional metadata on a network attachment definition.
 type NADLabels map[string]string
 
-func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, cidr string, extra NADLabels) error {
+// SharedNetworkAttachment defines a platform-wide routable network (Helm values).
+type SharedNetworkAttachment struct {
+	Namespace  string
+	Name       string
+	Bridge     string
+	CIDR       string
+	Gateway    string
+	RangeStart string
+	RangeEnd   string
+	Labels     NADLabels
+}
+
+func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, cidr, bridgeName string, extra NADLabels) error {
+	if bridgeName == "" {
+		bridgeName = branding.BridgeName
+	}
+	return m.createBridgeNAD(ctx, namespace, name, cidr, bridgeName, "", "", "", extra)
+}
+
+func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
+	return m.createBridgeNAD(ctx, spec.Namespace, spec.Name, spec.CIDR, spec.Bridge, spec.Gateway, spec.RangeStart, spec.RangeEnd, spec.Labels)
+}
+
+func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, bridge, gateway, rangeStart, rangeEnd string, extra NADLabels) error {
 	gvr := schema.GroupVersionResource{
 		Group:    "k8s.cni.cncf.io",
 		Version:  "v1",
 		Resource: "network-attachment-definitions",
 	}
 
+	ipam := fmt.Sprintf(`{
+    "type": "host-local",
+    "subnet": %q`, cidr)
+	if rangeStart != "" && rangeEnd != "" {
+		ipam += fmt.Sprintf(`,
+    "rangeStart": %q,
+    "rangeEnd": %q`, rangeStart, rangeEnd)
+	}
+	if gateway != "" {
+		ipam += fmt.Sprintf(`,
+    "routes": [{ "dst": "0.0.0.0/0", "gw": %q }]`, gateway)
+	} else {
+		ipam += `,
+    "routes": [{ "dst": "0.0.0.0/0" }]`
+	}
+	ipam += "\n  }"
+
 	config := fmt.Sprintf(`{
   "cniVersion": "0.3.1",
   "name": %q,
   "type": "bridge",
   "bridge": %q,
-  "ipam": {
-    "type": "host-local",
-    "subnet": %q,
-    "routes": [{ "dst": "0.0.0.0/0" }]
-  }
-}`, name, branding.BridgeName, cidr)
+  "ipam": %s
+}`, name, bridge, ipam)
 
 	labels := map[string]interface{}{
 		LabelManagedBy: ManagedByValue,

@@ -26,8 +26,16 @@ type Repository interface {
 
 	SaveNetwork(n *platform.Network)
 	ListNetworks(tenantID string) []*platform.Network
+	GetSharedNetwork() (*platform.Network, bool)
 	GetNetwork(id string) (*platform.Network, bool)
 	DeleteNetwork(id string)
+
+	SaveAuditEvent(e *platform.AuditEvent)
+	ListAuditEvents(targetTenantID string, limit int) []*platform.AuditEvent
+
+	AllocateIPAddress(networkID string) (*platform.IPAddress, error)
+	ReleaseIPAddressByVMNic(vmNicID string)
+	SeedIPPool(networkID, start, end string) error
 
 	SaveVolume(v *platform.Volume)
 	ListVolumes(tenantID string) []*platform.Volume

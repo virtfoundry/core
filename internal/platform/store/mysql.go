@@ -64,7 +64,51 @@ func (m *MySQL) Migrate() error {
 	if _, err := m.db.Exec(string(raw)); err != nil {
 		return fmt.Errorf("apply schema: %w", err)
 	}
+	if err := m.applyMigration002(); err != nil {
+		return err
+	}
 	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('001_initial')`)
+	return nil
+}
+
+func (m *MySQL) applyMigration002() error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS audit_events (
+			id CHAR(36) PRIMARY KEY,
+			actor_user_id CHAR(36) NOT NULL,
+			actor_role VARCHAR(32) NOT NULL,
+			target_tenant_id CHAR(36) NOT NULL,
+			action VARCHAR(64) NOT NULL,
+			method VARCHAR(16) NOT NULL,
+			path VARCHAR(512) NOT NULL,
+			resource_type VARCHAR(64) NULL,
+			resource_id VARCHAR(128) NULL,
+			created_at DATETIME(3) NOT NULL,
+			INDEX idx_audit_tenant (target_tenant_id),
+			INDEX idx_audit_actor (actor_user_id),
+			INDEX idx_audit_created (created_at)
+		)`,
+		`CREATE TABLE IF NOT EXISTS ip_addresses (
+			id CHAR(36) PRIMARY KEY,
+			network_id CHAR(36) NOT NULL,
+			address VARCHAR(64) NOT NULL,
+			status VARCHAR(32) NOT NULL DEFAULT 'available',
+			vm_nic_id CHAR(36) NULL,
+			created_at DATETIME(3) NOT NULL,
+			UNIQUE KEY uk_ip_network_addr (network_id, address),
+			INDEX idx_ip_status (network_id, status)
+		)`,
+	}
+	for _, stmt := range stmts {
+		if _, err := m.db.Exec(stmt); err != nil {
+			return fmt.Errorf("migration 002: %w", err)
+		}
+	}
+	// Best-effort column adds for existing deployments.
+	_, _ = m.db.Exec(`ALTER TABLE networks ADD COLUMN network_type VARCHAR(32) NOT NULL DEFAULT 'isolated'`)
+	_, _ = m.db.Exec(`ALTER TABLE networks MODIFY tenant_id CHAR(36) NULL`)
+	_, _ = m.db.Exec(`ALTER TABLE networks MODIFY vpc_id CHAR(36) NULL`)
+	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('002_audit_networking')`)
 	return nil
 }
 
@@ -271,27 +315,39 @@ func scanSGRows(rows *sql.Rows) []*platform.SecurityGroup {
 }
 
 func (m *MySQL) SaveNetwork(n *platform.Network) {
-	_, _ = m.db.Exec(`INSERT INTO networks (id, tenant_id, vpc_id, name, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE name=VALUES(name), cidr=VALUES(cidr), gateway=VALUES(gateway),
+	nt := n.NetworkType
+	if nt == "" {
+		nt = platform.NetworkTypeIsolated
+	}
+	_, _ = m.db.Exec(`INSERT INTO networks (id, tenant_id, vpc_id, name, network_type, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE name=VALUES(name), network_type=VALUES(network_type), cidr=VALUES(cidr), gateway=VALUES(gateway),
 		nad_namespace=VALUES(nad_namespace), nad_name=VALUES(nad_name), state=VALUES(state),
 		external_uuid=VALUES(external_uuid), import_source=VALUES(import_source)`,
-		n.ID, n.TenantID, n.VPCID, n.Name, n.CIDR, nullStr(n.Gateway), nullStr(n.NADNamespace), nullStr(n.NADName),
+		n.ID, nullStr(n.TenantID), nullStr(n.VPCID), n.Name, nt, n.CIDR, nullStr(n.Gateway), nullStr(n.NADNamespace), nullStr(n.NADName),
 		n.State, nullStr(n.ExternalUUID), nullStr(n.ImportSource), n.CreatedAt)
 }
 
+func (m *MySQL) GetSharedNetwork() (*platform.Network, bool) {
+	row := m.db.QueryRow(`SELECT id, tenant_id, vpc_id, name, network_type, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at
+		FROM networks WHERE network_type=? LIMIT 1`, platform.NetworkTypeShared)
+	return scanNetworkRow(row)
+}
+
 func (m *MySQL) GetNetwork(id string) (*platform.Network, bool) {
-	row := m.db.QueryRow(`SELECT id, tenant_id, vpc_id, name, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at
+	row := m.db.QueryRow(`SELECT id, tenant_id, vpc_id, name, network_type, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at
 		FROM networks WHERE id=?`, id)
 	return scanNetworkRow(row)
 }
 
 func scanNetworkRow(row *sql.Row) (*platform.Network, bool) {
 	var n platform.Network
-	var gw, nadNS, nadName, ext, src sql.NullString
-	if err := row.Scan(&n.ID, &n.TenantID, &n.VPCID, &n.Name, &n.CIDR, &gw, &nadNS, &nadName, &n.State, &ext, &src, &n.CreatedAt); err != nil {
+	var tenantID, vpcID, gw, nadNS, nadName, ext, src sql.NullString
+	if err := row.Scan(&n.ID, &tenantID, &vpcID, &n.Name, &n.NetworkType, &n.CIDR, &gw, &nadNS, &nadName, &n.State, &ext, &src, &n.CreatedAt); err != nil {
 		return nil, false
 	}
+	n.TenantID = tenantID.String
+	n.VPCID = vpcID.String
 	n.Gateway = gw.String
 	n.NADNamespace = nadNS.String
 	n.NADName = nadName.String
@@ -305,8 +361,8 @@ func (m *MySQL) DeleteNetwork(id string) {
 }
 
 func (m *MySQL) ListNetworks(tenantID string) []*platform.Network {
-	rows, err := m.db.Query(`SELECT id, tenant_id, vpc_id, name, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at
-		FROM networks WHERE tenant_id=?`, tenantID)
+	rows, err := m.db.Query(`SELECT id, tenant_id, vpc_id, name, network_type, cidr, gateway, nad_namespace, nad_name, state, external_uuid, import_source, created_at
+		FROM networks WHERE tenant_id=? OR network_type=?`, tenantID, platform.NetworkTypeShared)
 	if err != nil {
 		return nil
 	}
@@ -314,10 +370,12 @@ func (m *MySQL) ListNetworks(tenantID string) []*platform.Network {
 	var out []*platform.Network
 	for rows.Next() {
 		var n platform.Network
-		var gw, nadNS, nadName, ext, src sql.NullString
-		if err := rows.Scan(&n.ID, &n.TenantID, &n.VPCID, &n.Name, &n.CIDR, &gw, &nadNS, &nadName, &n.State, &ext, &src, &n.CreatedAt); err != nil {
+		var tenant, vpc, gw, nadNS, nadName, ext, src sql.NullString
+		if err := rows.Scan(&n.ID, &tenant, &vpc, &n.Name, &n.NetworkType, &n.CIDR, &gw, &nadNS, &nadName, &n.State, &ext, &src, &n.CreatedAt); err != nil {
 			continue
 		}
+		n.TenantID = tenant.String
+		n.VPCID = vpc.String
 		n.Gateway = gw.String
 		n.NADNamespace = nadNS.String
 		n.NADName = nadName.String
@@ -806,4 +864,63 @@ func (m *MySQL) ListSSHKeyPairs(tenantID string) []*platform.SSHKeyPair {
 
 func (m *MySQL) DeleteSSHKeyPair(id string) {
 	_, _ = m.db.Exec(`DELETE FROM ssh_key_pairs WHERE id=?`, id)
+}
+
+func (m *MySQL) SaveAuditEvent(e *platform.AuditEvent) {
+	_, _ = m.db.Exec(`INSERT INTO audit_events (id, actor_user_id, actor_role, target_tenant_id, action, method, path, resource_type, resource_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.ActorUserID, e.ActorRole, e.TargetTenantID, e.Action, e.Method, e.Path,
+		nullStr(e.ResourceType), nullStr(e.ResourceID), e.CreatedAt)
+}
+
+func (m *MySQL) ListAuditEvents(targetTenantID string, limit int) []*platform.AuditEvent {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := m.db.Query(`SELECT id, actor_user_id, actor_role, target_tenant_id, action, method, path, resource_type, resource_id, created_at
+		FROM audit_events WHERE target_tenant_id=? ORDER BY created_at DESC LIMIT ?`, targetTenantID, limit)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []*platform.AuditEvent
+	for rows.Next() {
+		var e platform.AuditEvent
+		var rt, rid sql.NullString
+		if err := rows.Scan(&e.ID, &e.ActorUserID, &e.ActorRole, &e.TargetTenantID, &e.Action, &e.Method, &e.Path, &rt, &rid, &e.CreatedAt); err != nil {
+			continue
+		}
+		e.ResourceType = rt.String
+		e.ResourceID = rid.String
+		out = append(out, &e)
+	}
+	return out
+}
+
+func (m *MySQL) AllocateIPAddress(networkID string) (*platform.IPAddress, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	row := tx.QueryRow(`SELECT id, network_id, address, status, vm_nic_id, created_at FROM ip_addresses
+		WHERE network_id=? AND status='available' ORDER BY address LIMIT 1 FOR UPDATE`, networkID)
+	var ip platform.IPAddress
+	var vmNic sql.NullString
+	if err := row.Scan(&ip.ID, &ip.NetworkID, &ip.Address, &ip.Status, &vmNic, &ip.CreatedAt); err != nil {
+		return nil, fmt.Errorf("no available IP in pool")
+	}
+	ip.Status = "allocated"
+	if _, err := tx.Exec(`UPDATE ip_addresses SET status='allocated' WHERE id=?`, ip.ID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &ip, nil
+}
+
+func (m *MySQL) ReleaseIPAddressByVMNic(vmNicID string) {
+	_, _ = m.db.Exec(`UPDATE ip_addresses SET status='available', vm_nic_id=NULL WHERE vm_nic_id=?`, vmNicID)
 }

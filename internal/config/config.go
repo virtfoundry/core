@@ -11,12 +11,41 @@ import (
 const DefaultConfigPath = "config/config.yaml"
 
 type Config struct {
-	Server         ServerConfig         `mapstructure:"server"`
-	Logger         LoggerConfig         `mapstructure:"logger"`
-	Security       SecurityConfig       `mapstructure:"security"`
-	KubeVirt       KubeVirtConfig       `mapstructure:"kubevirt"`
-	Database       DatabaseConfig       `mapstructure:"database"`
-	Observability  ObservabilityConfig  `mapstructure:"observability"`
+	Server        ServerConfig        `mapstructure:"server"`
+	Logger        LoggerConfig        `mapstructure:"logger"`
+	Security      SecurityConfig      `mapstructure:"security"`
+	KubeVirt      KubeVirtConfig      `mapstructure:"kubevirt"`
+	Database      DatabaseConfig      `mapstructure:"database"`
+	Observability ObservabilityConfig `mapstructure:"observability"`
+	Networking    NetworkingConfig    `mapstructure:"networking"`
+}
+
+type NetworkingConfig struct {
+	Public   PublicNetworkConfig   `mapstructure:"public"`
+	Isolated IsolatedNetworkConfig `mapstructure:"isolated"`
+	VM       VMNetworkConfig       `mapstructure:"vm"`
+}
+
+type PublicNetworkConfig struct {
+	Enabled      bool     `mapstructure:"enabled"`
+	Mode         string   `mapstructure:"mode"`
+	CIDR         string   `mapstructure:"cidr"`
+	Gateway      string   `mapstructure:"gateway"`
+	DNS          []string `mapstructure:"dns"`
+	IPPoolStart  string   `mapstructure:"ip_pool_start"`
+	IPPoolEnd    string   `mapstructure:"ip_pool_end"`
+	BridgeName   string   `mapstructure:"bridge_name"`
+	NADName      string   `mapstructure:"nad_name"`
+	NADNamespace string   `mapstructure:"nad_namespace"`
+}
+
+type IsolatedNetworkConfig struct {
+	BridgeName string `mapstructure:"bridge_name"`
+}
+
+type VMNetworkConfig struct {
+	DefaultNetwork  string `mapstructure:"default_network"`
+	AllowPodNetwork bool   `mapstructure:"allow_pod_network"`
 }
 
 type ObservabilityConfig struct {
@@ -67,6 +96,13 @@ func DefaultConfig() *Config {
 			Enabled:    true,
 			Kubeconfig: getEnv("KUBECONFIG", ""),
 			Namespace:  getEnv("KUBEVIRT_NAMESPACE", "default"),
+		},
+		Networking: NetworkingConfig{
+			Isolated: IsolatedNetworkConfig{BridgeName: "virtforge-br0"},
+			VM: VMNetworkConfig{
+				DefaultNetwork:  "pod",
+				AllowPodNetwork: true,
+			},
 		},
 	}
 }

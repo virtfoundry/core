@@ -81,6 +81,15 @@ func main() {
 		log.Info("root user bootstrapped", zap.String("username", "root"))
 	}
 
+	if err := platformSvc.BootstrapNetworking(context.Background(), cfg.Networking); err != nil {
+		log.Fatal("bootstrap networking", zap.Error(err))
+	}
+	if cfg.Networking.Public.Enabled {
+		log.Info("public network enabled",
+			zap.String("cidr", cfg.Networking.Public.CIDR),
+			zap.String("pool", cfg.Networking.Public.IPPoolStart+"-"+cfg.Networking.Public.IPPoolEnd))
+	}
+
 	router := mux.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
@@ -112,6 +121,7 @@ func main() {
 
 	protected := v1.NewRoute().Subrouter()
 	protected.Use(middleware.JWTAuth(authSvc))
+	protected.Use(middleware.AuditRootImpersonation(repo))
 	protected.HandleFunc("/auth/me", platformHandler.Me).Methods("GET")
 	protected.HandleFunc("/vpcs", platformHandler.ListVPCs).Methods("GET")
 	protected.HandleFunc("/vpcs/cidr-plan", platformHandler.VPCCIDRPlan).Methods("GET")

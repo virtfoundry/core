@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/virtforge-cloud/virtforge/internal/auth"
+	"github.com/virtforge-cloud/virtforge/internal/config"
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
 	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
@@ -55,6 +56,12 @@ func (s *PlatformService) BootstrapRoot(username, password string) (*platform.Us
 
 func (s *PlatformService) ResolveTenantID(claims *auth.Claims, requestedTenant string) (string, error) {
 	return s.identity.ResolveTenantID(claims, requestedTenant)
+}
+
+func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.NetworkingConfig) error {
+	s.network.ConfigureBridges(cfg.Isolated.BridgeName)
+	s.compute.ConfigureVMNetworking(cfg.VM.DefaultNetwork, cfg.VM.AllowPodNetwork)
+	return s.network.BootstrapSharedNetwork(ctx, cfg.Public)
 }
 
 // --- tenant ---

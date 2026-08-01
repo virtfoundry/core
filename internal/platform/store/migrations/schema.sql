@@ -61,9 +61,10 @@ CREATE TABLE IF NOT EXISTS security_groups (
 
 CREATE TABLE IF NOT EXISTS networks (
     id              CHAR(36) PRIMARY KEY,
-    tenant_id       CHAR(36) NOT NULL,
-    vpc_id          CHAR(36) NOT NULL,
+    tenant_id       CHAR(36) NULL,
+    vpc_id          CHAR(36) NULL,
     name            VARCHAR(255) NOT NULL,
+    network_type    VARCHAR(32) NOT NULL DEFAULT 'isolated',
     cidr            VARCHAR(64) NOT NULL,
     gateway         VARCHAR(64) NULL,
     nad_namespace   VARCHAR(255) NULL,
@@ -73,6 +74,7 @@ CREATE TABLE IF NOT EXISTS networks (
     import_source   VARCHAR(32) NULL,
     created_at      DATETIME(3) NOT NULL,
     INDEX idx_net_tenant (tenant_id),
+    INDEX idx_net_type (network_type),
     UNIQUE KEY uk_net_external (import_source, external_uuid)
 );
 
@@ -218,3 +220,30 @@ CREATE TABLE IF NOT EXISTS ssh_key_pairs (
 );
 
 -- Default catalog (idempotent seeds applied by app on first boot)
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    id               CHAR(36) PRIMARY KEY,
+    actor_user_id    CHAR(36) NOT NULL,
+    actor_role       VARCHAR(32) NOT NULL,
+    target_tenant_id CHAR(36) NOT NULL,
+    action           VARCHAR(64) NOT NULL,
+    method           VARCHAR(16) NOT NULL,
+    path             VARCHAR(512) NOT NULL,
+    resource_type    VARCHAR(64) NULL,
+    resource_id      VARCHAR(128) NULL,
+    created_at       DATETIME(3) NOT NULL,
+    INDEX idx_audit_tenant (target_tenant_id),
+    INDEX idx_audit_actor (actor_user_id),
+    INDEX idx_audit_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS ip_addresses (
+    id          CHAR(36) PRIMARY KEY,
+    network_id  CHAR(36) NOT NULL,
+    address     VARCHAR(64) NOT NULL,
+    status      VARCHAR(32) NOT NULL DEFAULT 'available',
+    vm_nic_id   CHAR(36) NULL,
+    created_at  DATETIME(3) NOT NULL,
+    UNIQUE KEY uk_ip_network_addr (network_id, address),
+    INDEX idx_ip_status (network_id, status)
+);
