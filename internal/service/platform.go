@@ -9,6 +9,7 @@ import (
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
 	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 	"github.com/virtforge-cloud/virtforge/internal/service/compute"
@@ -52,6 +53,15 @@ func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hyper
 
 func (s *PlatformService) BootstrapRoot(username, password string) (*platform.User, error) {
 	return s.identity.BootstrapRoot(username, password)
+}
+
+func (s *PlatformService) BootstrapRootDefaultTenant(ctx context.Context) (*platform.Tenant, error) {
+	tenant, err := s.tenant.EnsureTenant(ctx, branding.DefaultTenantName, branding.DefaultTenantSlug)
+	if err != nil {
+		return nil, err
+	}
+	s.identity.LinkRootToTenant(tenant.ID)
+	return tenant, nil
 }
 
 func (s *PlatformService) ResolveTenantID(claims *auth.Claims, requestedTenant string) (string, error) {

@@ -81,6 +81,12 @@ func main() {
 		log.Info("root user bootstrapped", zap.String("username", "root"))
 	}
 
+	if tenant, err := platformSvc.BootstrapRootDefaultTenant(context.Background()); err != nil {
+		log.Fatal("bootstrap default tenant", zap.Error(err))
+	} else {
+		log.Info("default tenant ready", zap.String("slug", tenant.Slug), zap.String("id", tenant.ID))
+	}
+
 	if err := platformSvc.BootstrapNetworking(context.Background(), cfg.Networking); err != nil {
 		log.Fatal("bootstrap networking", zap.Error(err))
 	}

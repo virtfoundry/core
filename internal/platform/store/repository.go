@@ -12,6 +12,7 @@ type Repository interface {
 
 	SaveTenant(t *platform.Tenant)
 	GetTenant(id string) (*platform.Tenant, bool)
+	GetTenantBySlug(slug string) (*platform.Tenant, bool)
 	ListTenants() []*platform.Tenant
 
 	SaveVPC(v *platform.VPC)

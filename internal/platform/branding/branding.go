@@ -32,6 +32,8 @@ const (
 	KubeVirtSecretName = "virtforge-kubevirt"
 
 	DefaultRootPassword = "virtforge"
+	DefaultTenantSlug   = "default"
+	DefaultTenantName   = "Default"
 	ServiceName         = "virtforge-iaas"
 	EmailDomain         = "virtforge.local"
 	DBName              = "virtforge"

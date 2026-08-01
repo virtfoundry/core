@@ -110,6 +110,17 @@ func (m *Memory) GetTenant(id string) (*platform.Tenant, bool) {
 	return t, ok
 }
 
+func (m *Memory) GetTenantBySlug(slug string) (*platform.Tenant, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, t := range m.tenants {
+		if t.Slug == slug {
+			return t, true
+		}
+	}
+	return nil, false
+}
+
 func (m *Memory) ListTenants() []*platform.Tenant {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

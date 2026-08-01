@@ -20,7 +20,8 @@ func AuditRootImpersonation(st store.Repository) func(http.Handler) http.Handler
 			impersonating := claims != nil &&
 				claims.Role == platform.RoleRoot &&
 				targetTenant != "" &&
-				r.Header.Get("X-Tenant-ID") != ""
+				r.Header.Get("X-Tenant-ID") != "" &&
+				r.Header.Get("X-Tenant-ID") != claims.TenantID
 
 			ctx := r.Context()
 			if impersonating {

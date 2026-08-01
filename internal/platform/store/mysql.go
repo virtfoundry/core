@@ -201,6 +201,18 @@ func (m *MySQL) GetTenant(id string) (*platform.Tenant, bool) {
 	return &t, true
 }
 
+func (m *MySQL) GetTenantBySlug(slug string) (*platform.Tenant, bool) {
+	row := m.db.QueryRow(`SELECT id, name, slug, namespace, state, external_uuid, import_source, created_at FROM tenants WHERE slug=?`, slug)
+	var t platform.Tenant
+	var ext, src sql.NullString
+	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &t.Namespace, &t.State, &ext, &src, &t.CreatedAt); err != nil {
+		return nil, false
+	}
+	t.ExternalUUID = ext.String
+	t.ImportSource = src.String
+	return &t, true
+}
+
 func (m *MySQL) ListTenants() []*platform.Tenant {
 	rows, err := m.db.Query(`SELECT id, name, slug, namespace, state, external_uuid, import_source, created_at FROM tenants ORDER BY name`)
 	if err != nil {

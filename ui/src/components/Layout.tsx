@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Server, HardDrive, Network, Globe, Shield,
@@ -56,12 +56,23 @@ const menuItems: MenuItem[] = [
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedTenant, setSelectedTenant] = useState(localStorage.getItem('tenant_id') || '');
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const user = authService.getUser();
   const isRoot = authService.isRoot();
+  const defaultTenantId = user?.tenant_id || '';
+  const [selectedTenant, setSelectedTenant] = useState(
+    localStorage.getItem('tenant_id') || defaultTenantId,
+  );
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (!isRoot || !defaultTenantId) return;
+    if (!localStorage.getItem('tenant_id')) {
+      localStorage.setItem('tenant_id', defaultTenantId);
+      setSelectedTenant(defaultTenantId);
+    }
+  }, [isRoot, defaultTenantId]);
 
   useRealtimeEvents();
 
@@ -71,6 +82,7 @@ export function Layout() {
     enabled: isRoot,
   });
   const tenants = tenantsData?.tenants || [];
+  const impersonating = isRoot && selectedTenant !== '' && selectedTenant !== defaultTenantId;
 
   const handleTenantChange = (tenantId: string) => {
     setSelectedTenant(tenantId);
@@ -178,7 +190,7 @@ export function Layout() {
             )}
           </div>
         </header>
-        {isRoot && selectedTenant && (
+        {impersonating && (
           <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-6 py-2 text-sm">
             {t('nav.impersonatingTenant')}: {tenants.find((tn) => tn.id === selectedTenant)?.name || selectedTenant}
           </div>
