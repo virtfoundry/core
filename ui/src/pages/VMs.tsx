@@ -15,6 +15,7 @@ import { isVMTransitional } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { isIsolatedNetwork, isPublicNetwork } from '../lib/networks';
 
 function stateColor(state: string) {
   switch (state?.toLowerCase()) {
@@ -72,6 +73,8 @@ export function VMs() {
     enabled: !needsTenant && deployModal,
   });
   const networks = netData?.networks || [];
+  const privateNetworks = networks.filter(isIsolatedNetwork);
+  const hasPublicNetwork = networks.some(isPublicNetwork);
   const sshKeys = sshData?.ssh_keys || [];
   const volumes = volData?.volumes || [];
 
@@ -299,7 +302,13 @@ export function VMs() {
               </select>
             </div>
           </div>
-          {networks.length > 0 && (
+          {hasPublicNetwork && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-900">
+              <p className="font-medium">{t('vms.publicNetworkDefault')}</p>
+              <p className="text-xs mt-1 text-purple-800">{t('vms.publicNetworkDefaultHint')}</p>
+            </div>
+          )}
+          {privateNetworks.length > 0 && (
             <div>
               <label className="block text-sm font-medium mb-1">{t('vms.privateNetworks')}</label>
               <select
@@ -311,8 +320,8 @@ export function VMs() {
                 }}
                 className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
               >
-                {networks.map((n) => (
-                  <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
+                {privateNetworks.map((n) => (
+                  <option key={n.id} value={n.id}>{n.name} ({n.cidr}) · {t('networks.typeIsolated')}</option>
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">{t('vms.multiSelectHint')}</p>

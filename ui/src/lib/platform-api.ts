@@ -61,6 +61,8 @@ export interface Network {
   vpc_id?: string;
   network_type?: 'isolated' | 'shared';
   gateway?: string;
+  nad_namespace?: string;
+  nad_name?: string;
   state: string;
 }
 

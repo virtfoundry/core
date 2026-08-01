@@ -2,7 +2,7 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  LayoutDashboard, Server, HardDrive, Network, Globe, Shield,
+  LayoutDashboard, Server, HardDrive, Network, Globe, Shield, Boxes,
   Users, LogOut, Menu, X, Camera, Key,
 } from 'lucide-react';
 import { VirtForgeLogo } from './VirtForgeLogo';
@@ -43,8 +43,9 @@ const menuItems: MenuItem[] = [
   {
     group: 'Network',
     items: [
-      { path: '/vpcs', icon: Globe, labelKey: 'nav.vpcs' },
+      { path: '/networks/public', icon: Globe, labelKey: 'nav.publicNetwork' },
       { path: '/networks', icon: Network, labelKey: 'nav.networks' },
+      { path: '/vpcs', icon: Boxes, labelKey: 'nav.vpcs' },
       { path: '/security-groups', icon: Shield, labelKey: 'nav.securityGroups' },
     ],
   },
