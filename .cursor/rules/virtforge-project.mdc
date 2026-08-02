@@ -1,0 +1,51 @@
+---
+description: VirtForge Cloud project context (Kubernetes-native IaaS)
+alwaysApply: true
+---
+
+# VirtForge Cloud
+
+Multi-tenant IaaS platform native to Kubernetes: KubeVirt (VMs), Multus (networks), NetworkPolicy (security groups).
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| API | Go 1.25 + Gorilla Mux + net/http |
+| Auth | JWT (root + tenant admins) |
+| Persistence | MySQL (`store.Repository`) or Memory (dev) |
+| Hypervisor | KubeVirt (`internal/infra/hypervisor`) |
+| K8s ops | `internal/platform/k8s` (tenants, VPCs, NADs, SGs) |
+| UI | React 18 + Vite + Tailwind + TanStack Query |
+| Deploy | Dockerfiles in `docker/`; cluster manifests in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) |
+
+## Structure
+
+```
+cmd/server/          # REST API + WebSocket
+cmd/worker/          # Async jobs (deploy_vm, reconcile)
+cmd/migrate/         # CloudStack → VirtForge import
+internal/api/        # Handlers, middleware, ws hub
+internal/service/    # PlatformService (store + k8s + kubevirt)
+internal/platform/   # Models, store, k8s manager
+ui/src/              # Frontend (pages, components, lib)
+```
+
+## Multi-tenant model
+
+- Root creates tenants; header `X-Tenant-ID` required for root to operate in a tenant
+- Tenant → namespace `nimbus-tenant-{slug}`
+- VPC → namespace `nimbus-vpc-{slug}-{id}` + Multus NAD
+- VM → VirtualMachine in tenant namespace
+- Security Group → NetworkPolicy
+
+## OSS conventions
+
+- Go module: `github.com/virtforge-cloud/virtforge`
+- API base: `/api/v1`; WebSockets: `/ws/console`, `/ws/events`
+- JSON errors: `{"error":"..."}`; helpers in `handler/common.go`
+- Query keys centralized in `ui/src/lib/query-keys.ts` — keep in sync with `useRealtimeEvents`
+- **Commits**: English, Conventional Commits (`feat`, `fix`, `docs`, `refactor`, `chore`, …)
+- **Documentation**: English; extended guides on [GitHub Wiki](https://github.com/virtforge-cloud/virtforge/wiki)
+- Homelab deploy: `virtforge-chart/deploy-homelab.sh`
+- Helm install (production-oriented): [virtforge-cloud/virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)

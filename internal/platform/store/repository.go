@@ -12,6 +12,7 @@ type Repository interface {
 
 	SaveTenant(t *platform.Tenant)
 	GetTenant(id string) (*platform.Tenant, bool)
+	GetTenantBySlug(slug string) (*platform.Tenant, bool)
 	ListTenants() []*platform.Tenant
 
 	SaveVPC(v *platform.VPC)
@@ -35,6 +36,7 @@ type Repository interface {
 
 	AllocateIPAddress(networkID string) (*platform.IPAddress, error)
 	ReleaseIPAddressByVMNic(vmNicID string)
+	ReleaseIPAddressByAddress(networkID, address string)
 	SeedIPPool(networkID, start, end string) error
 
 	SaveVolume(v *platform.Volume)
@@ -68,6 +70,7 @@ type Repository interface {
 	SaveVMTemplate(t *platform.VMTemplate)
 	GetVMTemplate(id string) (*platform.VMTemplate, bool)
 	ListVMTemplates(activeOnly bool) []*platform.VMTemplate
+	DeleteVMTemplate(id string)
 
 	SaveSSHKeyPair(k *platform.SSHKeyPair)
 	GetSSHKeyPair(id string) (*platform.SSHKeyPair, bool)

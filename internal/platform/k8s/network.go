@@ -33,16 +33,22 @@ func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, 
 }
 
 func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
-	return m.createBridgeNAD(ctx, spec.Namespace, spec.Name, spec.CIDR, spec.Bridge, spec.Gateway, spec.RangeStart, spec.RangeEnd, spec.Labels)
+	// Bridge CNI without IPAM: veth joins virtforge-pub0; guest IP from cloud-init (pool), not the pod.
+	bridge := spec.Bridge
+	if bridge == "" {
+		bridge = branding.BridgeName
+	}
+	config := fmt.Sprintf(`{
+  "cniVersion": "0.3.1",
+  "name": %q,
+  "type": "bridge",
+  "bridge": %q,
+  "ipam": {}
+}`, spec.Name, bridge)
+	return m.applyBridgeNAD(ctx, spec.Namespace, spec.Name, config, spec.Labels)
 }
 
 func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, bridge, gateway, rangeStart, rangeEnd string, extra NADLabels) error {
-	gvr := schema.GroupVersionResource{
-		Group:    "k8s.cni.cncf.io",
-		Version:  "v1",
-		Resource: "network-attachment-definitions",
-	}
-
 	ipam := fmt.Sprintf(`{
     "type": "host-local",
     "subnet": %q`, cidr)
@@ -68,6 +74,16 @@ func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, br
   "ipam": %s
 }`, name, bridge, ipam)
 
+	return m.applyBridgeNAD(ctx, namespace, name, config, extra)
+}
+
+func (m *Manager) applyBridgeNAD(ctx context.Context, namespace, name, config string, extra NADLabels) error {
+	gvr := schema.GroupVersionResource{
+		Group:    "k8s.cni.cncf.io",
+		Version:  "v1",
+		Resource: "network-attachment-definitions",
+	}
+
 	labels := map[string]interface{}{
 		LabelManagedBy: ManagedByValue,
 	}
@@ -90,7 +106,16 @@ func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, br
 		},
 	}
 
-	_, err := m.Dynamic.Resource(gvr).Namespace(namespace).Create(ctx, nad, metav1.CreateOptions{})
+	existing, err := m.Dynamic.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err == nil {
+		nad.SetResourceVersion(existing.GetResourceVersion())
+		_, err = m.Dynamic.Resource(gvr).Namespace(namespace).Update(ctx, nad, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("update network attachment %s: %w", name, err)
+		}
+		return nil
+	}
+	_, err = m.Dynamic.Resource(gvr).Namespace(namespace).Create(ctx, nad, metav1.CreateOptions{})
 	if err != nil && !isAlreadyExists(err) {
 		return fmt.Errorf("create network attachment: %w", err)
 	}

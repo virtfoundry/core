@@ -1,0 +1,15 @@
+---
+description: SemVer releases — align app tags with virtforge-chart
+alwaysApply: true
+---
+
+# Versioning
+
+See the chart repo rule for the full checklist. App repo summary:
+
+- **Tags:** `vX.Y.Z` on `main` after merge (e.g. `v0.2.0`)
+- **Artifacts:** `ghcr.io/virtforge-cloud/iaas-api:X.Y.Z`, `iaas-ui:X.Y.Z`
+- **CHANGELOG.md** at repo root — update on every release
+- Cross-repo releases use the **same version number** as [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) `appVersion`
+
+Pre-1.0 SemVer: MINOR for features, PATCH for fixes. English Conventional Commits; release notes in CHANGELOG.

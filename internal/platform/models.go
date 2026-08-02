@@ -187,16 +187,25 @@ type ServiceOffering struct {
 }
 
 type VMTemplate struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	DisplayName  string    `json:"display_name"`
-	Image        string    `json:"image"`
-	OSType       string    `json:"os_type,omitempty"`
-	Hypervisor   string    `json:"hypervisor"`
-	State        string    `json:"state"`
-	ExternalUUID string    `json:"external_uuid,omitempty"`
-	ImportSource string    `json:"import_source,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id,omitempty"` // empty = platform catalog
+	Name              string    `json:"name"`
+	DisplayName       string    `json:"display_name"`
+	Description       string    `json:"description,omitempty"`
+	Image             string    `json:"image"` // container disk URL or ISO HTTP URL
+	SourceType        string    `json:"source_type,omitempty"` // container, iso
+	OSType            string    `json:"os_type,omitempty"`
+	CloudInitUserData string    `json:"cloud_init_user_data,omitempty"`
+	ISOVolumeID       string    `json:"iso_volume_id,omitempty"`
+	ISOSizeGi         int       `json:"iso_size_gi,omitempty"`
+	BootDiskSizeGi    int       `json:"boot_disk_size_gi,omitempty"`
+	StorageClass      string    `json:"storage_class,omitempty"`
+	ImportState       string    `json:"import_state,omitempty"` // pending, importing, ready, failed
+	Hypervisor        string    `json:"hypervisor"`
+	State             string    `json:"state"`
+	ExternalUUID      string    `json:"external_uuid,omitempty"`
+	ImportSource      string    `json:"import_source,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type AsyncJob struct {

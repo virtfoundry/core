@@ -30,21 +30,21 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - VirtForge branding */}
-      <div 
+      <div
         className="hidden lg:flex lg:w-1/2 bg-cover bg-center p-12 flex-col justify-between relative"
         style={{ backgroundImage: `url(${loginBg})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-brand-600/95 to-brand-800/95" />
-        
-        <div className="relative z-10">
+
+        <div className="relative z-10 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <VirtForgeLogo size={48} className="ring-2 ring-white/20 rounded-xl" />
             <div>
               <h1 className="text-3xl font-bold text-white">VirtForge</h1>
-              <p className="text-brand-200">Cloud Platform</p>
+              <p className="text-brand-200">{t('login.tagline')}</p>
             </div>
           </div>
+          <LanguageToggle onDark />
         </div>
 
         <div className="relative z-10 space-y-6">
@@ -59,7 +59,7 @@ export function Login() {
         <div className="relative z-10 grid grid-cols-3 gap-6 text-white">
           <div>
             <div className="text-3xl font-bold">99.9%</div>
-            <div className="text-brand-200 text-sm">Uptime SLA</div>
+            <div className="text-brand-200 text-sm">{t('login.uptimeSla')}</div>
           </div>
           <div>
             <div className="text-3xl font-bold">10K+</div>
@@ -72,40 +72,42 @@ export function Login() {
         </div>
       </div>
 
-      {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 dark:bg-dark-200">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <VirtForgeLogo size={40} />
-              <span className="text-2xl font-bold text-gray-900">VirtForge</span>
+              <div>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">VirtForge</span>
+                <p className="text-xs text-gray-500 lg:hidden">{t('login.tagline')}</p>
+              </div>
             </div>
             <LanguageToggle />
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('login.welcome')}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('login.welcome')}</h2>
           <p className="text-gray-500 mb-8">{t('login.subtitle')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.username')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('login.username')}</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                placeholder="admin"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition dark:bg-dark-100"
+                placeholder={t('login.usernamePlaceholder')}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.password')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('login.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition dark:bg-dark-100"
                 placeholder="••••••••"
                 required
               />
@@ -114,7 +116,7 @@ export function Login() {
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="w-4 h-4 text-brand-500 rounded" />
-                <span className="text-sm text-gray-600">{t('login.remember')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('login.remember')}</span>
               </label>
               <a href="#" className="text-sm text-brand-500 hover:text-brand-600">{t('login.forgotPassword')}</a>
             </div>
@@ -135,7 +137,7 @@ export function Login() {
           </form>
 
           <p className="mt-8 text-center text-sm text-gray-500">
-            VirtForge Cloud v1.0.0
+            {t('login.version')}
           </p>
         </div>
       </div>

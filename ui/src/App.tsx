@@ -7,11 +7,13 @@ import { VMs } from './pages/VMs';
 import { VMDetail } from './pages/VMDetail';
 import { Volumes } from './pages/Volumes';
 import { Networks } from './pages/Networks';
+import { PublicNetwork } from './pages/PublicNetwork';
 import { SecurityGroups } from './pages/SecurityGroups';
 import { Snapshots } from './pages/Snapshots';
 import { VMSnapshots } from './pages/VMSnapshots';
 import { Tenants } from './pages/Tenants';
 import { VPCs } from './pages/VPCs';
+import { Templates } from './pages/Templates';
 import { SSHKeys } from './pages/SSHKeys';
 import { VMConsole } from './pages/VMConsole';
 
@@ -55,9 +57,11 @@ export default function App() {
             <Route path="tenants" element={<Tenants />} />
             <Route path="vms" element={<VMs />} />
             <Route path="vms/:name" element={<VMDetail />} />
+            <Route path="templates" element={<Templates />} />
             <Route path="ssh-keys" element={<SSHKeys />} />
             <Route path="volumes" element={<Volumes />} />
             <Route path="vpcs" element={<VPCs />} />
+            <Route path="networks/public" element={<PublicNetwork />} />
             <Route path="networks" element={<Networks />} />
             <Route path="security-groups" element={<SecurityGroups />} />
             <Route path="snapshots" element={<Snapshots />} />

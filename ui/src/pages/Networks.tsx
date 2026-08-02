@@ -14,9 +14,68 @@ import { ResourceActions } from '../components/ResourceActions';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
-import type { Network } from '../lib/platform-api';
+import { isIsolatedNetwork } from '../lib/networks';
+import type { Network, VPC } from '../lib/platform-api';
 
 type DeleteTarget = { id: string; name: string };
+
+function NetworkCard({
+  net,
+  vpcs,
+  onEdit,
+  onDelete,
+  t,
+}: {
+  net: Network;
+  vpcs: VPC[];
+  onEdit: (net: Network) => void;
+  onDelete: (target: DeleteTarget) => void;
+  t: (key: import('../lib/i18n').TranslationKey) => string;
+}) {
+  const vpc = vpcs.find((v) => v.id === net.vpc_id);
+
+  return (
+    <div className="bg-white dark:bg-dark-100 rounded-xl border p-5 hover:shadow-lg transition">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+            <NetworkIcon size={20} className="text-blue-500" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold">{net.name}</h3>
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                {t('networks.typeIsolated')}
+              </span>
+              {net.name === 'default' && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  {t('networks.defaultBadge')}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500">
+              {vpc ? t('networks.vpcLabel').replace('{name}', vpc.name) : t('networks.vpc')}
+            </p>
+          </div>
+        </div>
+        <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{net.state}</span>
+      </div>
+      {net.name === 'default' && (
+        <p className="text-xs text-gray-500 mb-3">{t('networks.defaultHint')}</p>
+      )}
+      <div className="text-sm mb-4">
+        <p className="text-gray-500">{t('networks.cidr')}</p>
+        <p className="font-medium font-mono">{net.cidr}</p>
+      </div>
+      <ResourceActions
+        editLabel={t('common.edit')}
+        deleteLabel={t('common.delete')}
+        onEdit={() => onEdit(net)}
+        onDelete={() => onDelete({ id: net.id, name: net.name })}
+      />
+    </div>
+  );
+}
 
 export function Networks() {
   const { t } = useI18n();
@@ -87,9 +146,9 @@ export function Networks() {
     },
   });
 
-  const networks = data?.networks ?? [];
+  const isolatedNetworks = (data?.networks ?? []).filter(isIsolatedNetwork);
   const vpcs = vpcData?.vpcs ?? [];
-  const filtered = networks.filter((n) => n.name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = isolatedNetworks.filter((n) => n.name?.toLowerCase().includes(search.toLowerCase()));
 
   if (needsTenant) {
     return <div className="text-center py-12 text-amber-600">{t('common.selectTenant')}</div>;
@@ -109,7 +168,7 @@ export function Networks() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('networks.title')}</h1>
-          <p className="text-gray-500">{networks.length} {t('networks.subtitle')}</p>
+          <p className="text-gray-500">{filtered.length} {t('networks.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
@@ -117,6 +176,11 @@ export function Networks() {
             <Plus size={18} /> {t('networks.create')}
           </button>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm text-blue-900 dark:text-blue-200">
+        {t('networks.isolatedOnlyHint')}{' '}
+        <Link to="/networks/public" className="font-medium underline">{t('nav.publicNetwork')}</Link>
       </div>
 
       {vpcs.length === 0 && (
@@ -133,56 +197,28 @@ export function Networks() {
       </div>
 
       <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
-        ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <NetworkIcon size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">{t('networks.empty')}</p>
-            <p className="text-sm text-gray-400 mt-2 max-w-md mx-auto">{t('networks.emptyHint')}</p>
-          </div>
-        ) : (
-          filtered.map((net) => (
-            <div key={net.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5 hover:shadow-lg transition">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                    <NetworkIcon size={20} className="text-blue-500" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold">{net.name}</h3>
-                      {net.name === 'default' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                          {t('networks.defaultBadge')}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      {vpcs.find((v) => v.id === net.vpc_id)?.name || 'VPC'}
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{net.state}</span>
-              </div>
-              {net.name === 'default' && (
-                <p className="text-xs text-gray-500 mb-3">{t('networks.defaultHint')}</p>
-              )}
-              <div className="text-sm">
-                <p className="text-gray-500">{t('networks.cidr')}</p>
-                <p className="font-medium font-mono">{net.cidr}</p>
-              </div>
-              <ResourceActions
-                editLabel={t('common.edit')}
-                deleteLabel={t('common.delete')}
-                onEdit={() => setEditNet(net)}
-                onDelete={() => setDeleteTarget({ id: net.id, name: net.name })}
-              />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            <div className="col-span-full text-center py-12">{t('common.loading')}</div>
+          ) : filtered.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <NetworkIcon size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500">{t('networks.empty')}</p>
+              <p className="text-sm text-gray-400 mt-2 max-w-md mx-auto">{t('networks.emptyHint')}</p>
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            filtered.map((net) => (
+              <NetworkCard
+                key={net.id}
+                net={net}
+                vpcs={vpcs}
+                onEdit={setEditNet}
+                onDelete={setDeleteTarget}
+                t={t}
+              />
+            ))
+          )}
+        </div>
       </RefreshingPanel>
 
       <ConfirmDialog

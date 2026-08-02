@@ -67,7 +67,35 @@ func (m *MySQL) Migrate() error {
 	if err := m.applyMigration002(); err != nil {
 		return err
 	}
+	if err := m.applyMigration003(); err != nil {
+		return err
+	}
+	if err := m.applyMigration004(); err != nil {
+		return err
+	}
 	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('001_initial')`)
+	return nil
+}
+
+func (m *MySQL) applyMigration003() error {
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN tenant_id CHAR(36) NOT NULL DEFAULT ''`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN source_type VARCHAR(32) NOT NULL DEFAULT 'container'`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN cloud_init_user_data TEXT NULL`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN description TEXT NULL`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates DROP INDEX name`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD UNIQUE KEY uk_template_tenant_name (tenant_id, name)`)
+	_, _ = m.db.Exec(`ALTER TABLE security_groups ADD UNIQUE KEY uk_sg_tenant_name (tenant_id, name)`)
+	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('003_tenant_templates')`)
+	return nil
+}
+
+func (m *MySQL) applyMigration004() error {
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN iso_volume_id CHAR(36) NULL`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN iso_size_gi INT NOT NULL DEFAULT 8`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN boot_disk_size_gi INT NOT NULL DEFAULT 32`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN storage_class VARCHAR(64) NULL`)
+	_, _ = m.db.Exec(`ALTER TABLE vm_templates ADD COLUMN import_state VARCHAR(32) NULL`)
+	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('004_iso_templates')`)
 	return nil
 }
 
@@ -191,6 +219,18 @@ func (m *MySQL) SaveTenant(t *platform.Tenant) {
 
 func (m *MySQL) GetTenant(id string) (*platform.Tenant, bool) {
 	row := m.db.QueryRow(`SELECT id, name, slug, namespace, state, external_uuid, import_source, created_at FROM tenants WHERE id=?`, id)
+	var t platform.Tenant
+	var ext, src sql.NullString
+	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &t.Namespace, &t.State, &ext, &src, &t.CreatedAt); err != nil {
+		return nil, false
+	}
+	t.ExternalUUID = ext.String
+	t.ImportSource = src.String
+	return &t, true
+}
+
+func (m *MySQL) GetTenantBySlug(slug string) (*platform.Tenant, bool) {
+	row := m.db.QueryRow(`SELECT id, name, slug, namespace, state, external_uuid, import_source, created_at FROM tenants WHERE slug=?`, slug)
 	var t platform.Tenant
 	var ext, src sql.NullString
 	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &t.Namespace, &t.State, &ext, &src, &t.CreatedAt); err != nil {
@@ -779,36 +819,53 @@ func (m *MySQL) ListServiceOfferings(activeOnly bool) []*platform.ServiceOfferin
 }
 
 func (m *MySQL) SaveVMTemplate(t *platform.VMTemplate) {
-	_, _ = m.db.Exec(`INSERT INTO vm_templates (id, name, display_name, image, os_type, hypervisor, state, external_uuid, import_source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), image=VALUES(image), os_type=VALUES(os_type), state=VALUES(state)`,
-		t.ID, t.Name, t.DisplayName, t.Image, nullStr(t.OSType), t.Hypervisor, t.State,
-		nullStr(t.ExternalUUID), nullStr(t.ImportSource), t.CreatedAt)
+	_, _ = m.db.Exec(`INSERT INTO vm_templates (id, tenant_id, name, display_name, description, image, source_type, os_type, cloud_init_user_data, iso_volume_id, iso_size_gi, boot_disk_size_gi, storage_class, import_state, hypervisor, state, external_uuid, import_source, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE tenant_id=VALUES(tenant_id), display_name=VALUES(display_name), description=VALUES(description),
+		image=VALUES(image), source_type=VALUES(source_type), os_type=VALUES(os_type),
+		cloud_init_user_data=VALUES(cloud_init_user_data), iso_volume_id=VALUES(iso_volume_id),
+		iso_size_gi=VALUES(iso_size_gi), boot_disk_size_gi=VALUES(boot_disk_size_gi),
+		storage_class=VALUES(storage_class), import_state=VALUES(import_state), state=VALUES(state)`,
+		t.ID, nullStr(t.TenantID), t.Name, t.DisplayName, nullStr(t.Description), t.Image,
+		nullStr(t.SourceType), nullStr(t.OSType), nullStr(t.CloudInitUserData), nullStr(t.ISOVolumeID),
+		t.ISOSizeGi, t.BootDiskSizeGi, nullStr(t.StorageClass), nullStr(t.ImportState),
+		t.Hypervisor, t.State, nullStr(t.ExternalUUID), nullStr(t.ImportSource), t.CreatedAt)
+}
+
+func (m *MySQL) DeleteVMTemplate(id string) {
+	_, _ = m.db.Exec(`DELETE FROM vm_templates WHERE id=?`, id)
 }
 
 func (m *MySQL) GetVMTemplate(id string) (*platform.VMTemplate, bool) {
-	row := m.db.QueryRow(`SELECT id, name, display_name, image, os_type, hypervisor, state, external_uuid, import_source, created_at FROM vm_templates WHERE id=?`, id)
+	row := m.db.QueryRow(`SELECT id, tenant_id, name, display_name, description, image, source_type, os_type, cloud_init_user_data, iso_volume_id, iso_size_gi, boot_disk_size_gi, storage_class, import_state, hypervisor, state, external_uuid, import_source, created_at FROM vm_templates WHERE id=?`, id)
 	return scanTemplate(row)
 }
 
 func scanTemplate(row *sql.Row) (*platform.VMTemplate, bool) {
 	var t platform.VMTemplate
-	var osType, ext, src sql.NullString
-	if err := row.Scan(&t.ID, &t.Name, &t.DisplayName, &t.Image, &osType, &t.Hypervisor, &t.State, &ext, &src, &t.CreatedAt); err != nil {
+	var tenantID, desc, osType, srcType, cloudInit, isoVol, storageClass, importState, ext, src sql.NullString
+	if err := row.Scan(&t.ID, &tenantID, &t.Name, &t.DisplayName, &desc, &t.Image, &srcType, &osType, &cloudInit, &isoVol, &t.ISOSizeGi, &t.BootDiskSizeGi, &storageClass, &importState, &t.Hypervisor, &t.State, &ext, &src, &t.CreatedAt); err != nil {
 		return nil, false
 	}
+	t.TenantID = tenantID.String
+	t.Description = desc.String
 	t.OSType = osType.String
+	t.SourceType = srcType.String
+	t.CloudInitUserData = cloudInit.String
+	t.ISOVolumeID = isoVol.String
+	t.StorageClass = storageClass.String
+	t.ImportState = importState.String
 	t.ExternalUUID = ext.String
 	t.ImportSource = src.String
 	return &t, true
 }
 
 func (m *MySQL) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {
-	q := `SELECT id, name, display_name, image, os_type, hypervisor, state, external_uuid, import_source, created_at FROM vm_templates`
+	q := `SELECT id, tenant_id, name, display_name, description, image, source_type, os_type, cloud_init_user_data, iso_volume_id, iso_size_gi, boot_disk_size_gi, storage_class, import_state, hypervisor, state, external_uuid, import_source, created_at FROM vm_templates`
 	if activeOnly {
 		q += ` WHERE state='Active'`
 	}
-	q += ` ORDER BY name`
+	q += ` ORDER BY tenant_id, name`
 	rows, err := m.db.Query(q)
 	if err != nil {
 		return nil
@@ -817,11 +874,18 @@ func (m *MySQL) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {
 	var out []*platform.VMTemplate
 	for rows.Next() {
 		var t platform.VMTemplate
-		var osType, ext, src sql.NullString
-		if err := rows.Scan(&t.ID, &t.Name, &t.DisplayName, &t.Image, &osType, &t.Hypervisor, &t.State, &ext, &src, &t.CreatedAt); err != nil {
+		var tenantID, desc, osType, srcType, cloudInit, isoVol, storageClass, importState, ext, src sql.NullString
+		if err := rows.Scan(&t.ID, &tenantID, &t.Name, &t.DisplayName, &desc, &t.Image, &srcType, &osType, &cloudInit, &isoVol, &t.ISOSizeGi, &t.BootDiskSizeGi, &storageClass, &importState, &t.Hypervisor, &t.State, &ext, &src, &t.CreatedAt); err != nil {
 			continue
 		}
+		t.TenantID = tenantID.String
+		t.Description = desc.String
 		t.OSType = osType.String
+		t.SourceType = srcType.String
+		t.CloudInitUserData = cloudInit.String
+		t.ISOVolumeID = isoVol.String
+		t.StorageClass = storageClass.String
+		t.ImportState = importState.String
 		t.ExternalUUID = ext.String
 		t.ImportSource = src.String
 		out = append(out, &t)
@@ -923,4 +987,8 @@ func (m *MySQL) AllocateIPAddress(networkID string) (*platform.IPAddress, error)
 
 func (m *MySQL) ReleaseIPAddressByVMNic(vmNicID string) {
 	_, _ = m.db.Exec(`UPDATE ip_addresses SET status='available', vm_nic_id=NULL WHERE vm_nic_id=?`, vmNicID)
+}
+
+func (m *MySQL) ReleaseIPAddressByAddress(networkID, address string) {
+	_, _ = m.db.Exec(`UPDATE ip_addresses SET status='available', vm_nic_id=NULL WHERE network_id=? AND address=?`, networkID, address)
 }

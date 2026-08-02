@@ -81,9 +81,20 @@ func main() {
 		log.Info("root user bootstrapped", zap.String("username", "root"))
 	}
 
+	if tenant, err := platformSvc.BootstrapRootDefaultTenant(context.Background()); err != nil {
+		log.Fatal("bootstrap default tenant", zap.Error(err))
+	} else {
+		log.Info("default tenant ready", zap.String("slug", tenant.Slug), zap.String("id", tenant.ID))
+	}
+
+	if err := platformSvc.BootstrapDefaultSecurityGroups(context.Background()); err != nil {
+		log.Fatal("bootstrap default security groups", zap.Error(err))
+	}
+
 	if err := platformSvc.BootstrapNetworking(context.Background(), cfg.Networking); err != nil {
 		log.Fatal("bootstrap networking", zap.Error(err))
 	}
+	platformSvc.BootstrapStorage(cfg.Storage)
 	if cfg.Networking.Public.Enabled {
 		log.Info("public network enabled",
 			zap.String("cidr", cfg.Networking.Public.CIDR),
@@ -147,6 +158,9 @@ func main() {
 	protected.HandleFunc("/vm-snapshots/restore", platformHandler.RestoreVMSnapshot).Methods("POST")
 	protected.HandleFunc("/service-offerings", platformHandler.ListServiceOfferings).Methods("GET")
 	protected.HandleFunc("/vm-templates", platformHandler.ListVMTemplates).Methods("GET")
+	protected.HandleFunc("/vm-templates", platformHandler.CreateVMTemplate).Methods("POST")
+	protected.HandleFunc("/vm-templates/{id}", platformHandler.UpdateVMTemplate).Methods("PATCH")
+	protected.HandleFunc("/vm-templates/{id}", platformHandler.DeleteVMTemplate).Methods("DELETE")
 	protected.HandleFunc("/vms", platformHandler.ListVMs).Methods("GET")
 	protected.HandleFunc("/vms", platformHandler.DeployVM).Methods("POST")
 	protected.HandleFunc("/vms/{name}/logs", platformHandler.GetVMLogs).Methods("GET")

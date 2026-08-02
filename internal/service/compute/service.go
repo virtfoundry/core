@@ -2,12 +2,14 @@ package compute
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 	"github.com/virtforge-cloud/virtforge/internal/service/shared"
@@ -29,6 +31,9 @@ type Service struct {
 	vmStates        map[vmStateKey]string
 	allowPodNetwork bool
 	defaultNetwork  string
+	storageClass    string
+	windowsBootSizeGi int
+	windowsISOSizeGi  int
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub shared.EventBroadcaster) *Service {
@@ -45,6 +50,18 @@ func (s *Service) ConfigureVMNetworking(defaultNetwork string, allowPodNetwork b
 	s.allowPodNetwork = allowPodNetwork
 }
 
+func (s *Service) ConfigureStorage(defaultClass string, bootSizeGi, isoSizeGi int) {
+	if defaultClass != "" {
+		s.storageClass = defaultClass
+	}
+	if bootSizeGi > 0 {
+		s.windowsBootSizeGi = bootSizeGi
+	}
+	if isoSizeGi > 0 {
+		s.windowsISOSizeGi = isoSizeGi
+	}
+}
+
 // DeployVMInput is the payload for synchronous or async VM deployment.
 type DeployVMInput struct {
 	Name              string
@@ -55,9 +72,12 @@ type DeployVMInput struct {
 	ServiceOfferingID string
 	TemplateID        string
 	NetworkIDs        []string
+	PublicIP          bool
+	SecurityGroupIDs  []string
 	DisplayName       string
 	SSHKeyID          string
 	DataVolumeID      string
+	BootDiskSizeGi    int
 	ExposeSSH         bool
 }
 
@@ -72,8 +92,8 @@ func (s *Service) ListServiceOfferings() []*platform.ServiceOffering {
 	return s.store.ListServiceOfferings(true)
 }
 
-func (s *Service) ListVMTemplates() []*platform.VMTemplate {
-	return s.store.ListVMTemplates(true)
+func (s *Service) ListVMTemplates(tenantID string) []*platform.VMTemplate {
+	return s.ListVMTemplatesForTenant(tenantID)
 }
 
 func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInput) (*platform.PlatformVM, error) {
@@ -87,14 +107,24 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	}
 
 	cpu, memMi, image := in.CPU, in.MemoryMi, in.Image
+	var tmplDisplay, osType, cloudInitExtra string
+	var deployTmpl *platform.VMTemplate
 	if in.ServiceOfferingID != "" {
 		if off, ok := s.store.GetServiceOffering(in.ServiceOfferingID); ok {
 			cpu, memMi = off.CPU, off.MemoryMi
 		}
 	}
 	if in.TemplateID != "" {
-		if tmpl, ok := s.store.GetVMTemplate(in.TemplateID); ok {
+		tmpl, err := s.resolveTemplate(tenantID, in.TemplateID)
+		if err != nil {
+			return nil, err
+		}
+		if tmpl != nil {
+			deployTmpl = tmpl
 			image = tmpl.Image
+			osType = tmpl.OSType
+			cloudInitExtra = tmpl.CloudInitUserData
+			tmplDisplay = tmpl.DisplayName
 		}
 	}
 	if cpu <= 0 {
@@ -107,13 +137,28 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		image = "quay.io/kubevirt/cirros-container-disk-demo"
 	}
 
-	netSpecs, vmNics := s.buildVMNetworks(tenantID, in.NetworkIDs)
+	networkIDs, err := s.resolveDeployNetworks(tenantID, in.PublicIP, in.NetworkIDs)
+	if err != nil {
+		return nil, err
+	}
+	if in.PublicIP {
+		if err := s.validatePublicSecurityGroups(tenantID, in.SecurityGroupIDs); err != nil {
+			return nil, err
+		}
+	}
+
+	netSpecs, vmNics, err := s.buildVMNetworks(tenantID, networkIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	kv := s.kvBase.WithNamespace(ns)
 	spec := hypervisor.VMDeploySpec{
 		Name: name, Namespace: ns,
-		CPU: cpu, MemoryMi: memMi, Image: image, Start: true,
+		CPU: cpu, MemoryMi: memMi, Image: image, OSType: osType, Start: true,
 		Networks: netSpecs,
+		Labels:   sgLabels(in.SecurityGroupIDs),
+		CloudInitExtra: cloudInitExtra,
 	}
 	if in.SSHKeyID != "" {
 		if k, ok := s.store.GetSSHKeyPair(in.SSHKeyID); ok && k.TenantID == tenantID {
@@ -124,6 +169,21 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		if vol, ok := s.store.GetVolume(in.DataVolumeID); ok && vol.TenantID == tenantID {
 			spec.DataPVC = vol.PVCName
 		}
+	}
+
+	if deployTmpl != nil && strings.EqualFold(deployTmpl.SourceType, "iso") {
+		isoPVC, err := s.resolveISOPVC(tenantID, deployTmpl)
+		if err != nil {
+			return nil, err
+		}
+		bootPVC, err := s.provisionWindowsDisks(ctx, ns, name, deployTmpl, isoPVC)
+		if err != nil {
+			return nil, err
+		}
+		spec.OSType = "windows"
+		spec.BootPVC = bootPVC
+		spec.InstallISO = isoPVC
+		spec.Image = ""
 	}
 
 	if err := kv.CreateVM(ctx, spec); err != nil {
@@ -139,7 +199,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	vm := &platform.PlatformVM{
 		ID: store.NewID(), TenantID: tenantID, Name: name, DisplayName: displayName, Namespace: ns,
 		State: "Starting", CPU: cpu, MemoryMi: memMi, Image: image,
-		Template: templateLabel(image), Hypervisor: "KubeVirt",
+		Template: firstNonEmpty(tmplDisplay, templateLabel(image)), Hypervisor: "KubeVirt",
 		ServiceOfferingID: in.ServiceOfferingID,
 		NICs:              vmNics,
 		CreatedAt:         store.Now(),
@@ -307,6 +367,13 @@ func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {
 	if err != nil {
 		return err
 	}
+	if vm, ok := s.store.GetVMByName(tenantID, vmName); ok {
+		for _, nic := range vm.NICs {
+			if nic.NetworkID != "" && nic.IP != "" {
+				s.store.ReleaseIPAddressByAddress(nic.NetworkID, nic.IP)
+			}
+		}
+	}
 	if err := s.kvBase.WithNamespace(ns).DeleteVM(ctx, vmName); err != nil {
 		return err
 	}
@@ -471,8 +538,41 @@ func (s *Service) broadcastVM(eventType string, payload interface{}) {
 }
 
 func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, tenant *platform.Tenant) {
+	priorNics := make(map[string]platform.VMNic, len(vm.NICs))
+	for _, nic := range vm.NICs {
+		priorNics[nic.Name] = nic
+	}
+
+	storedPublicIP := ""
+	for _, nic := range vm.NICs {
+		if nic.Name == "public" && nic.IP != "" {
+			storedPublicIP = nic.IP
+		}
+	}
+	if storedPublicIP == "" {
+		if existing, ok := s.store.GetVMByName(vm.TenantID, vm.Name); ok {
+			for _, nic := range existing.NICs {
+				if nic.Name == "public" && nic.IP != "" {
+					storedPublicIP = nic.IP
+				}
+				if _, seen := priorNics[nic.Name]; !seen {
+					priorNics[nic.Name] = nic
+				}
+			}
+			if storedPublicIP == "" && strings.HasPrefix(existing.IP, "10.0.50.") {
+				storedPublicIP = existing.IP
+			}
+		}
+	}
+	if storedPublicIP == "" && strings.HasPrefix(vm.IP, "10.0.50.") {
+		storedPublicIP = vm.IP
+	}
+
 	vm.State = info.State
 	vm.IP = info.IP
+	if storedPublicIP != "" && (vm.IP == "" || strings.HasPrefix(vm.IP, "10.233.")) {
+		vm.IP = storedPublicIP
+	}
 	vm.ErrorMsg = info.ErrorMsg
 	vm.CPU = info.CPU
 	vm.MemoryMi = info.MemoryMi
@@ -486,8 +586,34 @@ func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, t
 		vm.Zone = tenant.Slug
 	}
 	vm.NICs = nil
+	merged := map[string]bool{}
 	for _, n := range info.NICs {
-		vm.NICs = append(vm.NICs, platform.VMNic{Name: n.Name, IP: n.IP, MAC: n.MAC, Type: n.Type})
+		nic := platform.VMNic{Name: n.Name, IP: n.IP, MAC: n.MAC, Type: n.Type}
+		if prior, ok := priorNics[n.Name]; ok {
+			if nic.IP == "" {
+				nic.IP = prior.IP
+			}
+			nic.NetworkID = prior.NetworkID
+			nic.NADNamespace = prior.NADNamespace
+			nic.NADName = prior.NADName
+		}
+		vm.NICs = append(vm.NICs, nic)
+		merged[n.Name] = true
+	}
+	for name, prior := range priorNics {
+		if !merged[name] {
+			vm.NICs = append(vm.NICs, prior)
+		}
+	}
+	if storedPublicIP == "" {
+		for _, nic := range vm.NICs {
+			if nic.Name == "public" && nic.IP != "" {
+				storedPublicIP = nic.IP
+			}
+		}
+	}
+	if storedPublicIP != "" && (vm.IP == "" || strings.HasPrefix(vm.IP, "10.233.")) {
+		vm.IP = storedPublicIP
 	}
 	if vm.DisplayName == "" {
 		vm.DisplayName = vm.Name
@@ -509,17 +635,21 @@ func templateLabel(image string) string {
 	return image
 }
 
-func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hypervisor.VMNetworkSpec, []platform.VMNic) {
-	if len(networkIDs) == 0 && s.defaultNetwork == "public" {
-		if sharedNet, ok := s.store.GetSharedNetwork(); ok {
-			networkIDs = []string{sharedNet.ID}
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
 		}
 	}
+	return ""
+}
+
+func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hypervisor.VMNetworkSpec, []platform.VMNic, error) {
 	if len(networkIDs) == 0 {
 		if s.allowPodNetwork {
-			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	var specs []hypervisor.VMNetworkSpec
 	var nics []platform.VMNic
@@ -536,27 +666,52 @@ func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hyper
 			ifaceName = fmt.Sprintf("net%d", i)
 		}
 		if net.NADName != "" && net.NADNamespace != "" {
-			specs = append(specs, hypervisor.VMNetworkSpec{
+			spec := hypervisor.VMNetworkSpec{
 				Name: ifaceName, NADNamespace: net.NADNamespace, NADName: net.NADName,
-			})
-			nics = append(nics, platform.VMNic{
+			}
+			nic := platform.VMNic{
 				Name: ifaceName, Type: "multus", NetworkID: net.ID,
 				NADNamespace: net.NADNamespace, NADName: net.NADName,
-			})
+			}
+			if net.NetworkType == platform.NetworkTypeShared {
+				spec.MACAddress = randomMAC()
+				ip, err := s.store.AllocateIPAddress(net.ID)
+				if err != nil {
+					return nil, nil, fmt.Errorf("allocate public IP: %w", err)
+				}
+				spec.StaticIP = ip.Address
+				spec.PrefixLen = 24
+				nic.IP = ip.Address
+				if net.Gateway != "" {
+					spec.Gateway = net.Gateway
+					spec.DNS = []string{net.Gateway}
+				}
+			}
+			specs = append(specs, spec)
+			nics = append(nics, nic)
 		}
 	}
 	if len(specs) == 0 {
 		if s.allowPodNetwork {
-			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}
+			return nil, []platform.VMNic{{Name: "default", Type: "pod"}}, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	if !s.allowPodNetwork {
-		return specs, nics
+		return specs, nics, nil
 	}
 	specs = append([]hypervisor.VMNetworkSpec{{Name: "default", Default: true}}, specs...)
 	nics = append([]platform.VMNic{{Name: "default", Type: "pod"}}, nics...)
-	return specs, nics
+	return specs, nics, nil
+}
+
+func randomMAC() string {
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "02:00:00:00:00:01"
+	}
+	b[0] = (b[0] | 0x02) & 0xfe
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", b[0], b[1], b[2], b[3], b[4], b[5])
 }
 
 // ExposeVMSSH creates a NodePort Service targeting the VM guest IP on port 22.
@@ -597,4 +752,52 @@ func (s *Service) GetVMSSH(ctx context.Context, tenantID, vmName string) (*VMSSH
 	}
 	out := &VMSSHInfo{Exposed: ok, NodePort: port, VMIP: info.IP}
 	return out, nil
+}
+
+func (s *Service) resolveDeployNetworks(tenantID string, publicIP bool, networkIDs []string) ([]string, error) {
+	ids := append([]string{}, networkIDs...)
+	if publicIP {
+		sharedNet, ok := s.store.GetSharedNetwork()
+		if !ok {
+			return nil, fmt.Errorf("public network is not configured")
+		}
+		ids = append([]string{sharedNet.ID}, ids...)
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("select a VPC subnet or enable public IP")
+	}
+	for _, id := range ids {
+		net, ok := s.store.GetNetwork(id)
+		if !ok {
+			return nil, fmt.Errorf("network not found: %s", id)
+		}
+		if net.NetworkType != platform.NetworkTypeShared && net.TenantID != tenantID {
+			return nil, fmt.Errorf("network not available for tenant")
+		}
+	}
+	return ids, nil
+}
+
+func (s *Service) validatePublicSecurityGroups(tenantID string, sgIDs []string) error {
+	if len(sgIDs) == 0 {
+		return fmt.Errorf("security group required for public IP access")
+	}
+	for _, id := range sgIDs {
+		sg, ok := s.store.GetSG(id)
+		if !ok || sg.TenantID != tenantID {
+			return fmt.Errorf("security group not found")
+		}
+	}
+	return nil
+}
+
+func sgLabels(sgIDs []string) map[string]string {
+	if len(sgIDs) == 0 {
+		return nil
+	}
+	labels := make(map[string]string, len(sgIDs))
+	for _, id := range sgIDs {
+		labels[branding.SGPodLabelKey(id)] = "true"
+	}
+	return labels
 }

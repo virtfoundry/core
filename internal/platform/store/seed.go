@@ -19,8 +19,8 @@ func SeedCatalog(r Repository) error {
 	if len(r.ListVMTemplates(false)) == 0 {
 		now := Now()
 		defaults := []platform.VMTemplate{
-			{ID: NewID(), Name: "cirros", DisplayName: "Cirros (demo)", Image: "quay.io/kubevirt/cirros-container-disk-demo", OSType: "Other", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
-			{ID: NewID(), Name: "ubuntu-2204", DisplayName: "Ubuntu 22.04", Image: "quay.io/containerdisks/ubuntu:22.04", OSType: "Linux", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
+			{ID: NewID(), Name: "cirros", DisplayName: "Cirros (demo)", Image: "quay.io/kubevirt/cirros-container-disk-demo", OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
+			{ID: NewID(), Name: "ubuntu-2204", DisplayName: "Ubuntu 22.04", Image: "quay.io/containerdisks/ubuntu:22.04", OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
 		}
 		for i := range defaults {
 			r.SaveVMTemplate(&defaults[i])
@@ -34,7 +34,7 @@ func SeedCatalog(r Repository) error {
 	})
 	ensureTemplate(r, platform.VMTemplate{
 		Name: "windows-server-2022", DisplayName: "Windows Server 2022 Eval",
-		Image: "windows-server-2022-eval", OSType: "Windows", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
+		Image: "windows-server-2022-eval", OSType: "windows", SourceType: "iso", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
 	})
 	return nil
 }

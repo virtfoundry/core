@@ -10,9 +10,12 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { ResourceActions } from '../components/ResourceActions';
+import { SGRulesEditor, defaultSGRules, type SGRule } from '../components/SGRulesEditor';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+
+const emptyForm = () => ({ name: '', description: '', rules: defaultSGRules() });
 
 export function SecurityGroups() {
   const { t } = useI18n();
@@ -20,7 +23,7 @@ export function SecurityGroups() {
   const [createModal, setCreateModal] = useState(false);
   const [editSg, setEditSg] = useState<SecurityGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState(emptyForm());
   const queryClient = useQueryClient();
   const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
 
@@ -38,13 +41,13 @@ export function SecurityGroups() {
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
-      setForm({ name: '', description: '' });
+      setForm(emptyForm());
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, description, rules }: {
-      id: string; name: string; description: string; rules: SecurityGroup['rules'];
+      id: string; name: string; description: string; rules: SGRule[];
     }) => updateSecurityGroup(id, { name, description, rules }),
     onSuccess: () => {
       invalidate();
@@ -105,17 +108,29 @@ export function SecurityGroups() {
                   <Shield size={20} className="text-purple-500" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{sg.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{sg.name}</h3>
+                    {sg.name === 'default' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {t('sg.defaultBadge')}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">{sg.description || t('sg.noDescription')}</p>
                 </div>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 mb-3">
                 <p>{t('sg.rulesCount')}: {sg.rules?.length || 0}</p>
+                {sg.rules?.slice(0, 2).map((r, i) => (
+                  <p key={i} className="text-xs font-mono truncate">
+                    {r.direction} {r.protocol} {r.port_from}{r.port_to ? `-${r.port_to}` : ''} {r.cidr}
+                  </p>
+                ))}
               </div>
               <ResourceActions
                 editLabel={t('common.edit')}
                 deleteLabel={t('common.delete')}
-                onEdit={() => setEditSg(sg)}
+                onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
                 onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
               />
             </div>
@@ -143,7 +158,7 @@ export function SecurityGroups() {
             createMutation.mutate({
               name: form.name,
               description: form.description,
-              rules: [{ direction: 'ingress', protocol: 'tcp', port_from: 22, cidr: '0.0.0.0/0' }],
+              rules: form.rules,
             });
           }}
           className="space-y-4"
@@ -156,8 +171,9 @@ export function SecurityGroups() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg" rows={3} />
+              className="w-full px-4 py-2 border rounded-lg" rows={2} />
           </div>
+          <SGRulesEditor rules={form.rules} onChange={(rules) => setForm({ ...form, rules })} />
           {createMutation.isError && (
             <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -190,9 +206,12 @@ export function SecurityGroups() {
             <div>
               <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
               <textarea value={editSg.description || ''} onChange={(e) => setEditSg({ ...editSg, description: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg" rows={3} />
+                className="w-full px-4 py-2 border rounded-lg" rows={2} />
             </div>
-            <p className="text-sm text-gray-500">{t('sg.rulesCount')}: {editSg.rules?.length || 0}</p>
+            <SGRulesEditor
+              rules={editSg.rules || []}
+              onChange={(rules) => setEditSg({ ...editSg, rules })}
+            />
             {updateMutation.isError && (
               <p className="text-red-500 text-sm">{(updateMutation.error as Error).message}</p>
             )}

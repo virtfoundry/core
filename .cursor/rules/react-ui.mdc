@@ -1,0 +1,55 @@
+---
+description: Padrões React/TypeScript para a UI Nimbus
+globs: "ui/**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# React UI — Nimbus
+
+## Stack real
+
+- React 18 + TypeScript + Vite
+- TailwindCSS (componentes próprios em `ui/src/components/`)
+- TanStack Query v5 para server state
+- React Router v6
+- Lucide React, Recharts, noVNC (console)
+- Auth via `localStorage` (`jwt_token`, `tenant_id`) — `lib/auth.ts`
+
+## Estrutura
+
+```
+pages/       # Uma page por recurso (VMs, Volumes, Tenants…)
+components/  # Layout, Modal, RefreshButton, RefreshingPanel, DataTable, ConsoleModal
+lib/         # platform-api.ts, query-keys.ts, auth.ts
+hooks/       # useRealtimeEvents (WebSocket → refetchQueries + poll fallback)
+```
+
+## Data fetching
+
+- Todas as chamadas API em `lib/platform-api.ts`; base: `VITE_PLATFORM_API_URL || '/api/v1'`
+- Query keys em `lib/query-keys.ts` — **obrigatório**, nunca strings soltas
+- Realtime: `useRealtimeEvents` → `refetchQueries` + poll 12s fallback
+- Root sem tenant: `enabled: !needsTenant` nas queries
+- Atualizar: `<RefreshButton isFetching={isFetching} />` + `<RefreshingPanel>` nas listas
+
+```tsx
+const { data, isFetching, refetch, dataUpdatedAt } = useQuery({
+  queryKey: queryKeys.vms,
+  queryFn: listVMs,
+  refetchInterval: (q) => transitional(q) ? 3_000 : 12_000,
+});
+```
+
+## Componentes
+
+- Named exports (`export function VMs()`)
+- `useState` local; Zustand só se necessidade real
+- Modais via `<Modal>`; ações destrutivas com confirmação
+- `stateColor()` por page para badges de VM
+- Dark mode: classes `dark:`
+
+## Estilo
+
+- 2 espaços, single quotes
+- Tailwind utility-first; `clsx` para condicionais
+- Tabelas com scroll horizontal em mobile

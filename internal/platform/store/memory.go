@@ -110,6 +110,17 @@ func (m *Memory) GetTenant(id string) (*platform.Tenant, bool) {
 	return t, ok
 }
 
+func (m *Memory) GetTenantBySlug(slug string) (*platform.Tenant, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, t := range m.tenants {
+		if t.Slug == slug {
+			return t, true
+		}
+	}
+	return nil, false
+}
+
 func (m *Memory) ListTenants() []*platform.Tenant {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -255,6 +266,17 @@ func (m *Memory) ReleaseIPAddressByVMNic(vmNicID string) {
 	defer m.mu.Unlock()
 	for _, ip := range m.ipAddresses {
 		if ip.VMNicID == vmNicID {
+			ip.Status = "available"
+			ip.VMNicID = ""
+		}
+	}
+}
+
+func (m *Memory) ReleaseIPAddressByAddress(networkID, address string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, ip := range m.ipAddresses {
+		if ip.NetworkID == networkID && ip.Address == address {
 			ip.Status = "available"
 			ip.VMNicID = ""
 		}
@@ -496,6 +518,12 @@ func (m *Memory) GetVMTemplate(id string) (*platform.VMTemplate, bool) {
 	defer m.mu.RUnlock()
 	t, ok := m.vmTemplates[id]
 	return t, ok
+}
+
+func (m *Memory) DeleteVMTemplate(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.vmTemplates, id)
 }
 
 func (m *Memory) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {

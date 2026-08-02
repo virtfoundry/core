@@ -35,6 +35,16 @@ func (s *Service) BootstrapRoot(username, password string) (*platform.User, erro
 	return u, nil
 }
 
+// LinkRootToTenant assigns the default tenant to root when not yet set.
+func (s *Service) LinkRootToTenant(tenantID string) {
+	root, ok := s.store.GetUserByUsername("root")
+	if !ok || root.TenantID != "" {
+		return
+	}
+	root.TenantID = tenantID
+	s.store.SaveUser(root)
+}
+
 func (s *Service) ResolveTenantID(claims *auth.Claims, requestedTenant string) (string, error) {
 	if claims.Role == platform.RoleRoot {
 		if requestedTenant != "" {

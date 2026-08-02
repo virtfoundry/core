@@ -14,6 +14,12 @@ import (
 	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 )
 
+func allowAllPeer() networkingv1.NetworkPolicyPeer {
+	return networkingv1.NetworkPolicyPeer{
+		IPBlock: &networkingv1.IPBlock{CIDR: "0.0.0.0/0"},
+	}
+}
+
 func (m *Manager) ApplySecurityGroup(ctx context.Context, namespace string, sg *platform.SecurityGroup) error {
 	policyName := sanitizeK8sName("sg-" + sg.ID[:8])
 
@@ -62,12 +68,12 @@ func (m *Manager) ApplySecurityGroup(ctx context.Context, namespace string, sg *
 
 	if len(ingress) == 0 {
 		ingress = append(ingress, networkingv1.NetworkPolicyIngressRule{
-			From: []networkingv1.NetworkPolicyPeer{{}},
+			From: []networkingv1.NetworkPolicyPeer{allowAllPeer()},
 		})
 	}
 	if len(egress) == 0 {
 		egress = append(egress, networkingv1.NetworkPolicyEgressRule{
-			To: []networkingv1.NetworkPolicyPeer{{}},
+			To: []networkingv1.NetworkPolicyPeer{allowAllPeer()},
 		})
 	}
 
@@ -83,7 +89,7 @@ func (m *Manager) ApplySecurityGroup(ctx context.Context, namespace string, sg *
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{branding.LabelSG: sg.ID},
+				MatchLabels: map[string]string{branding.SGPodLabelKey(sg.ID): "true"},
 			},
 			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress},
 			Ingress:     ingress,

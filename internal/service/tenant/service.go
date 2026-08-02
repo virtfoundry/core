@@ -49,6 +49,30 @@ func (s *Service) CreateTenant(ctx context.Context, name, slug, adminPassword st
 	return tenant, user, nil
 }
 
+// EnsureTenant creates a tenant namespace and record if the slug does not exist yet.
+func (s *Service) EnsureTenant(ctx context.Context, name, slug string) (*platform.Tenant, error) {
+	slug = shared.SanitizeSlug(slug)
+	if slug == "" {
+		return nil, fmt.Errorf("invalid tenant slug")
+	}
+	if existing, ok := s.store.GetTenantBySlug(slug); ok {
+		return existing, nil
+	}
+
+	tenantID := store.NewID()
+	res, err := s.k8s.EnsureTenantNamespace(ctx, tenantID, slug, platformk8s.DefaultTenantQuota())
+	if err != nil {
+		return nil, err
+	}
+
+	tenant := &platform.Tenant{
+		ID: tenantID, Name: name, Slug: slug,
+		Namespace: res.Namespace, State: "active", CreatedAt: store.Now(),
+	}
+	s.store.SaveTenant(tenant)
+	return tenant, nil
+}
+
 func (s *Service) ListTenants() []*platform.Tenant {
 	return s.store.ListTenants()
 }

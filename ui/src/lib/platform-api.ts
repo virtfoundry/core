@@ -58,7 +58,11 @@ export interface Network {
   id: string;
   name: string;
   cidr: string;
-  vpc_id: string;
+  vpc_id?: string;
+  network_type?: 'isolated' | 'shared';
+  gateway?: string;
+  nad_namespace?: string;
+  nad_name?: string;
   state: string;
 }
 
@@ -244,9 +248,12 @@ export async function updateVM(name: string, data: { display_name?: string; cpu?
 export async function deployVM(data: {
   name: string;
   image?: string;
+  template_id?: string;
   cpu?: number;
   memory_mi?: number;
   network_ids?: string[];
+  public_ip?: boolean;
+  security_group_ids?: string[];
   ssh_key_id?: string;
   data_volume_id?: string;
   expose_ssh?: boolean;
@@ -400,18 +407,72 @@ export async function exposeVMSSH(name: string, nodePort?: number) {
   });
 }
 
-export const VM_IMAGES = [
-  { id: 'cirros', label: 'Cirros (demo)', image: 'quay.io/kubevirt/cirros-container-disk-demo' },
-  { id: 'fedora', label: 'Fedora 39', image: 'quay.io/kubevirt/fedora-container-disk-demo' },
-];
+export interface VMTemplate {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  display_name: string;
+  description?: string;
+  image: string;
+  source_type?: string;
+  os_type?: string;
+  cloud_init_user_data?: string;
+  iso_volume_id?: string;
+  iso_size_gi?: number;
+  boot_disk_size_gi?: number;
+  storage_class?: string;
+  import_state?: string;
+  hypervisor: string;
+  state: string;
+  created_at?: string;
+}
+
+export async function listVMTemplates() {
+  const res = await platformFetch<{ vm_templates: VMTemplate[] | null }>('/vm-templates');
+  return { vm_templates: res.vm_templates ?? [] };
+}
+
+export async function createVMTemplate(data: {
+  name: string;
+  display_name?: string;
+  description?: string;
+  image?: string;
+  source_type?: string;
+  os_type?: string;
+  cloud_init_user_data?: string;
+  iso_volume_id?: string;
+  iso_size_gi?: number;
+  boot_disk_size_gi?: number;
+  storage_class?: string;
+}) {
+  return platformFetch<{ vm_template: VMTemplate }>('/vm-templates', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVMTemplate(id: string, data: {
+  display_name?: string;
+  description?: string;
+  image?: string;
+  source_type?: string;
+  os_type?: string;
+  cloud_init_user_data?: string;
+  state?: string;
+}) {
+  return platformFetch<{ vm_template: VMTemplate }>(`/vm-templates/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteVMTemplate(id: string) {
+  return platformFetch<{ success: boolean }>(`/vm-templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
 
 export const VM_SIZES = [
   { id: 'small', cpu: 1, memory_mi: 1024, label: 'Small (1 vCPU, 1 GB)' },
   { id: 'medium', cpu: 2, memory_mi: 4096, label: 'Medium (2 vCPU, 4 GB)' },
   { id: 'large', cpu: 4, memory_mi: 8192, label: 'Large (4 vCPU, 8 GB)' },
   { id: 'windows-large', cpu: 4, memory_mi: 16384, label: 'Windows Large (4 vCPU, 16 GB)', os: 'windows' as const },
-];
-
-export const VM_WINDOWS_IMAGES = [
-  { id: 'windows-server-2022', label: 'Windows Server 2022 Eval', image: 'windows-server-2022-eval', os: 'windows' as const },
 ];

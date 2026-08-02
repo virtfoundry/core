@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/virtforge-cloud/virtforge/internal/auth"
@@ -9,6 +10,7 @@ import (
 	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
 	"github.com/virtforge-cloud/virtforge/internal/platform"
 	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
+	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
 	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
 	"github.com/virtforge-cloud/virtforge/internal/platform/store"
 	"github.com/virtforge-cloud/virtforge/internal/service/compute"
@@ -54,6 +56,27 @@ func (s *PlatformService) BootstrapRoot(username, password string) (*platform.Us
 	return s.identity.BootstrapRoot(username, password)
 }
 
+func (s *PlatformService) BootstrapRootDefaultTenant(ctx context.Context) (*platform.Tenant, error) {
+	tenant, err := s.tenant.EnsureTenant(ctx, branding.DefaultTenantName, branding.DefaultTenantSlug)
+	if err != nil {
+		return nil, err
+	}
+	s.identity.LinkRootToTenant(tenant.ID)
+	return tenant, nil
+}
+
+func (s *PlatformService) BootstrapDefaultSecurityGroups(ctx context.Context) error {
+	for _, t := range s.tenant.ListTenants() {
+		if _, err := s.network.EnsureDefaultSecurityGroup(ctx, t.ID); err != nil {
+			return fmt.Errorf("default security group for tenant %s: %w", t.Slug, err)
+		}
+		if err := s.compute.EnsureDefaultTemplates(t.ID); err != nil {
+			return fmt.Errorf("default templates for tenant %s: %w", t.Slug, err)
+		}
+	}
+	return nil
+}
+
 func (s *PlatformService) ResolveTenantID(claims *auth.Claims, requestedTenant string) (string, error) {
 	return s.identity.ResolveTenantID(claims, requestedTenant)
 }
@@ -64,10 +87,24 @@ func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.Ne
 	return s.network.BootstrapSharedNetwork(ctx, cfg.Public)
 }
 
+func (s *PlatformService) BootstrapStorage(cfg config.StorageConfig) {
+	s.compute.ConfigureStorage(cfg.DefaultClass, cfg.WindowsBootSizeGi, cfg.WindowsISOSizeGi)
+}
+
 // --- tenant ---
 
 func (s *PlatformService) CreateTenant(ctx context.Context, name, slug, adminPassword string) (*platform.Tenant, *platform.User, error) {
-	return s.tenant.CreateTenant(ctx, name, slug, adminPassword)
+	tenant, user, err := s.tenant.CreateTenant(ctx, name, slug, adminPassword)
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := s.network.EnsureDefaultSecurityGroup(ctx, tenant.ID); err != nil {
+		return nil, nil, err
+	}
+	if err := s.compute.EnsureDefaultTemplates(tenant.ID); err != nil {
+		return nil, nil, err
+	}
+	return tenant, user, nil
 }
 
 func (s *PlatformService) ListTenants() []*platform.Tenant {
@@ -169,8 +206,20 @@ func (s *PlatformService) ListServiceOfferings() []*platform.ServiceOffering {
 	return s.compute.ListServiceOfferings()
 }
 
-func (s *PlatformService) ListVMTemplates() []*platform.VMTemplate {
-	return s.compute.ListVMTemplates()
+func (s *PlatformService) ListVMTemplates(tenantID string) []*platform.VMTemplate {
+	return s.compute.ListVMTemplates(tenantID)
+}
+
+func (s *PlatformService) CreateVMTemplate(ctx context.Context, tenantID string, in compute.CreateVMTemplateInput) (*platform.VMTemplate, error) {
+	return s.compute.CreateVMTemplate(ctx, tenantID, in)
+}
+
+func (s *PlatformService) UpdateVMTemplate(tenantID, id, displayName, description, image, sourceType, osType, cloudInit, state string) (*platform.VMTemplate, error) {
+	return s.compute.UpdateVMTemplate(tenantID, id, displayName, description, image, sourceType, osType, cloudInit, state)
+}
+
+func (s *PlatformService) DeleteVMTemplate(tenantID, id string) error {
+	return s.compute.DeleteVMTemplate(tenantID, id)
 }
 
 func (s *PlatformService) DeployVM(ctx context.Context, tenantID string, in PlatformDeployVMInput) (*platform.PlatformVM, error) {

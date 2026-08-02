@@ -567,7 +567,90 @@ func (h *PlatformHandler) ListServiceOfferings(w http.ResponseWriter, r *http.Re
 }
 
 func (h *PlatformHandler) ListVMTemplates(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]interface{}{"vm_templates": h.svc.ListVMTemplates()})
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"vm_templates": h.svc.ListVMTemplates(tid)})
+}
+
+func (h *PlatformHandler) CreateVMTemplate(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	var req struct {
+		Name              string `json:"name"`
+		DisplayName       string `json:"display_name"`
+		Description       string `json:"description"`
+		Image             string `json:"image"`
+		SourceType        string `json:"source_type"`
+		OSType            string `json:"os_type"`
+		CloudInitUserData string `json:"cloud_init_user_data"`
+		ISOVolumeID       string `json:"iso_volume_id"`
+		ISOSizeGi         int    `json:"iso_size_gi"`
+		BootDiskSizeGi    int    `json:"boot_disk_size_gi"`
+		StorageClass      string `json:"storage_class"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	tmpl, err := h.svc.CreateVMTemplate(r.Context(), tid, service.CreateVMTemplateInput{
+		Name: req.Name, DisplayName: req.DisplayName, Description: req.Description,
+		Image: req.Image, SourceType: req.SourceType, OSType: req.OSType,
+		CloudInitUserData: req.CloudInitUserData, ISOVolumeID: req.ISOVolumeID,
+		ISOSizeGi: req.ISOSizeGi, BootDiskSizeGi: req.BootDiskSizeGi, StorageClass: req.StorageClass,
+	})
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, map[string]interface{}{"vm_template": tmpl})
+}
+
+func (h *PlatformHandler) UpdateVMTemplate(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	var req struct {
+		DisplayName       string `json:"display_name"`
+		Description       string `json:"description"`
+		Image             string `json:"image"`
+		SourceType        string `json:"source_type"`
+		OSType            string `json:"os_type"`
+		CloudInitUserData string `json:"cloud_init_user_data"`
+		State             string `json:"state"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	tmpl, err := h.svc.UpdateVMTemplate(tid, id, req.DisplayName, req.Description, req.Image, req.SourceType, req.OSType, req.CloudInitUserData, req.State)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"vm_template": tmpl})
+}
+
+func (h *PlatformHandler) DeleteVMTemplate(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	if err := h.svc.DeleteVMTemplate(tid, id); err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"success": true})
 }
 
 func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
@@ -585,6 +668,8 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		ServiceOfferingID string   `json:"service_offering_id"`
 		TemplateID        string   `json:"template_id"`
 		NetworkIDs        []string `json:"network_ids"`
+		PublicIP          bool     `json:"public_ip"`
+		SecurityGroupIDs  []string `json:"security_group_ids"`
 		SSHKeyID          string   `json:"ssh_key_id"`
 		DataVolumeID      string   `json:"data_volume_id"`
 		ExposeSSH         bool     `json:"expose_ssh"`
@@ -598,7 +683,8 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		Name: req.Name, DisplayName: req.DisplayName, Image: req.Image,
 		CPU: req.CPU, MemoryMi: req.MemoryMi, Start: true,
 		ServiceOfferingID: req.ServiceOfferingID, TemplateID: req.TemplateID,
-		NetworkIDs: req.NetworkIDs, SSHKeyID: req.SSHKeyID,
+		NetworkIDs: req.NetworkIDs, PublicIP: req.PublicIP, SecurityGroupIDs: req.SecurityGroupIDs,
+		SSHKeyID: req.SSHKeyID,
 		DataVolumeID: req.DataVolumeID, ExposeSSH: req.ExposeSSH,
 	}
 	if req.Async {

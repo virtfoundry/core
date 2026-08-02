@@ -2,6 +2,7 @@ package hypervisor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -164,18 +165,19 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        spec.Name,
 			Namespace:   ns,
-			Labels:      map[string]string{branding.AppManagedByKey: branding.ManagedByValue, branding.LabelOS: strings.ToLower(spec.OSType)},
+			Labels:      mergeLabels(map[string]string{branding.AppManagedByKey: branding.ManagedByValue, branding.LabelOS: strings.ToLower(spec.OSType)}, spec.Labels),
 			Annotations: annotations,
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: &runStrategy,
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"kubevirt.io/domain":   spec.Name,
-						branding.LabelVM:         spec.Name,
+					Labels: mergeLabels(map[string]string{
+						"kubevirt.io/domain":    spec.Name,
+						branding.LabelVM:        spec.Name,
 						branding.LabelLogSource: "velas",
-					},
+					}, spec.Labels),
+					Annotations: copyStringMap(annotations),
 				},
 				Spec: vmiSpec,
 			},
@@ -185,6 +187,62 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 	_, err := d.virtClient.VirtualMachine(ns).Create(ctx, vm, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("create VM %s: %w", spec.Name, err)
+	}
+	return nil
+}
+
+// PatchMultusNetworkIPs sets static Multus IPs on the VM/VMI before the launcher pod is created.
+func (d *KubeVirtDriver) PatchMultusNetworkIPs(ctx context.Context, name string, networks []VMNetworkSpec) error {
+	ann := buildMultusNetworksAnnotation(networks)
+	if ann == "" {
+		return nil
+	}
+	ns := d.namespace
+
+	for attempt := 0; attempt < 5; attempt++ {
+		vm, err := d.virtClient.VirtualMachine(ns).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("get VM for multus patch: %w", err)
+		}
+		if vm.Spec.Template == nil {
+			return fmt.Errorf("vm template missing")
+		}
+		if vm.Spec.Template.ObjectMeta.Annotations == nil {
+			vm.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+		}
+		vm.Spec.Template.ObjectMeta.Annotations["k8s.v1.cni.cncf.io/networks"] = ann
+		_, err = d.virtClient.VirtualMachine(ns).Update(ctx, vm, metav1.UpdateOptions{})
+		if err == nil {
+			break
+		}
+		if !errors.IsConflict(err) || attempt == 4 {
+			return fmt.Errorf("patch VM multus annotation: %w", err)
+		}
+	}
+
+	vmi, err := d.virtClient.VirtualMachineInstance(ns).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("get VMI for multus patch: %w", err)
+	}
+	for attempt := 0; attempt < 5; attempt++ {
+		if vmi.Annotations == nil {
+			vmi.Annotations = map[string]string{}
+		}
+		vmi.Annotations["k8s.v1.cni.cncf.io/networks"] = ann
+		_, err = d.virtClient.VirtualMachineInstance(ns).Update(ctx, vmi, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !errors.IsConflict(err) || attempt == 4 {
+			return fmt.Errorf("patch VMI multus annotation: %w", err)
+		}
+		vmi, err = d.virtClient.VirtualMachineInstance(ns).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("get VMI for multus patch retry: %w", err)
+		}
 	}
 	return nil
 }
@@ -455,18 +513,46 @@ func (d *KubeVirtDriver) vmToInfo(ctx context.Context, vm *kubevirtv1.VirtualMac
 		info.State = mapVMIState(vmi)
 		info.NodeName = vmi.Status.NodeName
 		for _, iface := range vmi.Status.Interfaces {
-			nic := VMNicInfo{Name: iface.Name, IP: iface.IP, MAC: iface.MAC, Type: "default"}
-			info.NICs = append(info.NICs, nic)
-			if info.IP == "" && iface.IP != "" {
-				info.IP = iface.IP
+			nicType := "multus"
+			if iface.Name == "default" {
+				nicType = "pod"
 			}
+			info.NICs = append(info.NICs, VMNicInfo{
+				Name: iface.Name, IP: iface.IP, MAC: iface.MAC, Type: nicType,
+			})
 		}
+		info.IP = preferGuestIP(vmi.Status.Interfaces)
 		if msg := vmiErrorMessage(vmi); msg != "" {
 			info.ErrorMsg = msg
 		}
 	}
 
 	return info
+}
+
+// preferGuestIP returns the routable guest IP (public/macvlan) instead of the pod masquerade address.
+func preferGuestIP(ifaces []kubevirtv1.VirtualMachineInstanceNetworkInterface) string {
+	for _, iface := range ifaces {
+		if iface.Name == "public" && iface.IP != "" {
+			return iface.IP
+		}
+	}
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface.IP, "10.0.50.") {
+			return iface.IP
+		}
+	}
+	for _, iface := range ifaces {
+		if iface.IP != "" && iface.Name != "default" {
+			return iface.IP
+		}
+	}
+	for _, iface := range ifaces {
+		if iface.IP != "" {
+			return iface.IP
+		}
+	}
+	return ""
 }
 
 func mapVMState(vm *kubevirtv1.VirtualMachine) string {
@@ -684,13 +770,7 @@ func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image s
 		{
 			Name: "cloudinitdisk",
 			VolumeSource: kubevirtv1.VolumeSource{
-				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-					UserData: cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{
-						SSHPublicKeys:  spec.CloudInitSSHKeys,
-						Password:       spec.CloudInitPassword,
-						FormatDataDisk: spec.FormatDataDisk || spec.DataPVC != "",
-					}),
-				},
+				CloudInitNoCloud: buildCloudInitSource(spec),
 			},
 		},
 	}
@@ -815,6 +895,13 @@ func buildNetworks(specs []VMNetworkSpec) ([]kubevirtv1.Network, []kubevirtv1.In
 	var networks []kubevirtv1.Network
 	var ifaces []kubevirtv1.Interface
 	var defaultNet string
+	hasPodNet := false
+	for _, sn := range specs {
+		if sn.Default || (sn.NADName == "" && sn.NADNamespace == "") {
+			hasPodNet = true
+			break
+		}
+	}
 
 	for i, sn := range specs {
 		name := sn.Name
@@ -822,6 +909,9 @@ func buildNetworks(specs []VMNetworkSpec) ([]kubevirtv1.Network, []kubevirtv1.In
 			name = fmt.Sprintf("net%d", i)
 		}
 		iface := kubevirtv1.Interface{Name: name}
+		if sn.MACAddress != "" {
+			iface.MacAddress = sn.MACAddress
+		}
 		if sn.Default || (sn.NADName == "" && sn.NADNamespace == "") {
 			networks = append(networks, kubevirtv1.Network{
 				Name: name, NetworkSource: kubevirtv1.NetworkSource{Pod: &kubevirtv1.PodNetwork{}},
@@ -840,11 +930,100 @@ func buildNetworks(specs []VMNetworkSpec) ([]kubevirtv1.Network, []kubevirtv1.In
 			iface.InterfaceBindingMethod = kubevirtv1.InterfaceBindingMethod{
 				Bridge: &kubevirtv1.InterfaceBridge{},
 			}
-			if defaultNet == "" {
+			if !hasPodNet && defaultNet == "" {
 				defaultNet = nadRef
 			}
 		}
 		ifaces = append(ifaces, iface)
 	}
 	return networks, ifaces, defaultNet
+}
+
+func buildCloudInitSource(spec VMDeploySpec) *kubevirtv1.CloudInitNoCloudSource {
+	src := &kubevirtv1.CloudInitNoCloudSource{
+		UserData: cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{
+			SSHPublicKeys:  spec.CloudInitSSHKeys,
+			Password:       spec.CloudInitPassword,
+			ExtraUserData:  spec.CloudInitExtra,
+			FormatDataDisk: spec.FormatDataDisk || spec.DataPVC != "",
+		}),
+	}
+	var netIfaces []cloudinit.NetworkInterfaceConfig
+	for _, sn := range spec.Networks {
+		if sn.MACAddress == "" || sn.Default || sn.NADName == "" {
+			continue
+		}
+		cfg := cloudinit.NetworkInterfaceConfig{
+			MACAddress: sn.MACAddress,
+			Address:    sn.StaticIP,
+			PrefixLen:  sn.PrefixLen,
+			Gateway:    sn.Gateway,
+			DNS:        sn.DNS,
+		}
+		netIfaces = append(netIfaces, cfg)
+	}
+	if networkData := cloudinit.BuildNetworkData(netIfaces); networkData != "" {
+		src.NetworkData = networkData
+	}
+	return src
+}
+
+func buildMultusNetworksAnnotation(specs []VMNetworkSpec) string {
+	type multusNet struct {
+		Name      string   `json:"name"`
+		Namespace string   `json:"namespace,omitempty"`
+		MAC       string   `json:"mac,omitempty"`
+		IPs       []string `json:"ips,omitempty"`
+	}
+	var nets []multusNet
+	for _, sn := range specs {
+		if sn.NADName == "" || sn.StaticIP == "" {
+			continue
+		}
+		prefix := sn.PrefixLen
+		if prefix <= 0 {
+			prefix = 24
+		}
+		entry := multusNet{
+			Name: sn.NADName,
+			IPs:  []string{fmt.Sprintf("%s/%d", sn.StaticIP, prefix)},
+		}
+		if sn.NADNamespace != "" {
+			entry.Namespace = sn.NADNamespace
+		}
+		if sn.MACAddress != "" {
+			entry.MAC = sn.MACAddress
+		}
+		nets = append(nets, entry)
+	}
+	if len(nets) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(nets)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func copyStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func mergeLabels(base, extra map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(extra))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
 }

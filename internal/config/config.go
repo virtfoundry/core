@@ -18,6 +18,13 @@ type Config struct {
 	Database      DatabaseConfig      `mapstructure:"database"`
 	Observability ObservabilityConfig `mapstructure:"observability"`
 	Networking    NetworkingConfig    `mapstructure:"networking"`
+	Storage       StorageConfig       `mapstructure:"storage"`
+}
+
+type StorageConfig struct {
+	DefaultClass      string `mapstructure:"default_class"`
+	WindowsBootSizeGi int    `mapstructure:"windows_boot_size_gi"`
+	WindowsISOSizeGi  int    `mapstructure:"windows_iso_size_gi"`
 }
 
 type NetworkingConfig struct {
@@ -103,6 +110,11 @@ func DefaultConfig() *Config {
 				DefaultNetwork:  "pod",
 				AllowPodNetwork: true,
 			},
+		},
+		Storage: StorageConfig{
+			DefaultClass:      "local-path",
+			WindowsBootSizeGi: 32,
+			WindowsISOSizeGi:  8,
 		},
 	}
 }
