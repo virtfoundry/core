@@ -13,6 +13,7 @@ import { Snapshots } from './pages/Snapshots';
 import { VMSnapshots } from './pages/VMSnapshots';
 import { Tenants } from './pages/Tenants';
 import { VPCs } from './pages/VPCs';
+import { Templates } from './pages/Templates';
 import { SSHKeys } from './pages/SSHKeys';
 import { VMConsole } from './pages/VMConsole';
 
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="tenants" element={<Tenants />} />
             <Route path="vms" element={<VMs />} />
             <Route path="vms/:name" element={<VMDetail />} />
+            <Route path="templates" element={<Templates />} />
             <Route path="ssh-keys" element={<SSHKeys />} />
             <Route path="volumes" element={<Volumes />} />
             <Route path="vpcs" element={<VPCs />} />

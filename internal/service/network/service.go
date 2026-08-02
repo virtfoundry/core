@@ -15,6 +15,23 @@ import (
 
 var errVPCNotFound = errors.New("vpc not found")
 
+func defaultSecurityGroupRules() []platform.SecurityGroupRule {
+	return []platform.SecurityGroupRule{
+		{Direction: "ingress", Protocol: "tcp", PortFrom: 80, CIDR: "0.0.0.0/0"},
+	}
+}
+
+// EnsureDefaultSecurityGroup creates the tenant default SG (HTTP port 80) if missing.
+func (s *Service) EnsureDefaultSecurityGroup(ctx context.Context, tenantID string) (*platform.SecurityGroup, error) {
+	for _, sg := range s.store.ListSGs(tenantID) {
+		if sg.Name == branding.DefaultSecurityGroupName {
+			return sg, nil
+		}
+	}
+	return s.CreateSecurityGroup(ctx, tenantID, "", branding.DefaultSecurityGroupName,
+		"Default security group — HTTP (port 80) ingress", defaultSecurityGroupRules())
+}
+
 // Service manages VPCs, private networks and security groups.
 type Service struct {
 	store          store.Repository
@@ -124,7 +141,7 @@ func (s *Service) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name
 		Name: name, Description: desc, Rules: rules, CreatedAt: store.Now(),
 	}
 	if len(sg.Rules) == 0 {
-		sg.Rules = []platform.SecurityGroupRule{{Direction: "ingress", Protocol: "tcp", PortFrom: 22, CIDR: "0.0.0.0/0"}}
+		sg.Rules = defaultSecurityGroupRules()
 	}
 	if err := s.k8s.ApplySecurityGroup(ctx, ns, sg); err != nil {
 		return nil, err

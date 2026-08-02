@@ -272,6 +272,17 @@ func (m *Memory) ReleaseIPAddressByVMNic(vmNicID string) {
 	}
 }
 
+func (m *Memory) ReleaseIPAddressByAddress(networkID, address string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, ip := range m.ipAddresses {
+		if ip.NetworkID == networkID && ip.Address == address {
+			ip.Status = "available"
+			ip.VMNicID = ""
+		}
+	}
+}
+
 func (m *Memory) SeedIPPool(networkID, start, end string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -507,6 +518,12 @@ func (m *Memory) GetVMTemplate(id string) (*platform.VMTemplate, bool) {
 	defer m.mu.RUnlock()
 	t, ok := m.vmTemplates[id]
 	return t, ok
+}
+
+func (m *Memory) DeleteVMTemplate(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.vmTemplates, id)
 }
 
 func (m *Memory) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {

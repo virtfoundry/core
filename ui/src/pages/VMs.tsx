@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Play, Trash2, Plus, Search, Power, Monitor, Camera } from 'lucide-react';
+import { Play, Trash2, Plus, Search, Power, Monitor, Camera, Shield } from 'lucide-react';
 import {
   listVMs, startVM, stopVM, deleteVM, deployVM, createVMSnapshot, listNetworks,
-  listSSHKeys, listVolumes, listSecurityGroups, VM_IMAGES, VM_SIZES, VM_WINDOWS_IMAGES,
-  PlatformVM,
+  listSSHKeys, listVolumes, listSecurityGroups, createSecurityGroup, listVMTemplates, VM_SIZES,
+  PlatformVM, VMTemplate,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
+import { SGRulesEditor, defaultSGRules } from '../components/SGRulesEditor';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
@@ -33,26 +34,32 @@ function fmtMem(mi: number) {
   return `${mi} MiB`;
 }
 
+function isWindowsTemplate(tmpl?: VMTemplate | null) {
+  return tmpl?.os_type?.toLowerCase() === 'windows';
+}
+
+function sizesForTemplate(tmpl?: VMTemplate | null) {
+  return isWindowsTemplate(tmpl)
+    ? VM_SIZES.filter((s) => s.id === 'windows-large')
+    : VM_SIZES.filter((s) => s.id !== 'windows-large');
+}
+
 export function VMs() {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [deployModal, setDeployModal] = useState(false);
+  const [createSgModal, setCreateSgModal] = useState(false);
+  const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
   const [snapshotModal, setSnapshotModal] = useState<{ vmName: string } | null>(null);
   const [snapshotForm, setSnapshotForm] = useState({ name: '' });
-  const allImages = [...VM_IMAGES, ...VM_WINDOWS_IMAGES];
-  const isWindowsImage = (image: string) => VM_WINDOWS_IMAGES.some((t) => t.image === image);
-  const sizesForImage = (image: string) =>
-    isWindowsImage(image)
-      ? VM_SIZES.filter((s) => s.id === 'windows-large')
-      : VM_SIZES.filter((s) => s.id !== 'windows-large');
 
   const [form, setForm] = useState({
     name: '',
-    image: VM_IMAGES[0].image,
+    template_id: '',
     offering: 'small',
     network_mode: 'private' as 'private' | 'public',
     network_ids: [] as string[],
-    security_group_id: '',
+    security_group_ids: [] as string[],
     ssh_key_id: '',
     data_volume_id: '',
     expose_ssh: false,
@@ -79,9 +86,34 @@ export function VMs() {
     queryFn: listSecurityGroups,
     enabled: !needsTenant && deployModal,
   });
+  const { data: tmplData } = useQuery({
+    queryKey: queryKeys.templates,
+    queryFn: listVMTemplates,
+    enabled: !needsTenant && deployModal,
+  });
+  const templates = tmplData?.vm_templates || [];
+  const selectedTemplate = templates.find((tmpl) => tmpl.id === form.template_id) || null;
+  const linuxTemplates = templates.filter((tmpl) => !isWindowsTemplate(tmpl));
+  const windowsTemplates = templates.filter((tmpl) => isWindowsTemplate(tmpl));
   const networks = netData?.networks || [];
   const privateNetworks = networks.filter(isIsolatedNetwork);
   const securityGroups = sgData?.security_groups || [];
+  const defaultSg = securityGroups.find((sg) => sg.name === 'default');
+
+  useEffect(() => {
+    if (!deployModal || form.network_mode !== 'public' || form.security_group_ids.length > 0) return;
+    if (defaultSg) {
+      setForm((f) => ({ ...f, security_group_ids: [defaultSg.id] }));
+    }
+  }, [deployModal, form.network_mode, form.security_group_ids.length, defaultSg?.id]);
+
+  useEffect(() => {
+    if (!deployModal || form.template_id || templates.length === 0) return;
+    const preferred = templates.find((tmpl) => tmpl.name === 'ubuntu-2204') || templates.find((tmpl) => !isWindowsTemplate(tmpl));
+    if (preferred) {
+      setForm((f) => ({ ...f, template_id: preferred.id }));
+    }
+  }, [deployModal, form.template_id, templates]);
   const sshKeys = sshData?.ssh_keys || [];
   const volumes = volData?.volumes || [];
 
@@ -109,14 +141,23 @@ export function VMs() {
       setSnapshotForm({ name: '' });
     },
   });
+  const createSgMutation = useMutation({
+    mutationFn: createSecurityGroup,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.securityGroups });
+      setForm((f) => ({ ...f, security_group_ids: [...f.security_group_ids, res.security_group.id] }));
+      setCreateSgModal(false);
+      setSgForm({ name: '', description: '', rules: defaultSGRules() });
+    },
+  });
   const deployMutation = useMutation({
     mutationFn: deployVM,
     onSuccess: () => {
       invalidate();
       setDeployModal(false);
       setForm({
-        name: '', image: VM_IMAGES[0].image, offering: 'small',
-        network_mode: 'private', network_ids: [], security_group_id: '',
+        name: '', template_id: '', offering: 'small',
+        network_mode: 'private', network_ids: [], security_group_ids: [],
         ssh_key_id: '', data_volume_id: '', expose_ssh: false,
       });
     },
@@ -132,23 +173,26 @@ export function VMs() {
   const handleDeploy = (e: React.FormEvent) => {
     e.preventDefault();
     const size = VM_SIZES.find((s) => s.id === form.offering) || VM_SIZES[0];
-    const linux = !isWindowsImage(form.image);
+    const linux = !isWindowsTemplate(selectedTemplate);
     const isPublic = form.network_mode === 'public';
 
+    if (!form.template_id) {
+      return;
+    }
     if (!isPublic && form.network_ids.length === 0) {
       return;
     }
-    if (isPublic && !form.security_group_id) {
+    if (isPublic && form.security_group_ids.length === 0) {
       return;
     }
 
     deployMutation.mutate({
       name: form.name,
-      image: form.image,
+      template_id: form.template_id,
       cpu: size.cpu,
       memory_mi: size.memory_mi,
       ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
-      ...(isPublic ? { public_ip: true, security_group_ids: [form.security_group_id] } : {}),
+      ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
       ...(linux && form.ssh_key_id ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
       ...(linux && form.expose_ssh ? { expose_ssh: true } : {}),
@@ -297,29 +341,43 @@ export function VMs() {
             <div>
               <label className="block text-sm font-medium mb-1">{t('common.image')}</label>
               <select
-                value={form.image}
+                required
+                value={form.template_id}
                 onChange={(e) => {
-                  const image = e.target.value;
+                  const template_id = e.target.value;
+                  const tmpl = templates.find((t) => t.id === template_id);
                   setForm({
                     ...form,
-                    image,
-                    offering: isWindowsImage(image) ? 'windows-large' : form.offering === 'windows-large' ? 'small' : form.offering,
+                    template_id,
+                    offering: isWindowsTemplate(tmpl) ? 'windows-large' : form.offering === 'windows-large' ? 'small' : form.offering,
                   });
                 }}
                 className="w-full px-4 py-2 border rounded-lg"
               >
-                <optgroup label="Linux">
-                  {VM_IMAGES.map((t) => <option key={t.id} value={t.image}>{t.label}</option>)}
-                </optgroup>
-                <optgroup label="Windows">
-                  {VM_WINDOWS_IMAGES.map((t) => <option key={t.id} value={t.image}>{t.label}</option>)}
-                </optgroup>
+                <option value="">{t('vms.selectTemplate')}</option>
+                {linuxTemplates.length > 0 && (
+                  <optgroup label="Linux">
+                    {linuxTemplates.map((tmpl) => (
+                      <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {windowsTemplates.length > 0 && (
+                  <optgroup label="Windows">
+                    {windowsTemplates.map((tmpl) => (
+                      <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                <Link to="/templates" className="text-brand-600 hover:underline">{t('templates.manageLink')}</Link>
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Offering</label>
               <select value={form.offering} onChange={(e) => setForm({ ...form, offering: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
-                {sizesForImage(form.image).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                {sizesForTemplate(selectedTemplate).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
             </div>
           </div>
@@ -332,7 +390,7 @@ export function VMs() {
                   name="network_mode"
                   className="mr-2"
                   checked={form.network_mode === 'private'}
-                  onChange={() => setForm({ ...form, network_mode: 'private', security_group_id: '' })}
+                  onChange={() => setForm({ ...form, network_mode: 'private', security_group_ids: [] })}
                 />
                 <span className="font-medium">{t('vms.networkModePrivate')}</span>
                 <p className="text-xs text-gray-500 mt-1 ml-5">{t('vms.networkModePrivateHint')}</p>
@@ -378,18 +436,33 @@ export function VMs() {
             {form.network_mode === 'public' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">{t('vms.securityGroupRequired')}</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium">{t('vms.securityGroupRequired')}</label>
+                    <button
+                      type="button"
+                      onClick={() => setCreateSgModal(true)}
+                      className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+                    >
+                      <Shield size={14} /> {t('vms.createSecurityGroup')}
+                    </button>
+                  </div>
                   <select
+                    multiple
                     required
-                    value={form.security_group_id}
-                    onChange={(e) => setForm({ ...form, security_group_id: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
+                    value={form.security_group_ids}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                      setForm({ ...form, security_group_ids: selected });
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
                   >
-                    <option value="">{t('vms.selectSecurityGroup')}</option>
                     {securityGroups.map((sg) => (
-                      <option key={sg.id} value={sg.id}>{sg.name}</option>
+                      <option key={sg.id} value={sg.id}>
+                        {sg.name}{sg.name === 'default' ? ` (${t('sg.defaultBadge')})` : ''}
+                      </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">{t('vms.multiSgHint')}</p>
                 </div>
                 {privateNetworks.length > 0 && (
                   <div>
@@ -412,7 +485,7 @@ export function VMs() {
               </>
             )}
           </div>
-          {!isWindowsImage(form.image) && (
+          {!isWindowsTemplate(selectedTemplate) && (
             <>
               <div>
                 <label className="block text-sm font-medium mb-1">{t('vms.sshKeyOptional')}</label>
@@ -466,13 +539,56 @@ export function VMs() {
               type="submit"
               disabled={
                 deployMutation.isPending ||
+                !form.template_id ||
                 (form.network_mode === 'private' && form.network_ids.length === 0) ||
-                (form.network_mode === 'public' && !form.security_group_id)
+                (form.network_mode === 'public' && form.security_group_ids.length === 0)
               }
               className="btn-primary"
             >
               {deployMutation.isPending ? t('common.deploying') : 'Deploy'}
             </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={createSgModal} onClose={() => setCreateSgModal(false)} title={t('vms.createSecurityGroup')}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            createSgMutation.mutate({
+              name: sgForm.name,
+              description: sgForm.description,
+              rules: sgForm.rules,
+            });
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+            <input
+              required
+              value={sgForm.name}
+              onChange={(e) => setSgForm({ ...sgForm, name: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg"
+              placeholder="web-servers"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
+            <textarea
+              value={sgForm.description}
+              onChange={(e) => setSgForm({ ...sgForm, description: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg"
+              rows={2}
+            />
+          </div>
+          <SGRulesEditor rules={sgForm.rules} onChange={(rules) => setSgForm({ ...sgForm, rules })} />
+          {createSgMutation.isError && (
+            <p className="text-red-500 text-sm">{(createSgMutation.error as Error).message}</p>
+          )}
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={() => setCreateSgModal(false)} className="btn-secondary">{t('common.cancel')}</button>
+            <button type="submit" disabled={createSgMutation.isPending} className="btn-primary">{t('common.create')}</button>
           </div>
         </form>
       </Modal>

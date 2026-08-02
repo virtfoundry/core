@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS security_groups (
     import_source   VARCHAR(32) NULL,
     created_at      DATETIME(3) NOT NULL,
     INDEX idx_sg_tenant (tenant_id),
+    UNIQUE KEY uk_sg_tenant_name (tenant_id, name),
     UNIQUE KEY uk_sg_external (import_source, external_uuid)
 );
 
@@ -94,15 +95,25 @@ CREATE TABLE IF NOT EXISTS service_offerings (
 
 CREATE TABLE IF NOT EXISTS vm_templates (
     id              CHAR(36) PRIMARY KEY,
-    name            VARCHAR(255) NOT NULL UNIQUE,
+    tenant_id       CHAR(36) NOT NULL DEFAULT '',
+    name            VARCHAR(255) NOT NULL,
     display_name    VARCHAR(255) NOT NULL,
+    description     TEXT NULL,
     image           VARCHAR(512) NOT NULL,
+    source_type     VARCHAR(32) NOT NULL DEFAULT 'container',
     os_type         VARCHAR(64) NULL,
+    cloud_init_user_data TEXT NULL,
+    iso_volume_id       CHAR(36) NULL,
+    iso_size_gi         INT NOT NULL DEFAULT 8,
+    boot_disk_size_gi   INT NOT NULL DEFAULT 32,
+    storage_class       VARCHAR(64) NULL,
+    import_state        VARCHAR(32) NULL,
     hypervisor      VARCHAR(64) NOT NULL DEFAULT 'KubeVirt',
     state           VARCHAR(32) NOT NULL DEFAULT 'Active',
     external_uuid   VARCHAR(64) NULL,
     import_source   VARCHAR(32) NULL,
     created_at      DATETIME(3) NOT NULL,
+    UNIQUE KEY uk_template_tenant_name (tenant_id, name),
     UNIQUE KEY uk_template_external (import_source, external_uuid)
 );
 

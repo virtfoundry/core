@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Server, HardDrive, Network, Globe, Shield, Boxes,
-  Users, LogOut, Menu, X, Camera, Key,
+  Users, LogOut, Menu, X, Camera, Key, Disc,
 } from 'lucide-react';
 import { VirtForgeLogo } from './VirtForgeLogo';
 import { authService } from '../lib/auth';
@@ -29,6 +29,7 @@ const menuItems: MenuItem[] = [
     group: 'Compute',
     items: [
       { path: '/vms', icon: Server, labelKey: 'nav.vms' },
+      { path: '/templates', icon: Disc, labelKey: 'nav.templates' },
       { path: '/ssh-keys', icon: Key, labelKey: 'nav.sshKeys' },
       { path: '/vm-snapshots', icon: Camera, labelKey: 'nav.vmSnapshots' },
     ],

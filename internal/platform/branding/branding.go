@@ -1,6 +1,8 @@
 // Package branding holds VirtForge Cloud naming used across API, worker, and K8s integration.
 package branding
 
+import "strings"
+
 const (
 	Domain = "virtforge.io"
 
@@ -31,9 +33,10 @@ const (
 	BridgeName         = "virtforge-br0"
 	KubeVirtSecretName = "virtforge-kubevirt"
 
-	DefaultRootPassword = "virtforge"
-	DefaultTenantSlug   = "default"
-	DefaultTenantName   = "Default"
+	DefaultRootPassword     = "virtforge"
+	DefaultTenantSlug       = "default"
+	DefaultTenantName       = "Default"
+	DefaultSecurityGroupName = "default"
 	ServiceName         = "virtforge-iaas"
 	EmailDomain         = "virtforge.local"
 	DBName              = "virtforge"
@@ -41,3 +44,12 @@ const (
 	LogLabelVM     = "virtforge_vm"
 	LogLabelTenant = "virtforge_tenant"
 )
+
+// SGPodLabelKey returns the pod label key used by NetworkPolicy selectors for a security group.
+func SGPodLabelKey(sgID string) string {
+	id := sgID
+	if len(id) > 8 {
+		id = id[:8]
+	}
+	return LabelSG + "-" + strings.ToLower(id)
+}

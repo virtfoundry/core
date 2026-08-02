@@ -17,6 +17,7 @@ type VMDeploySpec struct {
 	Networks          []VMNetworkSpec
 	CloudInitSSHKeys  []string
 	CloudInitPassword string
+	CloudInitExtra    string // optional #cloud-config fragment merged at deploy
 	FormatDataDisk    bool
 	Labels            map[string]string // applied to VM and VMI template (e.g. security group)
 }
@@ -27,6 +28,11 @@ type VMNetworkSpec struct {
 	NADNamespace string
 	NADName      string
 	Default      bool // use pod masquerade network
+	StaticIP     string
+	PrefixLen    int
+	Gateway      string
+	DNS          []string
+	MACAddress   string
 }
 
 // VMInfo represents a virtual machine in the hypervisor.

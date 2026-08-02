@@ -8,4 +8,5 @@ import (
 type (
 	PlatformDeployVMInput = compute.DeployVMInput
 	UpdateVMInput         = compute.UpdateVMInput
+	CreateVMTemplateInput = compute.CreateVMTemplateInput
 )
