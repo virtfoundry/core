@@ -1,4 +1,4 @@
-module github.com/virtforge-cloud/virtforge
+module github.com/virtfoundry/core
 
 go 1.25.0
 

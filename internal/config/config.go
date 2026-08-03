@@ -105,7 +105,7 @@ func DefaultConfig() *Config {
 			Namespace:  getEnv("KUBEVIRT_NAMESPACE", "default"),
 		},
 		Networking: NetworkingConfig{
-			Isolated: IsolatedNetworkConfig{BridgeName: "virtforge-br0"},
+			Isolated: IsolatedNetworkConfig{BridgeName: "virtfoundry-br0"},
 			VM: VMNetworkConfig{
 				DefaultNetwork:  "pod",
 				AllowPodNetwork: true,

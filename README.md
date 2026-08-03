@@ -1,97 +1,64 @@
-# VirtForge Cloud
+# VirtFoundry
 
-Kubernetes-native IaaS control plane — CloudStack-style operations on KubeVirt, Multus, and NetworkPolicy.
+> Declarative cloud-native IaaS and private cloud on Kubernetes
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.28%2B-326CE5?logo=kubernetes)](https://kubernetes.io)
+[![KubeVirt](https://img.shields.io/badge/KubeVirt-Native-red)](https://kubevirt.io)
 
-**Organization:** [github.com/virtforge-cloud](https://github.com/virtforge-cloud)
+VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, subnets, security groups, VMs, snapshots, IAM, and a web UI — built on KubeVirt and Multus.
+
+## Key features
+
+- **Multi-tenancy** — isolated namespaces per tenant
+- **Networking** — VPCs, private subnets, optional public IP pool, security groups (NetworkPolicy)
+- **Compute** — KubeVirt VMs, templates, offerings, snapshots, noVNC console
+- **Storage** — PVC volumes and volume snapshots
+- **IAM** — users, roles, API keys (`vfd_live_...`)
+- **Packaging** — official Helm chart
+
+## Quick start
+
+**Prerequisites:** KubeVirt, Multus, and CDI on the cluster. See the [installation guide](https://virtfoundry.github.io/helm-charts/docs/guide/installation/).
+
+```bash
+helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
+helm repo update
+helm install virtfoundry virtfoundry/virtfoundry \
+  --version 1.0.0 \
+  -n virtfoundry-system --create-namespace \
+  --set secrets.rootPassword='change-me' \
+  --set secrets.jwtSecret='change-me'
+```
+
+Login: `root` / your root password.
+
+## Repositories
 
 | Repository | Purpose |
 |------------|---------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | Application — API, worker, UI, migration CLI |
-| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, cluster config, homelab deploy |
-| [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Landing page and docs site |
+| [virtfoundry/core](https://github.com/virtfoundry/core) | API, worker, UI (this repo) |
+| [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) | Helm chart, docs, deploy scripts |
 
-Extended documentation: **[Wiki](https://github.com/virtforge-cloud/virtforge/wiki)**
+## Product model
 
-## Repository layout
+Open-source **core** (Apache 2.0) + optional **enterprise** components from Thurler IT. See [docs/PRODUCT.md](docs/PRODUCT.md).
 
-```
-cmd/                 # server, worker, migrate CLIs
-internal/            # API, services, store, KubeVirt/K8s integration
-ui/                  # React SPA (Vite + Tailwind)
-docker/              # Dockerfiles for API/worker and UI images
-config/              # Local dev config only (see config/README.md)
-docs/                # Architecture reference
-```
+## Enterprise support
 
-Kubernetes manifests, Helm values, and deploy scripts live in **[virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart)**.
+Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Consultancy** — [thurlerit.com](https://thurlerit.com)
 
-## Features
-
-- Multi-tenant isolation (namespaces per tenant / VPC)
-- VMs via KubeVirt (start/stop, console, snapshots)
-- Networks via Multus NADs; security groups via NetworkPolicy
-- Block storage (PVC) and volume snapshots
-- CloudStack migration tool (`cmd/migrate`)
-- React UI with realtime events and noVNC console
-
-## Quick start (local dev)
+## Development
 
 ```bash
-cp config/config.yaml.example config/config.yaml   # optional — defaults work for memory store
-
-# API
-ROOT_PASSWORD=virtforge go run ./cmd/server
-
-# UI (separate terminal)
+ROOT_PASSWORD=virtfoundry go run ./cmd/server
 cd ui && npm install && npm run dev
-
-# Login: root / virtforge (change in production)
 ```
-
-## Deploy to Kubernetes
-
-Use [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
-
-```bash
-helm upgrade --install virtforge ./charts/virtforge \
-  -n virtforge-system --create-namespace \
-  --set secrets.rootPassword='your-root-password' \
-  --set secrets.jwtSecret='your-jwt-secret'
-```
-
-Homelab profile and optional image-build workflow: see the chart repo README.
-
-## API (`/api/v1`)
-
-| Resource | Endpoints |
-|----------|-----------|
-| Auth | `POST /auth/login`, `GET /auth/me` |
-| Tenants (root) | `GET/POST /tenants` |
-| VPCs / Networks / Security Groups | CRUD under `/vpcs`, `/networks`, `/security-groups` |
-| Volumes / Snapshots | `/volumes`, `/snapshots` |
-| VMs | `/vms`, start/stop/delete, `/vm-snapshots` |
-| Console | WebSocket `/ws/console?name=&namespace=` |
-| Realtime | WebSocket `/ws/events` |
-
-Root users must send `X-Tenant-ID` when operating inside a tenant.
-
-## CloudStack migration
-
-```bash
-go run ./cmd/migrate cloudstack \
-  --dsn "cloud:password@tcp(cloudstack-db:3306)/cloud" \
-  --dry-run
-```
-
-See the [Wiki — CloudStack migration](https://github.com/virtforge-cloud/virtforge/wiki/CloudStack-Migration) for full options.
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md). Commits must be in **English** and follow **Conventional Commits**.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Migration from VirtForge
+
+The project formerly lived at [virtforge-cloud](https://github.com/virtforge-cloud). VirtForge repos remain as read-only mirrors until fully deprecated.

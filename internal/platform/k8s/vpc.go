@@ -3,7 +3,7 @@ package k8s
 import (
 	"context"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/branding"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

@@ -1,6 +1,6 @@
 package store
 
-import "github.com/virtforge-cloud/virtforge/internal/platform"
+import "github.com/virtfoundry/core/internal/platform"
 
 // SeedCatalog inserts default service offerings and VM templates when empty,
 // then ensures platform-specific catalog entries (e.g. Windows) exist.

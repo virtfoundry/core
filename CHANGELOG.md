@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to **VirtForge Cloud** (API, worker, UI) are documented here.
+All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
-Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtforge-cloud/virtforge-chart/blob/main/docs/project/versioning.md).
+Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
 ## [0.2.0] - 2026-08-02
 
@@ -34,5 +34,5 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
-[0.2.0]: https://github.com/virtforge-cloud/virtforge/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/virtforge-cloud/virtforge/releases/tag/v0.1.0
+[0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0

@@ -7,12 +7,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/config"
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service"
+	"github.com/virtfoundry/core/internal/config"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/pkg/logger"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +20,7 @@ func main() {
 	cfg := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
 	log := logger.Get()
-	log.Info("starting VirtForge worker")
+	log.Info("starting VirtFoundry worker")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

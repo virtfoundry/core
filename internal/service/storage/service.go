@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 // Service manages volumes and volume snapshots (PVC / VolumeSnapshot).

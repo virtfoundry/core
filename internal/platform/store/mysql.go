@@ -9,7 +9,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtfoundry/core/internal/platform"
 )
 
 //go:embed migrations/schema.sql
@@ -71,6 +71,9 @@ func (m *MySQL) Migrate() error {
 		return err
 	}
 	if err := m.applyMigration004(); err != nil {
+		return err
+	}
+	if err := m.applyMigration005(); err != nil {
 		return err
 	}
 	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('001_initial')`)
@@ -155,15 +158,21 @@ func scanTime(t sql.NullTime) time.Time {
 }
 
 func (m *MySQL) SaveUser(u *platform.User) {
-	_, _ = m.db.Exec(`INSERT INTO users (id, username, password_hash, role, tenant_id, email, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+	if u.RoleID == "" {
+		u.RoleID = RoleIDForLegacy(u.Role)
+	}
+	if u.State == "" {
+		u.State = "active"
+	}
+	_, _ = m.db.Exec(`INSERT INTO users (id, username, password_hash, role, role_id, tenant_id, email, state, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE username=VALUES(username), password_hash=VALUES(password_hash),
-		role=VALUES(role), tenant_id=VALUES(tenant_id), email=VALUES(email)`,
-		u.ID, u.Username, u.PasswordHash, u.Role, nullStr(u.TenantID), nullStr(u.Email), u.CreatedAt)
+		role=VALUES(role), role_id=VALUES(role_id), tenant_id=VALUES(tenant_id), email=VALUES(email), state=VALUES(state)`,
+		u.ID, u.Username, u.PasswordHash, u.Role, nullStr(u.RoleID), nullStr(u.TenantID), nullStr(u.Email), u.State, u.CreatedAt)
 }
 
 func (m *MySQL) GetUserByUsername(username string) (*platform.User, bool) {
-	row := m.db.QueryRow(`SELECT id, username, password_hash, role, tenant_id, email, created_at FROM users WHERE username=?`, username)
+	row := m.db.QueryRow(`SELECT id, username, password_hash, role, role_id, tenant_id, email, state, created_at FROM users WHERE username=?`, username)
 	return scanUser(row)
 }
 
@@ -174,39 +183,30 @@ func (m *MySQL) HasRootUser() bool {
 }
 
 func (m *MySQL) GetUser(id string) (*platform.User, bool) {
-	row := m.db.QueryRow(`SELECT id, username, password_hash, role, tenant_id, email, created_at FROM users WHERE id=?`, id)
+	row := m.db.QueryRow(`SELECT id, username, password_hash, role, role_id, tenant_id, email, state, created_at FROM users WHERE id=?`, id)
 	return scanUser(row)
 }
 
 func scanUser(row *sql.Row) (*platform.User, bool) {
 	var u platform.User
-	var tenantID, email sql.NullString
-	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &tenantID, &email, &u.CreatedAt); err != nil {
+	var tenantID, email, roleID, state sql.NullString
+	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &roleID, &tenantID, &email, &state, &u.CreatedAt); err != nil {
 		return nil, false
 	}
 	u.TenantID = tenantID.String
 	u.Email = email.String
+	u.RoleID = roleID.String
+	u.State = state.String
 	return &u, true
 }
 
 func (m *MySQL) ListUsers() []*platform.User {
-	rows, err := m.db.Query(`SELECT id, username, password_hash, role, tenant_id, email, created_at FROM users`)
+	rows, err := m.db.Query(`SELECT id, username, password_hash, role, role_id, tenant_id, email, state, created_at FROM users`)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
-	var out []*platform.User
-	for rows.Next() {
-		var u platform.User
-		var tenantID, email sql.NullString
-		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &tenantID, &email, &u.CreatedAt); err != nil {
-			continue
-		}
-		u.TenantID = tenantID.String
-		u.Email = email.String
-		out = append(out, &u)
-	}
-	return out
+	return scanUsers(rows)
 }
 
 func (m *MySQL) SaveTenant(t *platform.Tenant) {

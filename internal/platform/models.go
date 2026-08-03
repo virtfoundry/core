@@ -10,14 +10,47 @@ const (
 	RoleUser        Role = "user"
 )
 
+const (
+	SystemRoleRoot          = "platform.root"
+	SystemRoleTenantAdmin   = "tenant.admin"
+	SystemRoleTenantOperator = "tenant.operator"
+	SystemRoleTenantViewer  = "tenant.viewer"
+)
+
 type User struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"`
 	Role         Role      `json:"role"`
+	RoleID       string    `json:"role_id,omitempty"`
 	TenantID     string    `json:"tenant_id,omitempty"`
 	Email        string    `json:"email,omitempty"`
+	State        string    `json:"state,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type RoleRecord struct {
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenant_id,omitempty"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	IsSystem    bool      `json:"is_system"`
+	Permissions []string  `json:"permissions,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type APIKey struct {
+	ID         string     `json:"id"`
+	UserID     string     `json:"user_id"`
+	TenantID   string     `json:"tenant_id,omitempty"`
+	Name       string     `json:"name"`
+	Prefix     string     `json:"prefix"`
+	SecretHash string     `json:"-"`
+	Scopes     []string   `json:"scopes,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type Tenant struct {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../lib/auth';
-import { VirtForgeLogo } from '../components/VirtForgeLogo';
+import { VirtFoundryLogo } from '../components/VirtFoundryLogo';
 import { LanguageToggle, useI18n } from '../lib/i18n';
 import loginBg from '../assets/login-bg.svg';
 
@@ -38,9 +38,9 @@ export function Login() {
 
         <div className="relative z-10 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <VirtForgeLogo size={48} className="ring-2 ring-white/20 rounded-xl" />
+            <VirtFoundryLogo size={48} className="ring-2 ring-white/20 rounded-xl" />
             <div>
-              <h1 className="text-3xl font-bold text-white">VirtForge</h1>
+              <h1 className="text-3xl font-bold text-white">VirtFoundry</h1>
               <p className="text-brand-200">{t('login.tagline')}</p>
             </div>
           </div>
@@ -76,9 +76,9 @@ export function Login() {
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <VirtForgeLogo size={40} />
+              <VirtFoundryLogo size={40} />
               <div>
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">VirtForge</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">VirtFoundry</span>
                 <p className="text-xs text-gray-500 lg:hidden">{t('login.tagline')}</p>
               </div>
             </div>

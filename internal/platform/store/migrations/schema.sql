@@ -1,8 +1,8 @@
--- VirtForge Cloud platform schema (MySQL 8+)
+-- VirtFoundry platform schema (MySQL 8+)
 -- Import-friendly: external_uuid + import_source nullable unique per entity.
 
-CREATE DATABASE IF NOT EXISTS virtforge CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE virtforge;
+CREATE DATABASE IF NOT EXISTS virtfoundry CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE virtfoundry;
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version     VARCHAR(64) PRIMARY KEY,

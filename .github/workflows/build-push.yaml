@@ -9,8 +9,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/virtforge-cloud/iaas-api
-  UI_IMAGE: ghcr.io/virtforge-cloud/iaas-ui
+  API_IMAGE: ghcr.io/virtfoundry/core
+  UI_IMAGE: ghcr.io/virtfoundry/ui
 
 permissions:
   contents: read

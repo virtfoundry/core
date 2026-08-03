@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/cloudinit"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/cloudinit"
+	"github.com/virtfoundry/core/internal/platform/branding"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"

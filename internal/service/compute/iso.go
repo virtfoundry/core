@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 const isoImportTimeout = 45 * time.Minute

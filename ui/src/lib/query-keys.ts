@@ -12,6 +12,9 @@ export const queryKeys = {
   sshKeys: ['platform-ssh-keys'] as const,
   offerings: ['platform-offerings'] as const,
   templates: ['platform-templates'] as const,
+  iamUsers: ['platform-iam-users'] as const,
+  iamRoles: ['platform-iam-roles'] as const,
+  iamKeys: ['platform-iam-keys'] as const,
 };
 
 export function isPlatformQueryKey(key: unknown): boolean {

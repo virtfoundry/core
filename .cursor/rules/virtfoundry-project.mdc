@@ -1,0 +1,45 @@
+---
+description: VirtFoundry project context (Kubernetes-native IaaS)
+alwaysApply: true
+---
+
+# VirtFoundry
+
+Multi-tenant IaaS platform native to Kubernetes: KubeVirt (VMs), Multus (networks), NetworkPolicy (security groups).
+
+## Stack
+
+| Layer | Technology |
+|-------|------------|
+| API | Go 1.25 + Gorilla Mux + net/http |
+| Auth | JWT + API keys (`vfd_live_...`) + IAM (users, roles) |
+| Persistence | MySQL (`store.Repository`) or Memory (dev) |
+| Hypervisor | KubeVirt (`internal/infra/hypervisor`) |
+| K8s ops | `internal/platform/k8s` (tenants, VPCs, NADs, SGs) |
+| UI | React 18 + Vite + Tailwind + TanStack Query |
+| Deploy | Dockerfiles in `docker/`; Helm in [helm-charts](https://github.com/virtfoundry/helm-charts) |
+
+## Structure
+
+```
+cmd/server/          # REST API + WebSocket
+cmd/worker/          # Async jobs (deploy_vm, reconcile)
+cmd/migrate/         # CloudStack import CLI
+internal/api/        # Handlers, middleware, ws hub
+internal/service/    # PlatformService (store + k8s + kubevirt)
+internal/platform/   # Models, store, k8s manager, branding
+ui/                  # React SPA
+```
+
+## Conventions
+
+- Go module: `github.com/virtfoundry/core`
+- Branding constants: `internal/platform/branding/branding.go`
+- Documentation: English; user guides in helm-charts repo MkDocs
+- Homelab deploy: `helm-charts` → `make deploy-homelab`
+- Product model: [docs/PRODUCT.md](./docs/PRODUCT.md) (open core + enterprise)
+- Terraform provider: blocked until IAM stable — [TERRAFORM-PROVIDER-PLAN.md](./docs/TERRAFORM-PROVIDER-PLAN.md)
+
+## Legacy
+
+Former name **VirtForge** / org `virtforge-cloud`. Do not reference in new public docs except migration notes.

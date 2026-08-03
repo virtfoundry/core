@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtfoundry/core/internal/platform"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )

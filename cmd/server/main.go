@@ -9,18 +9,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/api/handler"
-	"github.com/virtforge-cloud/virtforge/internal/api/middleware"
-	"github.com/virtforge-cloud/virtforge/internal/api/ws"
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	"github.com/virtforge-cloud/virtforge/internal/config"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service"
-	"github.com/virtforge-cloud/virtforge/internal/service/compute"
+	"github.com/virtfoundry/core/internal/api/handler"
+	"github.com/virtfoundry/core/internal/api/middleware"
+	"github.com/virtfoundry/core/internal/api/ws"
+	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/config"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/pkg/logger"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service"
+	"github.com/virtfoundry/core/internal/service/compute"
+	"github.com/virtfoundry/core/internal/service/identity"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -30,7 +31,7 @@ func main() {
 	cfg := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
 	log := logger.Get()
-	log.Info("starting VirtForge Cloud", zap.Int("port", cfg.Server.Port))
+	log.Info("starting VirtFoundry", zap.Int("port", cfg.Server.Port))
 
 	hub := ws.NewHub()
 
@@ -108,7 +109,7 @@ func main() {
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok","service":"virtforge-iaas","hypervisor":"kubevirt"}`))
+		w.Write([]byte(`{"status":"ok","service":"virtfoundry-iaas","hypervisor":"kubevirt"}`))
 	}).Methods("GET")
 
 	router.HandleFunc("/ws/events", func(w http.ResponseWriter, r *http.Request) {
@@ -126,14 +127,28 @@ func main() {
 	router.HandleFunc("/ws/console", consoleHandler.VNCConsole)
 
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc)
+	iamHandler := handler.NewIAMHandler(repo, platformSvc)
+	identitySvc := identity.New(repo)
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/auth/login", platformHandler.Login).Methods("POST")
 
 	protected := v1.NewRoute().Subrouter()
-	protected.Use(middleware.JWTAuth(authSvc))
+	protected.Use(middleware.Authenticate(authSvc, repo, identitySvc))
+	protected.Use(middleware.AutoPermission)
 	protected.Use(middleware.AuditRootImpersonation(repo))
 	protected.HandleFunc("/auth/me", platformHandler.Me).Methods("GET")
+	protected.HandleFunc("/users", iamHandler.ListUsers).Methods("GET")
+	protected.HandleFunc("/users", iamHandler.CreateUser).Methods("POST")
+	protected.HandleFunc("/users/{id}", iamHandler.UpdateUser).Methods("PATCH")
+	protected.HandleFunc("/users/{id}", iamHandler.DeleteUser).Methods("DELETE")
+	protected.HandleFunc("/roles", iamHandler.ListRoles).Methods("GET")
+	protected.HandleFunc("/roles", iamHandler.CreateRole).Methods("POST")
+	protected.HandleFunc("/roles/{id}", iamHandler.UpdateRole).Methods("PATCH")
+	protected.HandleFunc("/roles/{id}", iamHandler.DeleteRole).Methods("DELETE")
+	protected.HandleFunc("/api-keys", iamHandler.ListAPIKeys).Methods("GET")
+	protected.HandleFunc("/api-keys", iamHandler.CreateAPIKey).Methods("POST")
+	protected.HandleFunc("/api-keys/{id}", iamHandler.DeleteAPIKey).Methods("DELETE")
 	protected.HandleFunc("/vpcs", platformHandler.ListVPCs).Methods("GET")
 	protected.HandleFunc("/vpcs/cidr-plan", platformHandler.VPCCIDRPlan).Methods("GET")
 	protected.HandleFunc("/vpcs", platformHandler.CreateVPC).Methods("POST")

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 type vmStateKey struct {

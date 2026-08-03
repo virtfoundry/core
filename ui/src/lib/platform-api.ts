@@ -476,3 +476,74 @@ export const VM_SIZES = [
   { id: 'large', cpu: 4, memory_mi: 8192, label: 'Large (4 vCPU, 8 GB)' },
   { id: 'windows-large', cpu: 4, memory_mi: 16384, label: 'Windows Large (4 vCPU, 16 GB)', os: 'windows' as const },
 ];
+
+export interface IAMUser {
+  id: string;
+  username: string;
+  role: string;
+  role_id?: string;
+  tenant_id?: string;
+  email?: string;
+  state?: string;
+}
+
+export interface IAMRole {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  description?: string;
+  is_system?: boolean;
+  permissions?: string[];
+}
+
+export interface IAMAPIKey {
+  id: string;
+  user_id: string;
+  tenant_id?: string;
+  name: string;
+  prefix: string;
+  scopes?: string[];
+  expires_at?: string;
+  last_used_at?: string;
+  revoked_at?: string;
+  created_at?: string;
+}
+
+export async function listIAMUsers() {
+  const res = await platformFetch<{ users: IAMUser[] | null }>('/users');
+  return { users: res.users ?? [] };
+}
+
+export async function createIAMUser(data: { username: string; password: string; email?: string; role_name?: string; role_id?: string }) {
+  return platformFetch<{ user: IAMUser }>('/users', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function deleteIAMUser(id: string) {
+  return platformFetch<void>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function listIAMRoles() {
+  const res = await platformFetch<{ roles: IAMRole[] | null }>('/roles');
+  return { roles: res.roles ?? [] };
+}
+
+export async function createIAMRole(data: { name: string; description?: string; permissions: string[] }) {
+  return platformFetch<{ role: IAMRole }>('/roles', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function deleteIAMRole(id: string) {
+  return platformFetch<void>(`/roles/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function listIAMAPIKeys() {
+  const res = await platformFetch<{ api_keys: IAMAPIKey[] | null }>('/api-keys');
+  return { api_keys: res.api_keys ?? [] };
+}
+
+export async function createIAMAPIKey(data: { name: string; expires_in_days?: number; scopes?: string[] }) {
+  return platformFetch<{ api_key: IAMAPIKey; secret: string }>('/api-keys', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function revokeIAMAPIKey(id: string) {
+  return platformFetch<void>(`/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

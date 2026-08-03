@@ -1,6 +1,6 @@
 package store
 
-import "github.com/virtforge-cloud/virtforge/internal/platform"
+import "github.com/virtfoundry/core/internal/platform"
 
 // Repository persists platform state. Memory and MySQL both implement it.
 type Repository interface {
@@ -9,6 +9,26 @@ type Repository interface {
 	HasRootUser() bool
 	GetUser(id string) (*platform.User, bool)
 	ListUsers() []*platform.User
+	ListUsersByTenant(tenantID string) []*platform.User
+	DeleteUser(id string)
+
+	SaveRole(r *platform.RoleRecord)
+	GetRole(id string) (*platform.RoleRecord, bool)
+	GetRoleByName(tenantID, name string) (*platform.RoleRecord, bool)
+	ListRoles(tenantID string) []*platform.RoleRecord
+	DeleteRole(id string)
+	GetRolePermissions(roleID string) ([]string, bool)
+	SetRolePermissions(roleID string, perms []string)
+
+	SaveAPIKey(k *platform.APIKey)
+	GetAPIKey(id string) (*platform.APIKey, bool)
+	GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool)
+	ListAPIKeys(userID string) []*platform.APIKey
+	ListAPIKeysByTenant(tenantID string) []*platform.APIKey
+	DeleteAPIKey(id string)
+	TouchAPIKeyLastUsed(id string)
+
+	SeedIAM() error
 
 	SaveTenant(t *platform.Tenant)
 	GetTenant(id string) (*platform.Tenant, bool)

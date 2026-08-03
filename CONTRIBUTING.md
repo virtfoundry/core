@@ -1,11 +1,11 @@
-# Contributing to VirtForge Cloud
+# Contributing to VirtFoundry
 
-Thank you for helping grow VirtForge Cloud. This project lives under the [virtforge-cloud](https://github.com/virtforge-cloud) organization.
+Thank you for helping grow VirtFoundry. This project lives under the [virtfoundry](https://github.com/virtfoundry) organization.
 
 ## Before you start
 
-- Read the [Wiki Home](https://github.com/virtforge-cloud/virtforge/wiki) for architecture and homelab setup
-- Search [existing issues](https://github.com/virtforge-cloud/virtforge/issues) before opening a duplicate
+- Read the [Wiki Home](https://github.com/virtfoundry/core/wiki) for architecture and homelab setup
+- Search [existing issues](https://github.com/virtfoundry/core/issues) before opening a duplicate
 
 ## Language
 
@@ -31,7 +31,7 @@ go test ./...
 cd ui && npm install && npm run build
 ```
 
-Cluster deploy and homelab testing: [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) (`make deploy-homelab`).
+Cluster deploy and homelab testing: [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) (`make deploy-homelab`).
 
 ## Branch workflow
 
@@ -42,11 +42,11 @@ Cluster deploy and homelab testing: [virtforge-chart](https://github.com/virtfor
 3. Deploy and validate on **homelab** before opening a PR
 4. Open PR → maintainer reviews and tests on homelab → **merge only after approval**
 
-Cross-repo changes: use the same branch name in `virtforge` and `virtforge-chart` when both are needed.
+Cross-repo changes: use the same branch name in `virtfoundry` and `virtfoundry-chart` when both are needed.
 
 ## Pull request process
 
-1. Fork `virtforge-cloud/virtforge` and create a feature branch
+1. Fork `virtfoundry/virtfoundry` and create a feature branch
 2. Keep changes focused; match existing code style
 3. Run `go test ./...` and UI build when touching those areas
 4. Update wiki pages when behavior or deploy steps change
@@ -56,9 +56,9 @@ Cross-repo changes: use the same branch name in `virtforge` and `virtforge-chart
 
 | Repo | When to contribute here |
 |------|-------------------------|
-| [virtforge](https://github.com/virtforge-cloud/virtforge) | API, worker, UI, migration CLI, local dev config |
-| [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) | Helm chart, cluster values, deploy scripts |
-| [virtforge-website](https://github.com/virtforge-cloud/virtforge-website) | Marketing site and published docs |
+| [virtfoundry](https://github.com/virtfoundry/core) | API, worker, UI, migration CLI, local dev config |
+| [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) | Helm chart, cluster values, deploy scripts |
+| [virtfoundry-website](https://github.com/virtfoundry/core-website) | Marketing site and published docs |
 
 ## Code of conduct
 

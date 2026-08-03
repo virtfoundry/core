@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform"
+	"github.com/virtfoundry/core/internal/platform"
 	"github.com/google/uuid"
 )
 
@@ -28,6 +28,9 @@ type Memory struct {
 	serviceOfferings map[string]*platform.ServiceOffering
 	vmTemplates      map[string]*platform.VMTemplate
 	sshKeyPairs      map[string]*platform.SSHKeyPair
+	roles            map[string]*platform.RoleRecord
+	rolePerms        map[string][]string
+	apiKeys          map[string]*platform.APIKey
 }
 
 func NewMemory() *Memory {
@@ -48,6 +51,9 @@ func NewMemory() *Memory {
 		serviceOfferings: make(map[string]*platform.ServiceOffering),
 		vmTemplates:      make(map[string]*platform.VMTemplate),
 		sshKeyPairs:      make(map[string]*platform.SSHKeyPair),
+		roles:            make(map[string]*platform.RoleRecord),
+		rolePerms:        make(map[string][]string),
+		apiKeys:          make(map[string]*platform.APIKey),
 	}
 }
 

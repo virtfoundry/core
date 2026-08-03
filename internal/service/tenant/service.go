@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	"github.com/virtfoundry/core/internal/auth"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 // Service manages tenants and their K8s namespaces.
@@ -42,8 +42,8 @@ func (s *Service) CreateTenant(ctx context.Context, name, slug, adminPassword st
 	hash, _ := auth.HashPassword(adminPassword)
 	user := &platform.User{
 		ID: store.NewID(), Username: slug + "-admin",
-		Role: platform.RoleTenantAdmin, TenantID: tenantID,
-		PasswordHash: hash, CreatedAt: store.Now(),
+		Role: platform.RoleTenantAdmin, RoleID: store.SystemRoleIDTenantAdmin, TenantID: tenantID,
+		PasswordHash: hash, State: "active", CreatedAt: store.Now(),
 	}
 	s.store.SaveUser(user)
 	return tenant, user, nil

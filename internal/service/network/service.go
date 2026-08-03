@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 var errVPCNotFound = errors.New("vpc not found")

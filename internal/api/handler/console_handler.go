@@ -4,8 +4,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/pkg/logger"
 	kvcorev1 "kubevirt.io/client-go/kubevirt/typed/core/v1"
 	"go.uber.org/zap"
 )

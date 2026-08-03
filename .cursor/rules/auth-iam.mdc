@@ -1,0 +1,52 @@
+---
+description: IAM and API keys must land before Terraform provider and major auth consumers
+globs:
+  - internal/service/identity/**
+  - internal/auth/**
+  - internal/api/middleware/**
+  - internal/api/handler/platform_handler.go
+  - docs/AUTH-IAM-PLAN.md
+  - docs/TERRAFORM-PROVIDER-PLAN.md
+alwaysApply: true
+---
+
+# IAM & API keys (prerequisite)
+
+**Before** shipping the Terraform provider or automation that relies on long-lived credentials:
+
+1. Tenant-scoped **users** (not only `{slug}-admin`)
+2. **API keys** per user (hashed at rest, optional expiry)
+3. **Permission checks** on every mutating API route (not only `root` vs rest)
+
+Track progress in [docs/AUTH-IAM-PLAN.md](../../docs/AUTH-IAM-PLAN.md).
+
+## Current gap (v0.2.x)
+
+| Exists | Missing |
+|--------|---------|
+| `root`, `tenant_admin`, `user` roles in model | `RoleUser` unused; no user CRUD API |
+| JWT login (`POST /auth/login`) | API keys, key rotation, revoke |
+| Root + `X-Tenant-ID` | Fine-grained RBAC per endpoint |
+| Tenant admin on create | Tenant admin inviting more users |
+
+## When adding API features
+
+- New handler → declare required permission constant in `internal/auth/permissions.go`
+- Enforce via middleware (`RequirePermission("vms:create")`) not ad-hoc role checks in handlers
+- Audit log must record `actor_user_id` for API key auth too
+
+## Terraform provider dependency
+
+Provider auth order:
+
+1. API key (preferred for CI/Terraform)
+2. JWT username/password (dev only)
+
+Do not document provider `api_key` block until IAM Phase 2 ships.
+
+## PR checklist (identity work)
+
+1. Update [AUTH-IAM-PLAN.md](../../docs/AUTH-IAM-PLAN.md) phase checkboxes
+2. Migration for MySQL + memory store parity
+3. Tests in `internal/service/identity/` and middleware
+4. UI: Users + API Keys pages (tenant admin only) — can follow API in separate PR

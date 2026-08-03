@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	"github.com/virtforge-cloud/virtforge/internal/config"
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service/compute"
-	"github.com/virtforge-cloud/virtforge/internal/service/identity"
-	"github.com/virtforge-cloud/virtforge/internal/service/jobs"
-	"github.com/virtforge-cloud/virtforge/internal/service/network"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
-	"github.com/virtforge-cloud/virtforge/internal/service/sshkeys"
-	"github.com/virtforge-cloud/virtforge/internal/service/storage"
-	"github.com/virtforge-cloud/virtforge/internal/service/tenant"
+	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/config"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/platform"
+	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/compute"
+	"github.com/virtfoundry/core/internal/service/identity"
+	"github.com/virtfoundry/core/internal/service/jobs"
+	"github.com/virtfoundry/core/internal/service/network"
+	"github.com/virtfoundry/core/internal/service/shared"
+	"github.com/virtfoundry/core/internal/service/sshkeys"
+	"github.com/virtfoundry/core/internal/service/storage"
+	"github.com/virtfoundry/core/internal/service/tenant"
 )
 
 // EventBroadcaster pushes realtime events to WebSocket clients.
@@ -79,6 +79,54 @@ func (s *PlatformService) BootstrapDefaultSecurityGroups(ctx context.Context) er
 
 func (s *PlatformService) ResolveTenantID(claims *auth.Claims, requestedTenant string) (string, error) {
 	return s.identity.ResolveTenantID(claims, requestedTenant)
+}
+
+func (s *PlatformService) ActorFromUser(u *platform.User) *auth.Actor {
+	return s.identity.ActorFromUser(u)
+}
+
+func (s *PlatformService) CreateUser(tenantID string, in identity.CreateUserInput, actor *auth.Actor) (*platform.User, error) {
+	return s.identity.CreateUser(tenantID, in, actor)
+}
+
+func (s *PlatformService) ListUsers(tenantID string) []*platform.User {
+	return s.identity.ListUsers(tenantID)
+}
+
+func (s *PlatformService) UpdateUser(tenantID, userID, email, roleID, state string) (*platform.User, error) {
+	return s.identity.UpdateUser(tenantID, userID, email, roleID, state)
+}
+
+func (s *PlatformService) DeleteUser(tenantID, userID string) error {
+	return s.identity.DeleteUser(tenantID, userID)
+}
+
+func (s *PlatformService) CreateRole(tenantID string, in identity.CreateRoleInput) (*platform.RoleRecord, error) {
+	return s.identity.CreateRole(tenantID, in)
+}
+
+func (s *PlatformService) ListRoles(tenantID string) []*platform.RoleRecord {
+	return s.identity.ListRoles(tenantID)
+}
+
+func (s *PlatformService) UpdateRole(tenantID, roleID, desc string, perms []string) (*platform.RoleRecord, error) {
+	return s.identity.UpdateRole(tenantID, roleID, desc, perms)
+}
+
+func (s *PlatformService) DeleteRole(tenantID, roleID string) error {
+	return s.identity.DeleteRole(tenantID, roleID)
+}
+
+func (s *PlatformService) CreateAPIKey(userID, tenantID string, in identity.CreateAPIKeyInput, actor *auth.Actor) (*identity.CreateAPIKeyResult, error) {
+	return s.identity.CreateAPIKey(userID, tenantID, in, actor)
+}
+
+func (s *PlatformService) ListAPIKeys(userID, tenantID string, adminView bool) []*platform.APIKey {
+	return s.identity.ListAPIKeys(userID, tenantID, adminView)
+}
+
+func (s *PlatformService) RevokeAPIKey(userID, keyID string, admin bool) error {
+	return s.identity.RevokeAPIKey(userID, keyID, admin)
 }
 
 func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.NetworkingConfig) error {

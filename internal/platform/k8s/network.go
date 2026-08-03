@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/branding"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, 
 }
 
 func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
-	// Bridge CNI without IPAM: veth joins virtforge-pub0; guest IP from cloud-init (pool), not the pod.
+	// Bridge CNI without IPAM: veth joins virtfoundry-pub0; guest IP from cloud-init (pool), not the pod.
 	bridge := spec.Bridge
 	if bridge == "" {
 		bridge = branding.BridgeName

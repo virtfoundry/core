@@ -1,4 +1,4 @@
-# VirtForge Cloud — Architecture
+# VirtFoundry — Architecture
 
 Multi-tenant IaaS platform native to Kubernetes. This document describes the current state of the project: what exists, how it fits together, and evolution recommendations.
 
@@ -28,9 +28,9 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
                   PVC, NetPol, VolSnap  VNC proxy
 ```
 
-**Product:** VirtForge Cloud  
-**Go module:** `github.com/virtforge-cloud/virtforge`  
-**Deploy:** [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart) (`virtforge-system` namespace)
+**Product:** VirtFoundry  
+**Go module:** `github.com/virtfoundry/core`  
+**Deploy:** [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) (`virtfoundry-system` namespace)
 
 ---
 
@@ -39,7 +39,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 | Domain | Entities | Backend | UI | K8s / infra |
 |--------|----------|---------|-----|-------------|
 | **Identity** | users, JWT | `auth/login`, `auth/me` | Login | — |
-| **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `virtforge-tenant-{slug}` |
+| **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `virtfoundry-tenant-{slug}` |
 | **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy |
 | **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
 | **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC, VolumeSnapshot |
@@ -78,7 +78,7 @@ Tenant ────────────────────────�
 | Models | `internal/platform/models.go` | Shared entities |
 | K8s infra | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot |
 | Hypervisor | `internal/infra/hypervisor` | `Driver` interface + KubeVirt |
-| Migration | `internal/migrate`, `cmd/migrate` | CloudStack → VirtForge import |
+| Migration | `internal/migrate`, `cmd/migrate` | CloudStack → VirtFoundry import |
 
 ### Typical flow: VM deploy
 
@@ -176,7 +176,7 @@ Tenant ────────────────────────�
 - Commands: Ctrl+Alt+Del, Esc, Tab, Enter, F1–F12, paste text
 - **Cirros:** fixed VGA ~720×400 — works with `scaleViewport`; yellow warning is expected
 - **Ubuntu/Fedora:** `video: virtio` + remote resize when KubeVirt advertises support
-- `VideoConfig` feature gate enabled on homelab via `virtforge-chart` (`make deploy-homelab`)
+- `VideoConfig` feature gate enabled on homelab via `virtfoundry-chart` (`make deploy-homelab`)
 
 ---
 
@@ -206,29 +206,29 @@ Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
 
 ## Kubernetes deploy
 
-Manifests, Helm values, and homelab scripts live in [virtforge-chart](https://github.com/virtforge-cloud/virtforge-chart):
+Manifests, Helm values, and homelab scripts live in [virtfoundry-chart](https://github.com/virtfoundry/helm-charts):
 
 ```
-virtforge-chart/charts/virtforge/                    # Helm chart + values profiles
-virtforge-chart/scripts/deploy/homelab.sh            # Optional: build + sideload workflow
-virtforge-chart/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
+virtfoundry-chart/charts/virtfoundry/                    # Helm chart + values profiles
+virtfoundry-chart/scripts/deploy/homelab.sh            # Optional: build + sideload workflow
+virtfoundry-chart/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
 ```
 
 | Workload | Image | Role |
 |----------|-------|------|
-| `virtforge-api` | `ghcr.io/virtforge-cloud/iaas-api` | `./server` |
-| `virtforge-worker` | `ghcr.io/virtforge-cloud/iaas-api` | `./worker` |
-| `virtforge-ui` | `ghcr.io/virtforge-cloud/iaas-ui` | nginx + SPA |
-| `virtforge-mysql` | mysql:8 | StatefulSet |
+| `virtfoundry-api` | `ghcr.io/virtfoundry/core` | `./server` |
+| `virtfoundry-worker` | `ghcr.io/virtfoundry/core` | `./worker` |
+| `virtfoundry-ui` | `ghcr.io/virtfoundry/ui` | nginx + SPA |
+| `virtfoundry-mysql` | mysql:8 | StatefulSet |
 
-Homelab: `make deploy-homelab` from `virtforge-chart` (see chart README).
+Homelab: `make deploy-homelab` from `virtfoundry-chart` (see chart README).
 
 ---
 
 ## Repository layout
 
 ```
-virtforge/
+virtfoundry/
 ├── cmd/
 │   ├── server/           # REST API + WebSockets
 │   ├── worker/           # Async jobs + reconciliation
@@ -244,7 +244,7 @@ virtforge/
 │   ├── infra/hypervisor/ # KubeVirt driver
 │   └── migrate/          # Import logic
 ├── ui/src/               # React SPA
-├── config/               # Local dev config (cluster config → virtforge-chart)
+├── config/               # Local dev config (cluster config → virtfoundry-chart)
 ├── docker/               # Dockerfiles + nginx config (images only)
 ├── docs/
 ├── TODO.md

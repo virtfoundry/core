@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Server, HardDrive, Network, Globe, Shield, Boxes,
   Users, LogOut, Menu, X, Camera, Key, Disc,
 } from 'lucide-react';
-import { VirtForgeLogo } from './VirtForgeLogo';
+import { VirtFoundryLogo } from './VirtFoundryLogo';
 import { authService } from '../lib/auth';
 import { listTenants } from '../lib/platform-api';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +52,10 @@ const menuItems: MenuItem[] = [
   },
   {
     group: 'Platform',
-    items: [{ path: '/tenants', icon: Users, labelKey: 'nav.tenants', rootOnly: true }],
+    items: [
+      { path: '/iam', icon: Key, labelKey: 'nav.iam' as TranslationKey },
+      { path: '/tenants', icon: Users, labelKey: 'nav.tenants', rootOnly: true },
+    ],
   },
 ];
 
@@ -106,10 +109,10 @@ export function Layout() {
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-dark-100 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 fixed h-full z-40`}>
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <VirtForgeLogo size={40} />
+            <VirtFoundryLogo size={40} />
             {sidebarOpen && (
               <div>
-                <h1 className="font-bold text-gray-900 dark:text-white">VirtForge</h1>
+                <h1 className="font-bold text-gray-900 dark:text-white">VirtFoundry</h1>
                 <p className="text-xs text-gray-500">IaaS Platform</p>
               </div>
             )}

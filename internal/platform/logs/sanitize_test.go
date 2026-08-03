@@ -3,7 +3,7 @@ package logs
 import "testing"
 
 func TestSanitizeLine(t *testing.T) {
-	in := `error: pods "virt-launcher-teste-abc" is forbidden: User "system:serviceaccount:virtforge-system:virtforge-api" cannot get resource "pods/log"`
+	in := `error: pods "virt-launcher-teste-abc" is forbidden: User "system:serviceaccount:virtfoundry-system:virtfoundry-api" cannot get resource "pods/log"`
 	out := sanitizeLine(in)
 	if out == in {
 		t.Fatalf("expected sanitization, got same string")

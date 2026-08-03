@@ -3,7 +3,7 @@ package k8s
 import (
 	"fmt"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/branding"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

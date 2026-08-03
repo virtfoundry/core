@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
+	"github.com/virtfoundry/core/internal/pkg/logger"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )

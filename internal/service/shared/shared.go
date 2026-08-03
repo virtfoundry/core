@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
+	"github.com/virtfoundry/core/internal/platform/store"
 )
 
 // EventBroadcaster pushes realtime events to WebSocket clients.

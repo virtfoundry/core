@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/service"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/service"
 )
 
 // CloudStackAccount represents an account/domain from CloudStack MySQL.
@@ -179,7 +179,7 @@ func (r *CloudStackReader) ListNetworks(ctx context.Context) ([]CloudStackNetwor
 	return nil, nil // networks optional
 }
 
-// ImportCloudStack imports CloudStack metadata into VirtForge via PlatformService.
+// ImportCloudStack imports CloudStack metadata into VirtFoundry via PlatformService.
 func ImportCloudStack(ctx context.Context, reader *CloudStackReader, svc *service.PlatformService, opts Options) (*Report, error) {
 	report := &Report{}
 

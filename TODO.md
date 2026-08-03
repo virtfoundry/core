@@ -1,4 +1,4 @@
-# VirtForge Cloud — Roadmap
+# VirtFoundry — Roadmap
 
 ## Core platform (done)
 
@@ -15,7 +15,7 @@
 
 ### CloudStack migration
 - [ ] `cmd/migrate` write to MySQL (still uses Memory today)
-- [ ] Map CloudStack offerings/templates → VirtForge catalog
+- [ ] Map CloudStack offerings/templates → VirtFoundry catalog
 - [ ] Idempotent import via `external_uuid` + `import_source=cloudstack`
 
 ### Production hardening
@@ -24,4 +24,4 @@
 - [ ] Public/private networks + load balancer
 - [ ] UI: offering/template selector on VM create
 
-Homelab deploy (optional): `make -C ../virtforge-chart deploy-homelab`
+Homelab deploy (optional): `make -C ../virtfoundry-chart deploy-homelab`

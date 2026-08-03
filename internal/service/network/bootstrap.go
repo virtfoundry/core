@@ -3,11 +3,11 @@ package network
 import (
 	"context"
 
-	"github.com/virtforge-cloud/virtforge/internal/config"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
+	"github.com/virtfoundry/core/internal/config"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/store"
 )
 
 // BootstrapSharedNetwork registers platform public network from Helm config and seeds IP pool.
@@ -19,10 +19,10 @@ func (s *Service) BootstrapSharedNetwork(ctx context.Context, cfg config.PublicN
 		cfg.NADNamespace = branding.SystemNamespace
 	}
 	if cfg.NADName == "" {
-		cfg.NADName = "virtforge-public"
+		cfg.NADName = "virtfoundry-public"
 	}
 	if cfg.BridgeName == "" {
-		cfg.BridgeName = "virtforge-pub0"
+		cfg.BridgeName = "virtfoundry-pub0"
 	}
 
 	labels := platformk8s.NADLabels{

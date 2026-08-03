@@ -23,7 +23,7 @@ type NetworkInterfaceConfig struct {
 }
 
 // BuildNetworkData returns cloud-init network v2 YAML for bridge/Multus NICs matched by MAC.
-// When Address is empty, uses DHCP (requires a DHCP server on the L2 bridge, e.g. dnsmasq on virtforge-pub0).
+// When Address is empty, uses DHCP (requires a DHCP server on the L2 bridge, e.g. dnsmasq on virtfoundry-pub0).
 func BuildNetworkData(ifaces []NetworkInterfaceConfig) string {
 	if len(ifaces) == 0 {
 		return ""

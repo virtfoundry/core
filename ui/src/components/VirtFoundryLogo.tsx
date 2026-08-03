@@ -1,15 +1,15 @@
-import logo from '../assets/virtforge-logo.png';
+import logo from '../assets/virtfoundry-logo.png';
 
-type VirtForgeLogoProps = {
+type VirtFoundryLogoProps = {
   size?: number;
   className?: string;
 };
 
-export function VirtForgeLogo({ size = 40, className = '' }: VirtForgeLogoProps) {
+export function VirtFoundryLogo({ size = 40, className = '' }: VirtFoundryLogoProps) {
   return (
     <img
       src={logo}
-      alt="VirtForge"
+      alt="VirtFoundry"
       width={size}
       height={size}
       className={`shrink-0 rounded-xl object-cover ${className}`}

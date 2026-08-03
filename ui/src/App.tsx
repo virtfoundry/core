@@ -15,6 +15,7 @@ import { Tenants } from './pages/Tenants';
 import { VPCs } from './pages/VPCs';
 import { Templates } from './pages/Templates';
 import { SSHKeys } from './pages/SSHKeys';
+import { IAM } from './pages/IAM';
 import { VMConsole } from './pages/VMConsole';
 
 import { I18nProvider } from './lib/i18n';
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="security-groups" element={<SecurityGroups />} />
             <Route path="snapshots" element={<Snapshots />} />
             <Route path="vm-snapshots" element={<VMSnapshots />} />
+            <Route path="iam" element={<IAM />} />
           </Route>
         </Routes>
       </BrowserRouter>

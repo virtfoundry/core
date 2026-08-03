@@ -3,10 +3,10 @@ package identity
 import (
 	"fmt"
 
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
+	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/store"
 )
 
 // Service handles users and tenant resolution from JWT claims.
@@ -27,8 +27,10 @@ func (s *Service) BootstrapRoot(username, password string) (*platform.User, erro
 		ID:           store.NewID(),
 		Username:     username,
 		Role:         platform.RoleRoot,
+		RoleID:       store.SystemRoleIDRoot,
 		PasswordHash: hash,
 		Email:        username + "@" + branding.EmailDomain,
+		State:        "active",
 		CreatedAt:    store.Now(),
 	}
 	s.store.SaveUser(u)

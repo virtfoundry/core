@@ -33,7 +33,7 @@ class AuthService {
     const user: AuthUser = {
       id: body.user.id,
       username: body.user.username,
-      email: body.user.email || `${body.user.username}@virtforge.local`,
+      email: body.user.email || `${body.user.username}@virtfoundry.local`,
       role: body.user.role,
       tenant_id: body.user.tenant_id,
     };

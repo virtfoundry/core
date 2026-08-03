@@ -1,7 +1,7 @@
 package network
 
 import (
-	cidrutil "github.com/virtforge-cloud/virtforge/internal/platform/cidr"
+	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
 )
 
 func (s *Service) PlanVPCCIDRs(tenantID string) cidrutil.VPCPlan {

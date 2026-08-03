@@ -6,10 +6,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/branding"
 
-	logutil "github.com/virtforge-cloud/virtforge/internal/platform/logs"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	logutil "github.com/virtfoundry/core/internal/platform/logs"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 // VelasConfig holds external log explorer integration (Loki/Grafana-compatible URL template).

@@ -1,12 +1,12 @@
-// Package branding holds VirtForge Cloud naming used across API, worker, and K8s integration.
+// Package branding holds VirtFoundry naming used across API, worker, and K8s integration.
 package branding
 
 import "strings"
 
 const (
-	Domain = "virtforge.io"
+	Domain = "virtfoundry.io"
 
-	ManagedByValue = "virtforge-cloud"
+	ManagedByValue = "virtfoundry"
 
 	LabelManagedBy    = Domain + "/managed-by"
 	LabelTenantID     = Domain + "/tenant-id"
@@ -25,24 +25,24 @@ const (
 
 	AppManagedByKey = "app.kubernetes.io/managed-by"
 
-	SystemNamespace       = "virtforge-system"
-	TenantNamespacePrefix = "virtforge-tenant-"
-	VPCNamespacePrefix    = "virtforge-vpc-"
+	SystemNamespace       = "virtfoundry-system"
+	TenantNamespacePrefix = "virtfoundry-tenant-"
+	VPCNamespacePrefix    = "virtfoundry-vpc-"
 
-	ResourceQuotaName  = "virtforge-quota"
-	BridgeName         = "virtforge-br0"
-	KubeVirtSecretName = "virtforge-kubevirt"
+	ResourceQuotaName  = "virtfoundry-quota"
+	BridgeName         = "virtfoundry-br0"
+	KubeVirtSecretName = "virtfoundry-kubevirt"
 
-	DefaultRootPassword     = "virtforge"
+	DefaultRootPassword     = "virtfoundry"
 	DefaultTenantSlug       = "default"
 	DefaultTenantName       = "Default"
 	DefaultSecurityGroupName = "default"
-	ServiceName         = "virtforge-iaas"
-	EmailDomain         = "virtforge.local"
-	DBName              = "virtforge"
+	ServiceName         = "virtfoundry-iaas"
+	EmailDomain         = "virtfoundry.local"
+	DBName              = "virtfoundry"
 
-	LogLabelVM     = "virtforge_vm"
-	LogLabelTenant = "virtforge_tenant"
+	LogLabelVM     = "virtfoundry_vm"
+	LogLabelTenant = "virtfoundry_tenant"
 )
 
 // SGPodLabelKey returns the pod label key used by NetworkPolicy selectors for a security group.

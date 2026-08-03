@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- VirtForge login background decoration: brand chevrons on the left, faint. -->
+<!-- VirtFoundry login background decoration: brand chevrons on the left, faint. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 1000" width="600" height="1000" preserveAspectRatio="xMinYMid slice">
   <g fill="none" stroke-linecap="butt" stroke-linejoin="miter">
     <path d="M-40 120 L150 250 L-40 380" stroke="#2563EB" stroke-width="70" opacity="0.22"/>

@@ -3,9 +3,9 @@ package identity
 import (
 	"testing"
 
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
+	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store"
 )
 
 func TestResolveTenantID_RootUsesDefaultTenant(t *testing.T) {

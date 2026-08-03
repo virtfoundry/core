@@ -1,12 +1,12 @@
 # Application config
 
-VirtForge reads a YAML config file at startup (`CONFIG_PATH`, default `config/config.yaml`).
+VirtFoundry reads a YAML config file at startup (`CONFIG_PATH`, default `config/config.yaml`).
 
 ## Local development (this repo)
 
 ```bash
 cp config/config.yaml.example config/config.yaml   # optional — defaults work with memory store
-ROOT_PASSWORD=virtforge go run ./cmd/server
+ROOT_PASSWORD=virtfoundry go run ./cmd/server
 ```
 
 | File | Tracked | Purpose |
@@ -16,12 +16,12 @@ ROOT_PASSWORD=virtforge go run ./cmd/server
 
 Secrets for local dev can also come from env: `JWT_SECRET`, `ROOT_PASSWORD`.
 
-## Kubernetes (virtforge-chart)
+## Kubernetes (virtfoundry-chart)
 
 Cluster runtime config is **not** maintained here. The Helm chart renders a ConfigMap from `values.yaml`:
 
 ```
-virtforge-chart/charts/virtforge/values.yaml  →  ConfigMap  →  /etc/virtforge/config.yaml
+virtfoundry-chart/charts/virtfoundry/values.yaml  →  ConfigMap  →  /etc/virtfoundry/config.yaml
 ```
 
 Sensitive values (`JWT_SECRET`, `ROOT_PASSWORD`) are injected via Kubernetes Secrets as env vars on the API pod.
@@ -29,9 +29,9 @@ Sensitive values (`JWT_SECRET`, `ROOT_PASSWORD`) are injected via Kubernetes Sec
 To generate a local `config.yaml` that matches a Helm profile:
 
 ```bash
-cd ../virtforge-chart
+cd ../virtfoundry-chart
 make render-local-config                                    # default values
-make render-local-config VALUES=./charts/virtforge/values-homelab.yaml
+make render-local-config VALUES=./charts/virtfoundry/values-homelab.yaml
 ```
 
-See [virtforge-chart/docs/CONFIGURATION.md](https://github.com/virtforge-cloud/virtforge-chart/blob/main/docs/CONFIGURATION.md) for the full values reference.
+See [virtfoundry-chart/docs/CONFIGURATION.md](https://github.com/virtfoundry/helm-charts/blob/main/docs/CONFIGURATION.md) for the full values reference.

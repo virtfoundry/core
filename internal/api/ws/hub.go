@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
-	"github.com/virtforge-cloud/virtforge/internal/pkg/logger"
+	"github.com/virtfoundry/core/internal/pkg/logger"
 )
 
 // Hub broadcasts real-time events to connected UI clients.

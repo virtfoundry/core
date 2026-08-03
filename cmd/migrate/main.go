@@ -7,13 +7,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/virtforge-cloud/virtforge/internal/config"
-	"github.com/virtforge-cloud/virtforge/internal/platform/branding"
-	"github.com/virtforge-cloud/virtforge/internal/infra/hypervisor"
-	"github.com/virtforge-cloud/virtforge/internal/migrate"
-	platformk8s "github.com/virtforge-cloud/virtforge/internal/platform/k8s"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service"
+	"github.com/virtfoundry/core/internal/config"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	"github.com/virtfoundry/core/internal/migrate"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service"
 )
 
 func main() {
@@ -103,7 +103,7 @@ func runCloudStack(args []string) {
 }
 
 func printReport(r *migrate.Report) {
-	fmt.Println("=== VirtForge CloudStack Migration ===")
+	fmt.Println("=== VirtFoundryStack Migration ===")
 	fmt.Printf("Tenants:  %d\n", r.TenantsCreated)
 	fmt.Printf("VPCs:     %d\n", r.VPCsCreated)
 	fmt.Printf("Networks: %d\n", r.NetworksCreated)
@@ -145,7 +145,7 @@ func loadConfig() *config.Config {
 }
 
 func printUsage() {
-	fmt.Println(`VirtForge migration tool
+	fmt.Println(`VirtFoundry migration tool
 
 Usage:
   go run ./cmd/migrate cloudstack --dsn "user:pass@tcp(host:3306)/cloud" [options]
@@ -154,5 +154,5 @@ Options:
   --dry-run          Report counts without creating resources
   --deploy-vms       Recreate VMs in KubeVirt (requires kubeconfig)
   --template-map     e.g. "CentOS 7=quay.io/kubevirt/cirros-container-disk-demo"
-  --root-password    Root bootstrap password (default: virtforge)`)
+  --root-password    Root bootstrap password (default: virtfoundry)`)
 }

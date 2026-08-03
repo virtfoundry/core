@@ -324,7 +324,7 @@ export function VMDetail() {
                 <div><dt className="text-gray-500">{t('common.state')}</dt><dd>{vm.state}</dd></div>
                 <div><dt className="text-gray-500">{t('common.region')}</dt><dd>{vm.zone || '—'}</dd></div>
                 <div><dt className="text-gray-500">{t('common.host')}</dt><dd>{vm.host_name || '—'}</dd></div>
-                <div><dt className="text-gray-500">{t('vmDetail.platform')}</dt><dd>VirtForge Compute</dd></div>
+                <div><dt className="text-gray-500">{t('vmDetail.platform')}</dt><dd>VirtFoundry Compute</dd></div>
                 <div><dt className="text-gray-500">Template</dt><dd>{vm.template || '—'}</dd></div>
                 <div><dt className="text-gray-500">{t('common.image')}</dt><dd className="font-mono text-xs break-all">{vm.image || '—'}</dd></div>
                 <div><dt className="text-gray-500">vCPUs</dt><dd>{vm.cpu}</dd></div>

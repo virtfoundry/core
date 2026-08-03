@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/service/shared"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 func (s *Service) UpdateVPC(ctx context.Context, tenantID, vpcID, name string) (*platform.VPC, error) {

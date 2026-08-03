@@ -1,0 +1,66 @@
+---
+description: Terraform provider must stay in sync with VirtForge API resources
+globs:
+  - internal/api/**
+  - internal/service/**
+  - cmd/server/**
+  - docs/TERRAFORM-PROVIDER-PLAN.md
+alwaysApply: true
+---
+
+# Terraform provider sync
+
+VirtForge exposes a **REST API** (`/api/v1`). We maintain a first-party Terraform provider that maps API resources to `virtforge_*` resources.
+
+**Rule:** every **major new API resource or breaking API change** in `virtforge` must include a matching update in the Terraform provider (same PR or immediate follow-up before release tag).
+
+## What counts as "major"
+
+| Change | Provider action required |
+|--------|-------------------------|
+| New CRUD entity (new route prefix) | New `virtforge_<name>` resource + docs + acceptance test |
+| New required field on create | Add attribute; bump provider MINOR if released |
+| Renamed/removed API field | Deprecate attribute or bump provider MAJOR |
+| New read-only catalog endpoint | Consider `virtforge_<name>` data source |
+| Action-only endpoint (start/stop VM) | Resource `lifecycle` block, or `virtforge_vm` with `state` attribute |
+
+Does **not** require provider changes: UI-only, WebSocket console, internal worker jobs, Helm/chart-only.
+
+## PR checklist (API features)
+
+When adding or changing `/api/v1` resources:
+
+1. Update [docs/TERRAFORM-PROVIDER-PLAN.md](../../docs/TERRAFORM-PROVIDER-PLAN.md) — status column for the resource
+2. Implement or ticket provider resource in `terraform-provider-virtforge` (separate repo)
+3. Add `examples/` snippet under provider repo
+4. Mention in CHANGELOG (both repos) when provider ships the resource
+
+## Provider repo (target)
+
+- Name: `terraform-provider-virtforge`
+- Org: `virtforge-cloud`
+- SDK: [Terraform Plugin Framework](https://developer.hashicorp.com/terraform/plugin/framework)
+- Auth: provider block → `POST /api/v1/auth/login` → JWT on requests + `X-Tenant-ID` header
+
+## Resource naming
+
+| API | Terraform type |
+|-----|----------------|
+| `/tenants` | `virtforge_tenant` |
+| `/vpcs` | `virtforge_vpc` |
+| `/networks` | `virtforge_network` |
+| `/security-groups` | `virtforge_security_group` |
+| `/volumes` | `virtforge_volume` |
+| `/snapshots` | `virtforge_volume_snapshot` |
+| `/vm-templates` | `virtforge_vm_template` |
+| `/vms` | `virtforge_vm` |
+| `/vm-snapshots` | `virtforge_vm_snapshot` |
+| `/ssh-keys` | `virtforge_ssh_key` |
+
+Data sources: `virtforge_service_offerings`, optional CIDR plan helpers.
+
+## Version coupling
+
+- Provider version follows SemVer independently from app/chart
+- Document **minimum VirtForge API version** in provider README (e.g. `>= 0.2.0`)
+- Breaking API changes → provider MAJOR or documented migration guide

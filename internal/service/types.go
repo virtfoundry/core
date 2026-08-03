@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/virtforge-cloud/virtforge/internal/service/compute"
+	"github.com/virtfoundry/core/internal/service/compute"
 )
 
 // Input types re-exported for handlers and migrate CLI.

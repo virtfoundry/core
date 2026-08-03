@@ -7,11 +7,11 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/virtforge-cloud/virtforge/internal/api/middleware"
-	"github.com/virtforge-cloud/virtforge/internal/auth"
-	"github.com/virtforge-cloud/virtforge/internal/platform"
-	"github.com/virtforge-cloud/virtforge/internal/platform/store"
-	"github.com/virtforge-cloud/virtforge/internal/service"
+	"github.com/virtfoundry/core/internal/api/middleware"
+	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service"
 )
 
 func nonNilSlice[T any](items []T) []T {
@@ -52,19 +52,35 @@ func (h *PlatformHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"token": token, "expires_at": exp,
-		"user": map[string]interface{}{
-			"id": user.ID, "username": user.Username, "role": user.Role, "tenant_id": user.TenantID,
-		},
+		"user": h.userPayload(user),
 	})
+}
+
+func (h *PlatformHandler) userPayload(u *platform.User) map[string]interface{} {
+	if u == nil {
+		return nil
+	}
+	actor := h.svc.ActorFromUser(u)
+	m := publicUser(u)
+	m["permissions"] = actor.Permissions
+	return m
 }
 
 func (h *PlatformHandler) Me(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r.Context())
 	user, _ := h.store.GetUser(claims.UserID)
-	respondJSON(w, http.StatusOK, map[string]interface{}{
+	payload := map[string]interface{}{
 		"id": claims.UserID, "username": claims.Username, "role": claims.Role, "tenant_id": claims.TenantID,
 		"email": userEmail(user),
-	})
+	}
+	if actor := middleware.GetActor(r.Context()); actor != nil {
+		payload["permissions"] = actor.Permissions
+		payload["role_id"] = actor.RoleID
+	} else if user != nil {
+		payload["permissions"] = h.svc.ActorFromUser(user).Permissions
+		payload["role_id"] = user.RoleID
+	}
+	respondJSON(w, http.StatusOK, payload)
 }
 
 func (h *PlatformHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
@@ -858,7 +874,13 @@ func (h *PlatformHandler) tenantID(r *http.Request) (string, error) {
 }
 
 func publicUser(u *platform.User) map[string]interface{} {
-	return map[string]interface{}{"id": u.ID, "username": u.Username, "role": u.Role, "tenant_id": u.TenantID}
+	if u == nil {
+		return nil
+	}
+	return map[string]interface{}{
+		"id": u.ID, "username": u.Username, "role": u.Role,
+		"role_id": u.RoleID, "tenant_id": u.TenantID, "email": u.Email, "state": u.State,
+	}
 }
 
 func userEmail(u *platform.User) string {

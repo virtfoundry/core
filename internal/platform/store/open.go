@@ -3,7 +3,7 @@ package store
 import (
 	"os"
 
-	"github.com/virtforge-cloud/virtforge/internal/config"
+	"github.com/virtfoundry/core/internal/config"
 )
 
 // Open returns MySQL when database.dsn is set, otherwise in-memory store.
@@ -17,5 +17,6 @@ func Open(cfg config.DatabaseConfig) (Repository, error) {
 	}
 	mem := NewMemory()
 	_ = SeedCatalog(mem)
+	_ = mem.SeedIAM()
 	return mem, nil
 }
