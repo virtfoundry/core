@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeEvents } from '../hooks/useRealtimeEvents';
 import { queryKeys, isPlatformQueryKey } from '../lib/query-keys';
 import { useI18n, LanguageToggle, type TranslationKey } from '../lib/i18n';
+import { ThemeToggle } from '../lib/theme';
 
 type SubMenuItem = { path: string; icon: LucideIcon; labelKey: TranslationKey; rootOnly?: boolean };
 type MenuLinkItem = { group: string; icon: LucideIcon; path: string; labelKey: TranslationKey };
@@ -180,7 +181,8 @@ export function Layout() {
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-sidebar">
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <ThemeToggle compact />
             <LanguageToggle />
             {isRoot && (
               <select

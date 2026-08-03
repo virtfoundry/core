@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../lib/auth';
 import { VirtFoundryLogo } from '../components/VirtFoundryLogo';
 import { LanguageToggle, useI18n } from '../lib/i18n';
+import { ThemeToggle } from '../lib/theme';
 import loginBg from '../assets/login-bg.svg';
 
 export function Login() {
@@ -44,7 +45,10 @@ export function Login() {
               <p className="text-brand-200">{t('login.tagline')}</p>
             </div>
           </div>
-          <LanguageToggle onDark />
+          <div className="flex items-center gap-2">
+            <ThemeToggle onDark compact />
+            <LanguageToggle onDark />
+          </div>
         </div>
 
         <div className="relative z-10 space-y-6">
@@ -82,7 +86,10 @@ export function Login() {
                 <p className="text-xs text-gray-500 lg:hidden">{t('login.tagline')}</p>
               </div>
             </div>
-            <LanguageToggle />
+            <div className="flex items-center gap-2">
+              <ThemeToggle compact />
+              <LanguageToggle />
+            </div>
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('login.welcome')}</h2>

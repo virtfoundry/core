@@ -19,6 +19,7 @@ import { IAM } from './pages/IAM';
 import { VMConsole } from './pages/VMConsole';
 
 import { I18nProvider } from './lib/i18n';
+import { ThemeProvider } from './lib/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <I18nProvider>
       <BrowserRouter>
         <Routes>
@@ -72,6 +74,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
