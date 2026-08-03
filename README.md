@@ -58,7 +58,3 @@ cd ui && npm install && npm run dev
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-
-## Migration from VirtForge
-
-The project formerly lived at [virtforge-cloud](https://github.com/virtforge-cloud). VirtForge repos remain as read-only mirrors until fully deprecated.

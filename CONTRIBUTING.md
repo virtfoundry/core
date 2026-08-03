@@ -42,7 +42,7 @@ Cluster deploy and testing: [helm-charts](https://github.com/virtfoundry/helm-ch
 3. Deploy and validate on a **Kubernetes cluster** before opening a PR when behavior changes
 4. Open PR → maintainer reviews and tests on a cluster → **merge only after approval**
 
-Cross-repo changes: use the same branch name in `virtfoundry` and `virtfoundry-chart` when both are needed.
+Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` when both are needed.
 
 ## Pull request process
 
@@ -57,7 +57,7 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `virtfoundry-c
 | Repo | When to contribute here |
 |------|-------------------------|
 | [virtfoundry](https://github.com/virtfoundry/core) | API, worker, UI, migration CLI, local dev config |
-| [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) | Helm chart, cluster values, deploy scripts |
+| [helm-charts](https://github.com/virtfoundry/helm-charts) | Helm chart, cluster values, deploy scripts |
 | [virtfoundry-website](https://github.com/virtfoundry/core-website) | Marketing site and published docs |
 
 ## Code of conduct

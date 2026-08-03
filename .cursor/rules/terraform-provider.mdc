@@ -1,5 +1,5 @@
 ---
-description: Terraform provider must stay in sync with VirtForge API resources
+description: Terraform provider must stay in sync with VirtFoundry API resources
 globs:
   - internal/api/**
   - internal/service/**
@@ -10,19 +10,19 @@ alwaysApply: true
 
 # Terraform provider sync
 
-VirtForge exposes a **REST API** (`/api/v1`). We maintain a first-party Terraform provider that maps API resources to `virtforge_*` resources.
+VirtFoundry exposes a **REST API** (`/api/v1`). We maintain a first-party Terraform provider that maps API resources to `virtfoundry_*` resources.
 
-**Rule:** every **major new API resource or breaking API change** in `virtforge` must include a matching update in the Terraform provider (same PR or immediate follow-up before release tag).
+**Rule:** every **major new API resource or breaking API change** in `core` must include a matching update in the Terraform provider (same PR or immediate follow-up before release tag).
 
 ## What counts as "major"
 
 | Change | Provider action required |
 |--------|-------------------------|
-| New CRUD entity (new route prefix) | New `virtforge_<name>` resource + docs + acceptance test |
+| New CRUD entity (new route prefix) | New `virtfoundry_<name>` resource + docs + acceptance test |
 | New required field on create | Add attribute; bump provider MINOR if released |
 | Renamed/removed API field | Deprecate attribute or bump provider MAJOR |
-| New read-only catalog endpoint | Consider `virtforge_<name>` data source |
-| Action-only endpoint (start/stop VM) | Resource `lifecycle` block, or `virtforge_vm` with `state` attribute |
+| New read-only catalog endpoint | Consider `virtfoundry_<name>` data source |
+| Action-only endpoint (start/stop VM) | Resource `lifecycle` block, or `virtfoundry_vm` with `state` attribute |
 
 Does **not** require provider changes: UI-only, WebSocket console, internal worker jobs, Helm/chart-only.
 
@@ -31,14 +31,14 @@ Does **not** require provider changes: UI-only, WebSocket console, internal work
 When adding or changing `/api/v1` resources:
 
 1. Update [docs/TERRAFORM-PROVIDER-PLAN.md](../../docs/TERRAFORM-PROVIDER-PLAN.md) — status column for the resource
-2. Implement or ticket provider resource in `terraform-provider-virtforge` (separate repo)
+2. Implement or ticket provider resource in `terraform-provider-virtfoundry` (separate repo)
 3. Add `examples/` snippet under provider repo
 4. Mention in CHANGELOG (both repos) when provider ships the resource
 
 ## Provider repo (target)
 
-- Name: `terraform-provider-virtforge`
-- Org: `virtforge-cloud`
+- Name: `terraform-provider-virtfoundry`
+- Org: `virtfoundry`
 - SDK: [Terraform Plugin Framework](https://developer.hashicorp.com/terraform/plugin/framework)
 - Auth: provider block → `POST /api/v1/auth/login` → JWT on requests + `X-Tenant-ID` header
 
@@ -46,21 +46,21 @@ When adding or changing `/api/v1` resources:
 
 | API | Terraform type |
 |-----|----------------|
-| `/tenants` | `virtforge_tenant` |
-| `/vpcs` | `virtforge_vpc` |
-| `/networks` | `virtforge_network` |
-| `/security-groups` | `virtforge_security_group` |
-| `/volumes` | `virtforge_volume` |
-| `/snapshots` | `virtforge_volume_snapshot` |
-| `/vm-templates` | `virtforge_vm_template` |
-| `/vms` | `virtforge_vm` |
-| `/vm-snapshots` | `virtforge_vm_snapshot` |
-| `/ssh-keys` | `virtforge_ssh_key` |
+| `/tenants` | `virtfoundry_tenant` |
+| `/vpcs` | `virtfoundry_vpc` |
+| `/networks` | `virtfoundry_network` |
+| `/security-groups` | `virtfoundry_security_group` |
+| `/volumes` | `virtfoundry_volume` |
+| `/snapshots` | `virtfoundry_volume_snapshot` |
+| `/vm-templates` | `virtfoundry_vm_template` |
+| `/vms` | `virtfoundry_vm` |
+| `/vm-snapshots` | `virtfoundry_vm_snapshot` |
+| `/ssh-keys` | `virtfoundry_ssh_key` |
 
-Data sources: `virtforge_service_offerings`, optional CIDR plan helpers.
+Data sources: `virtfoundry_service_offerings`, optional CIDR plan helpers.
 
 ## Version coupling
 
 - Provider version follows SemVer independently from app/chart
-- Document **minimum VirtForge API version** in provider README (e.g. `>= 0.2.0`)
-- Breaking API changes → provider MAJOR or documented migration guide
+- Document **minimum VirtFoundry API version** in provider README (e.g. `>= 1.0.0`)
+- Breaking API changes → provider MAJOR or documented upgrade guide

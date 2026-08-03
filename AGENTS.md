@@ -41,6 +41,6 @@ Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`config/README.md`](con
 
 - Couple handlers directly to `store.Memory` or MySQL — use `store.Repository`
 - Hardcode query keys in the UI — use `lib/query-keys.ts`
-- Add K8s manifests or Helm values here — they belong in [virtfoundry-chart](https://github.com/virtfoundry/helm-charts)
+- Add K8s manifests or Helm values here — they belong in [helm-charts](https://github.com/virtfoundry/helm-charts)
 - Commit features directly to `main` — use a feature branch, validate on a cluster when applicable, merge after approval (see CONTRIBUTING.md)
 - Reference employer-specific projects, paths, or secrets in public docs or commits

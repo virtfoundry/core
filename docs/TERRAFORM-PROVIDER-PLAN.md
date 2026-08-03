@@ -119,7 +119,7 @@ Status legend: `—` not started · `plan` designed · `dev` in progress · `don
 ### Phase 5 — Docs & Registry
 
 - [ ] Provider docs on GitHub Pages or Registry docs
-- [ ] Link from virtfoundry-chart installation guide
+- [ ] Link from helm-charts installation guide
 - [ ] Example module: `examples/full-stack` (tenant + net + vm)
 
 ---
@@ -137,7 +137,7 @@ provider "virtfoundry" {
 }
 ```
 
-Environment variable fallbacks: `VIRTFORGE_ENDPOINT`, `VIRTFORGE_USERNAME`, `VIRTFORGE_PASSWORD`, `VIRTFORGE_TENANT_ID`.
+Environment variable fallbacks: `VIRTFOUNDRY_ENDPOINT`, `VIRTFOUNDRY_USERNAME`, `VIRTFOUNDRY_PASSWORD`, `VIRTFOUNDRY_TENANT_ID`.
 
 ---
 

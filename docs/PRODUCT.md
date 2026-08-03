@@ -38,4 +38,4 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
-- **1.0.0** — VirtFoundry rebrand; IAM; clean cluster install (`virtfoundry-system` namespace)
+- **1.0.0** — IAM; clean cluster install (`virtfoundry-system` namespace)

@@ -30,7 +30,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 
 **Product:** VirtFoundry  
 **Go module:** `github.com/virtfoundry/core`  
-**Deploy:** [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) (`virtfoundry-system` namespace)
+**Deploy:** [helm-charts](https://github.com/virtfoundry/helm-charts) (`virtfoundry-system` namespace)
 
 ---
 
@@ -243,7 +243,7 @@ virtfoundry/
 │   ├── infra/hypervisor/ # KubeVirt driver
 │   └── migrate/          # Import logic
 ├── ui/src/               # React SPA
-├── config/               # Local dev config (cluster config → virtfoundry-chart)
+├── config/               # Local dev config (cluster config → helm-charts)
 ├── docker/               # Dockerfiles + nginx config (images only)
 ├── docs/
 ├── TODO.md

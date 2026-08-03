@@ -39,7 +39,3 @@ ui/                  # React SPA
 - Cluster deploy: `helm-charts` → `helm install` / `helm upgrade`
 - Product model: [docs/PRODUCT.md](./docs/PRODUCT.md) (open core + enterprise)
 - Terraform provider: blocked until IAM stable — [TERRAFORM-PROVIDER-PLAN.md](./docs/TERRAFORM-PROVIDER-PLAN.md)
-
-## Legacy
-
-Former name **VirtForge** / org `virtforge-cloud`. Do not reference in new public docs except migration notes.
