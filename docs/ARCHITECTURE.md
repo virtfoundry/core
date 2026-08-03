@@ -176,7 +176,7 @@ Tenant ────────────────────────�
 - Commands: Ctrl+Alt+Del, Esc, Tab, Enter, F1–F12, paste text
 - **Cirros:** fixed VGA ~720×400 — works with `scaleViewport`; yellow warning is expected
 - **Ubuntu/Fedora:** `video: virtio` + remote resize when KubeVirt advertises support
-- `VideoConfig` feature gate enabled on homelab via `virtfoundry-chart` (`make deploy-homelab`)
+- `VideoConfig` feature gate can be enabled via helm-charts `platform.kubevirt.featureGates`
 
 ---
 
@@ -206,12 +206,11 @@ Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
 
 ## Kubernetes deploy
 
-Manifests, Helm values, and homelab scripts live in [virtfoundry-chart](https://github.com/virtfoundry/helm-charts):
+Manifests and Helm values live in [helm-charts](https://github.com/virtfoundry/helm-charts):
 
 ```
-virtfoundry-chart/charts/virtfoundry/                    # Helm chart + values profiles
-virtfoundry-chart/scripts/deploy/homelab.sh            # Optional: build + sideload workflow
-virtfoundry-chart/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
+helm-charts/charts/virtfoundry/                    # Helm chart + values profiles
+helm-charts/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
 ```
 
 | Workload | Image | Role |
@@ -221,7 +220,7 @@ virtfoundry-chart/scripts/sideload/import-pod.yaml     # Image sideload (no regi
 | `virtfoundry-ui` | `ghcr.io/virtfoundry/ui` | nginx + SPA |
 | `virtfoundry-mysql` | mysql:8 | StatefulSet |
 
-Homelab: `make deploy-homelab` from `virtfoundry-chart` (see chart README).
+Install with `helm install` from helm-charts (see chart README).
 
 ---
 

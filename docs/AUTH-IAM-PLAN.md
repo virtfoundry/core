@@ -256,10 +256,8 @@ internal/platform/store/
 
 | Phase | Status | Target |
 |-------|--------|--------|
-| 1 — Permissions middleware | **done** (homelab validated) | |
+| 1 — Permissions middleware | **done** | |
 | 2 — Users & roles API | **done** | |
 | 3 — API keys | **done** | |
 | 4 — UI | **done** | |
 | 5 — Terraform provider | **unblocked** | resume TF plan Phase 0 |
-
-**Homelab validation (2026-08-03):** viewer `POST /vms` → 403; API key `GET /vms` → 200; migration `005_iam` applied.

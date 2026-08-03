@@ -4,7 +4,7 @@ Thank you for helping grow VirtFoundry. This project lives under the [virtfoundr
 
 ## Before you start
 
-- Read the [Wiki Home](https://github.com/virtfoundry/core/wiki) for architecture and homelab setup
+- Read the [Wiki Home](https://github.com/virtfoundry/core/wiki) for architecture and deployment setup
 - Search [existing issues](https://github.com/virtfoundry/core/issues) before opening a duplicate
 
 ## Language
@@ -31,7 +31,7 @@ go test ./...
 cd ui && npm install && npm run build
 ```
 
-Cluster deploy and homelab testing: [virtfoundry-chart](https://github.com/virtfoundry/helm-charts) (`make deploy-homelab`).
+Cluster deploy and testing: [helm-charts](https://github.com/virtfoundry/helm-charts) (`helm install` or `make lint`).
 
 ## Branch workflow
 
@@ -39,8 +39,8 @@ Cluster deploy and homelab testing: [virtfoundry-chart](https://github.com/virtf
 
 1. Branch from `main`: `feat/<name>`, `fix/<name>`, or `chore/<name>`
 2. Implement + local tests (`go test ./...`, UI build if touched)
-3. Deploy and validate on **homelab** before opening a PR
-4. Open PR → maintainer reviews and tests on homelab → **merge only after approval**
+3. Deploy and validate on a **Kubernetes cluster** before opening a PR when behavior changes
+4. Open PR → maintainer reviews and tests on a cluster → **merge only after approval**
 
 Cross-repo changes: use the same branch name in `virtfoundry` and `virtfoundry-chart` when both are needed.
 

@@ -23,5 +23,3 @@
 - [ ] Ingress TLS
 - [ ] Public/private networks + load balancer
 - [ ] UI: offering/template selector on VM create
-
-Homelab deploy (optional): `make -C ../virtfoundry-chart deploy-homelab`

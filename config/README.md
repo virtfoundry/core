@@ -31,7 +31,7 @@ To generate a local `config.yaml` that matches a Helm profile:
 ```bash
 cd ../virtfoundry-chart
 make render-local-config                                    # default values
-make render-local-config VALUES=./charts/virtfoundry/values-homelab.yaml
+make render-local-config VALUES=./charts/virtfoundry/values-gateway.yaml
 ```
 
 See [virtfoundry-chart/docs/CONFIGURATION.md](https://github.com/virtfoundry/helm-charts/blob/main/docs/CONFIGURATION.md) for the full values reference.

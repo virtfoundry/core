@@ -14,7 +14,7 @@ Free to use, modify, and self-host.
 | Network | VPCs, private subnets, public network profile, security groups |
 | Storage | Volumes, volume snapshots |
 | Access | SSH keys, noVNC console, REST API |
-| Packaging | Helm chart, homelab deploy scripts |
+| Packaging | Helm chart, optional sideload scripts |
 
 ## Enterprise (Thurler IT — separate license)
 

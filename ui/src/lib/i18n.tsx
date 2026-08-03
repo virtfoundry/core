@@ -209,7 +209,7 @@ const dict = {
     'publicNetwork.gateway': 'Gateway',
     'publicNetwork.nad': 'NetworkAttachmentDefinition',
     'publicNetwork.notConfigured': 'Rede pública não configurada',
-    'publicNetwork.notConfiguredHint': 'Habilite platform.networking.public no Helm chart do homelab.',
+    'publicNetwork.notConfiguredHint': 'Habilite platform.networking.public no Helm chart.',
     'publicNetwork.vmDefaultHint': 'IP público é opt-in no deploy da VM. Security Groups controlam o acesso externo.',
     'vms.publicNetworkDefault': 'Rede pública (padrão)',
     'vms.publicNetworkDefaultHint': 'VMs recebem IP do pool público automaticamente. Opcional: adicione sub-redes privadas abaixo.',

@@ -656,7 +656,7 @@ func vmiErrorMessage(vmi *kubevirtv1.VirtualMachineInstance) string {
 }
 
 func dockerDesktopVMHint() string {
-	return "Falha de rede virtual (tap/MTU). Docker Desktop no Mac não suporta VMs KubeVirt — use um cluster Linux com KVM (ex: homelab)."
+	return "Falha de rede virtual (tap/MTU). Docker Desktop no Mac não suporta VMs KubeVirt — use um cluster Linux com KVM."
 }
 
 func (d *KubeVirtDriver) CreateVMSnapshot(ctx context.Context, vmName, snapName string) error {

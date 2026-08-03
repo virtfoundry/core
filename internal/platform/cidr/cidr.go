@@ -17,7 +17,7 @@ var rfc1918Supernets = []string{
 // Common VPC sizes offered in the UI (GCP custom mode uses /16 or larger).
 var vpcPrefixSuggestions = []int{16, 20, 22, 24}
 
-// Subnet prefix lengths (GCP supports down to /29; we stop at /28 for homelab).
+// Subnet prefix lengths (GCP supports down to /29; we stop at /28 for practical limits).
 var subnetPrefixSuggestions = []int{24, 25, 26, 27, 28}
 
 // Block describes a CIDR allocation option.

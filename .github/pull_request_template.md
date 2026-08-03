@@ -6,7 +6,7 @@
 
 - [ ] `go test ./...`
 - [ ] `cd ui && npm run build`
-- [ ] Homelab deploy from `virtforge-chart` (if applicable): `make deploy-homelab`
+- [ ] Cluster deploy from `helm-charts` (if applicable): `helm upgrade` or chart `make lint`
 - [ ] Wiki updated (if behavior or ops changed)
 
 ## Conventions
