@@ -11,15 +11,22 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+  formInputClass, formSelectClass,
+} from '../components/shell';
+import { StatusBadge } from '../components/StatusBadge';
 
 type Tab = 'users' | 'roles' | 'keys';
 
-const inputClass = 'w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-200 text-gray-900 dark:text-gray-100';
-
 export function IAM() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>('users');
+  const currentUser = authService.getUser();
+  const canManageIAM = currentUser?.role === 'root' || currentUser?.role === 'tenant_admin';
+  const [tab, setTab] = useState<Tab>(canManageIAM ? 'users' : 'keys');
   const [userModal, setUserModal] = useState(false);
   const [keyModal, setKeyModal] = useState(false);
   const [secretModal, setSecretModal] = useState<string | null>(null);
@@ -28,14 +35,18 @@ export function IAM() {
   const [userForm, setUserForm] = useState({ username: '', password: '', email: '', role_name: 'tenant.operator' });
   const [keyForm, setKeyForm] = useState({ name: '', expires_in_days: 90 });
   const qc = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
 
   const { data: usersData, isFetching: uFetch, refetch: refetchUsers } = useQuery({
     queryKey: queryKeys.iamUsers,
     queryFn: listIAMUsers,
-    enabled: !needsTenant,
+    enabled: !needsTenant && canManageIAM,
   });
-  const { data: rolesData } = useQuery({ queryKey: queryKeys.iamRoles, queryFn: listIAMRoles, enabled: !needsTenant });
+  const { data: rolesData } = useQuery({
+    queryKey: queryKeys.iamRoles,
+    queryFn: listIAMRoles,
+    enabled: !needsTenant && canManageIAM,
+  });
   const { data: keysData, refetch: refetchKeys } = useQuery({
     queryKey: queryKeys.iamKeys,
     queryFn: listIAMAPIKeys,
@@ -73,113 +84,116 @@ export function IAM() {
   };
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">{t('iam.selectTenant')}</div>;
+    return <TenantRequiredNotice message={t('iam.selectTenant')} />;
   }
 
-  const tabs: { id: Tab; labelKey: 'iam.tabUsers' | 'iam.tabRoles' | 'iam.tabKeys'; icon: typeof Users }[] = [
-    { id: 'users', labelKey: 'iam.tabUsers', icon: Users },
-    { id: 'roles', labelKey: 'iam.tabRoles', icon: Shield },
-    { id: 'keys', labelKey: 'iam.tabKeys', icon: Key },
+  const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
+    ...(canManageIAM ? [
+      { id: 'users' as Tab, label: t('iam.tabUsers'), icon: Users },
+      { id: 'roles' as Tab, label: t('iam.tabRoles'), icon: Shield },
+    ] : []),
+    { id: 'keys', label: t('iam.tabKeys'), icon: Key },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('iam.title')}</h1>
-          <p className="text-sm text-gray-500">{t('iam.subtitle')}</p>
-        </div>
-        <RefreshButton onRefresh={() => { refetchUsers(); refetchKeys(); }} isFetching={uFetch} />
-      </div>
+      <PageHeader
+        title={t('iam.title')}
+        subtitle={t('iam.subtitle')}
+        actions={
+          <RefreshButton onRefresh={() => { refetchUsers(); refetchKeys(); }} isFetching={uFetch} />
+        }
+      />
 
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
-        {tabs.map(({ id, labelKey, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500'}`}
-          >
-            <Icon className="w-4 h-4" /> {t(labelKey)}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
       {tab === 'users' && (
-        <section className="bg-white dark:bg-dark-100 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="font-semibold">{t('iam.tenantUsers')}</h2>
+        <SurfaceCard padding="none">
+          <div className="flex justify-between items-center p-4 border-b border-card-border">
+            <h2 className="font-headline text-headline-md font-semibold text-on-surface">{t('iam.tenantUsers')}</h2>
             <button type="button" onClick={() => setUserModal(true)} className="btn-primary flex items-center gap-2 text-sm">
               <Plus className="w-4 h-4" /> {t('iam.addUser')}
             </button>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-dark-200 text-left text-gray-600 dark:text-gray-400">
-              <tr><th className="p-3">{t('login.username')}</th><th>{t('iam.role')}</th><th>State</th><th /></tr>
-            </thead>
-            <tbody>
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('login.username')}</PageTableTh>
+              <PageTableTh>{t('iam.role')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh className="text-right" />
+            </PageTableHead>
+            <PageTableBody>
               {(usersData?.users || []).map((u) => (
-                <tr key={u.id} className="border-t border-gray-200 dark:border-gray-700">
-                  <td className="p-3 font-medium">{u.username}</td>
-                  <td>{u.role}</td>
-                  <td>{u.state || 'active'}</td>
-                  <td className="p-3 text-right">
+                <PageTableRow key={u.id}>
+                  <PageTableTd className="font-medium">{u.username}</PageTableTd>
+                  <PageTableTd>{u.role}</PageTableTd>
+                  <PageTableTd>
+                    <StatusBadge status={u.state || 'active'} pulse={false} />
+                  </PageTableTd>
+                  <PageTableTd className="text-right">
                     {u.role !== 'root' && (
-                      <button type="button" className="text-red-600" onClick={() => setDeleteUser({ id: u.id, name: u.username })}>
+                      <button type="button" className="text-error" onClick={() => setDeleteUser({ id: u.id, name: u.username })}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
-                  </td>
-                </tr>
+                  </PageTableTd>
+                </PageTableRow>
               ))}
-            </tbody>
-          </table>
-        </section>
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       )}
 
       {tab === 'roles' && (
-        <section className="bg-white dark:bg-dark-100 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
-          <h2 className="font-semibold mb-4">{t('iam.tabRoles')}</h2>
+        <SurfaceCard>
+          <h2 className="font-headline text-headline-md font-semibold text-on-surface mb-4">{t('iam.tabRoles')}</h2>
           <ul className="space-y-2 text-sm">
             {(rolesData?.roles || []).map((r) => (
-              <li key={r.id} className="flex justify-between border border-gray-200 dark:border-gray-700 rounded p-3">
+              <li key={r.id} className="flex justify-between border border-outline-variant rounded-lg p-3">
                 <div>
-                  <span className="font-medium">{r.name}</span>
-                  {r.is_system && <span className="ml-2 text-xs bg-gray-100 dark:bg-dark-200 px-2 py-0.5 rounded">{t('iam.systemRole')}</span>}
-                  <p className="text-gray-500 text-xs mt-1">{(r.permissions || []).join(', ')}</p>
+                  <span className="font-medium text-on-surface">{r.name}</span>
+                  {r.is_system && (
+                    <span className="ml-2 text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded">
+                      {t('iam.systemRole')}
+                    </span>
+                  )}
+                  <p className="text-on-surface-variant text-xs mt-1">{(r.permissions || []).join(', ')}</p>
                 </div>
               </li>
             ))}
           </ul>
-        </section>
+        </SurfaceCard>
       )}
 
       {tab === 'keys' && (
-        <section className="bg-white dark:bg-dark-100 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="font-semibold">{t('iam.tabKeys')}</h2>
+        <SurfaceCard padding="none">
+          <div className="flex justify-between items-center p-4 border-b border-card-border">
+            <h2 className="font-headline text-headline-md font-semibold text-on-surface">{t('iam.tabKeys')}</h2>
             <button type="button" onClick={() => setKeyModal(true)} className="btn-primary flex items-center gap-2 text-sm">
               <Plus className="w-4 h-4" /> {t('iam.createKey')}
             </button>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-dark-200 text-left text-gray-600 dark:text-gray-400">
-              <tr><th className="p-3">{t('common.name')}</th><th>{t('iam.prefix')}</th><th>{t('iam.created')}</th><th /></tr>
-            </thead>
-            <tbody>
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('iam.prefix')}</PageTableTh>
+              <PageTableTh>{t('iam.created')}</PageTableTh>
+              <PageTableTh className="text-right" />
+            </PageTableHead>
+            <PageTableBody>
               {(keysData?.api_keys || []).filter((k) => !k.revoked_at).map((k) => (
-                <tr key={k.id} className="border-t border-gray-200 dark:border-gray-700">
-                  <td className="p-3">{k.name}</td>
-                  <td className="font-mono text-xs">{k.prefix}</td>
-                  <td>{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</td>
-                  <td className="p-3 text-right">
-                    <button type="button" className="text-red-600 text-xs" onClick={() => revokeKeyMut.mutate(k.id)}>{t('iam.revoke')}</button>
-                  </td>
-                </tr>
+                <PageTableRow key={k.id}>
+                  <PageTableTd>{k.name}</PageTableTd>
+                  <PageTableTd className="font-data-mono text-xs">{k.prefix}</PageTableTd>
+                  <PageTableTd>{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</PageTableTd>
+                  <PageTableTd className="text-right">
+                    <button type="button" className="text-error text-xs" onClick={() => revokeKeyMut.mutate(k.id)}>{t('iam.revoke')}</button>
+                  </PageTableTd>
+                </PageTableRow>
               ))}
-            </tbody>
-          </table>
-        </section>
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       )}
 
       <Modal isOpen={userModal} onClose={() => setUserModal(false)} title={t('iam.addUserTitle')}>
@@ -187,7 +201,7 @@ export function IAM() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('login.username')}</label>
             <input
-              className={inputClass}
+              className={formInputClass}
               value={userForm.username}
               onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
               required
@@ -196,7 +210,7 @@ export function IAM() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('login.password')}</label>
             <input
-              className={inputClass}
+              className={formInputClass}
               type="password"
               value={userForm.password}
               onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
@@ -206,7 +220,7 @@ export function IAM() {
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input
-              className={inputClass}
+              className={formInputClass}
               type="email"
               value={userForm.email}
               onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
@@ -215,7 +229,7 @@ export function IAM() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('iam.role')}</label>
             <select
-              className={inputClass}
+              className={formSelectClass}
               value={userForm.role_name}
               onChange={(e) => setUserForm({ ...userForm, role_name: e.target.value })}
             >
@@ -223,7 +237,7 @@ export function IAM() {
               <option value="tenant.operator">{t('iam.roleOperator')}</option>
               <option value="tenant.viewer">{t('iam.roleViewer')}</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">{t('iam.roleHint')}</p>
+            <p className="text-xs text-on-surface-variant mt-1">{t('iam.roleHint')}</p>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setUserModal(false)} className="btn-secondary">{t('common.cancel')}</button>
@@ -237,29 +251,27 @@ export function IAM() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('iam.keyName')}</label>
             <input
-              className={inputClass}
+              className={formInputClass}
               value={keyForm.name}
               onChange={(e) => setKeyForm({ ...keyForm, name: e.target.value })}
               placeholder={t('iam.keyNamePlaceholder')}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">{t('iam.keyNameHint')}</p>
+            <p className="text-xs text-on-surface-variant mt-1">{t('iam.keyNameHint')}</p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t('iam.expiresDays')}</label>
             <input
-              className={inputClass}
+              className={formInputClass}
               type="number"
               min={1}
               max={365}
               value={keyForm.expires_in_days}
               onChange={(e) => setKeyForm({ ...keyForm, expires_in_days: Number(e.target.value) })}
             />
-            <p className="text-xs text-gray-500 mt-1">{t('iam.expiresHint')}</p>
+            <p className="text-xs text-on-surface-variant mt-1">{t('iam.expiresHint')}</p>
           </div>
-          <p className="text-sm text-amber-700 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-            {t('iam.secretWarning')}
-          </p>
+          <InfoBanner variant="warning">{t('iam.secretWarning')}</InfoBanner>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setKeyModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" className="btn-primary" disabled={createKeyMut.isPending}>{t('common.create')}</button>
@@ -269,10 +281,8 @@ export function IAM() {
 
       <Modal isOpen={!!secretModal} onClose={() => setSecretModal(null)} title={t('iam.secretTitle')} size="lg">
         <div className="space-y-4">
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-            {t('iam.secretWarning')}
-          </p>
-          <pre className="text-xs font-mono bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
+          <InfoBanner variant="warning">{t('iam.secretWarning')}</InfoBanner>
+          <pre className="text-xs font-data-mono bg-surface-container-high text-success p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
             {secretModal}
           </pre>
           <div className="flex justify-end gap-3">

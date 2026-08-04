@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Shield } from 'lucide-react';
+import { Plus, Shield } from 'lucide-react';
 import {
   listSecurityGroups, createSecurityGroup, updateSecurityGroup, deleteSecurityGroup,
 } from '../lib/platform-api';
@@ -13,7 +13,12 @@ import { ResourceActions } from '../components/ResourceActions';
 import { SGRulesEditor, defaultSGRules, type SGRule } from '../components/SGRulesEditor';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  formInputClass, formTextareaClass,
+} from '../components/shell';
 
 const emptyForm = () => ({ name: '', description: '', rules: defaultSGRules() });
 
@@ -25,13 +30,12 @@ export function SecurityGroups() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState(emptyForm());
   const queryClient = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.securityGroups,
     queryFn: listSecurityGroups,
     enabled: !needsTenant,
-    refetchInterval: 12_000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.securityGroups });
@@ -67,76 +71,69 @@ export function SecurityGroups() {
   const filtered = groups.filter((g) => g.name?.toLowerCase().includes(search.toLowerCase()));
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">{t('common.selectTenant')}</div>;
+    return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sg.title')}</h1>
-          <p className="text-gray-500">{groups.length} {t('sg.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
-          <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> {t('sg.create')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('sg.title')}
+        subtitle={`${groups.length} ${t('sg.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
+              <Plus size={18} /> {t('sg.create')}
+            </button>
+          </>
+        }
+      />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg" />
-      </div>
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
-        ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <Shield size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">{t('sg.empty')}</p>
-          </div>
-        ) : (
-          filtered.map((sg) => (
-            <div key={sg.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                  <Shield size={20} className="text-purple-500" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{sg.name}</h3>
-                    {sg.name === 'default' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                        {t('sg.defaultBadge')}
-                      </span>
-                    )}
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+          {isLoading ? (
+            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
+          ) : filtered.length === 0 ? (
+            <EmptyState icon={<Shield size={48} />} title={t('sg.empty')} />
+          ) : (
+            filtered.map((sg) => (
+              <ResourceGridCard key={sg.id}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
+                    <Shield size={20} className="text-primary-fixed-dim" />
                   </div>
-                  <p className="text-sm text-gray-500">{sg.description || t('sg.noDescription')}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-headline text-headline-md font-semibold text-on-surface">{sg.name}</h3>
+                      {sg.name === 'default' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed-dim">
+                          {t('sg.defaultBadge')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-on-surface-variant">{sg.description || t('sg.noDescription')}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="text-sm text-gray-500 mb-3">
-                <p>{t('sg.rulesCount')}: {sg.rules?.length || 0}</p>
-                {sg.rules?.slice(0, 2).map((r, i) => (
-                  <p key={i} className="text-xs font-mono truncate">
-                    {r.direction} {r.protocol} {r.port_from}{r.port_to ? `-${r.port_to}` : ''} {r.cidr}
-                  </p>
-                ))}
-              </div>
-              <ResourceActions
-                editLabel={t('common.edit')}
-                deleteLabel={t('common.delete')}
-                onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
-                onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
-              />
-            </div>
-          ))
-        )}
-      </div>
+                <div className="text-sm text-on-surface-variant mb-3">
+                  <p>{t('sg.rulesCount')}: {sg.rules?.length || 0}</p>
+                  {sg.rules?.slice(0, 2).map((r, i) => (
+                    <p key={i} className="text-xs font-data-mono truncate">
+                      {r.direction} {r.protocol} {r.port_from}{r.port_to ? `-${r.port_to}` : ''} {r.cidr}
+                    </p>
+                  ))}
+                </div>
+                <ResourceActions
+                  editLabel={t('common.edit')}
+                  deleteLabel={t('common.delete')}
+                  onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
+                  onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
+                />
+              </ResourceGridCard>
+            ))
+          )}
+        </div>
       </RefreshingPanel>
 
       <ConfirmDialog
@@ -166,16 +163,16 @@ export function SecurityGroups() {
           <div>
             <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg" placeholder="web-servers" />
+              className={formInputClass} placeholder="web-servers" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg" rows={2} />
+              className={formTextareaClass} rows={2} />
           </div>
           <SGRulesEditor rules={form.rules} onChange={(rules) => setForm({ ...form, rules })} />
           {createMutation.isError && (
-            <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
+            <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
@@ -201,19 +198,19 @@ export function SecurityGroups() {
             <div>
               <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
               <input required value={editSg.name} onChange={(e) => setEditSg({ ...editSg, name: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg" />
+                className={formInputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
               <textarea value={editSg.description || ''} onChange={(e) => setEditSg({ ...editSg, description: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg" rows={2} />
+                className={formTextareaClass} rows={2} />
             </div>
             <SGRulesEditor
               rules={editSg.rules || []}
               onChange={(rules) => setEditSg({ ...editSg, rules })}
             />
             {updateMutation.isError && (
-              <p className="text-red-500 text-sm">{(updateMutation.error as Error).message}</p>
+              <p className="text-error text-sm">{(updateMutation.error as Error).message}</p>
             )}
             <div className="flex justify-end gap-3 pt-4">
               <button type="button" onClick={() => setEditSg(null)} className="btn-secondary">{t('common.cancel')}</button>

@@ -1,6 +1,9 @@
 /** Central query keys — keep in sync with useRealtimeEvents invalidation. */
 export const queryKeys = {
   tenants: ['tenants'] as const,
+  dashboardSummary: ['platform-dashboard-summary'] as const,
+  search: (q: string) => ['platform-search', q] as const,
+  notifications: ['platform-notifications'] as const,
   vms: ['platform-vms'] as const,
   vm: (name: string) => ['platform-vm', name] as const,
   vmSnapshots: ['platform-vm-snapshots'] as const,

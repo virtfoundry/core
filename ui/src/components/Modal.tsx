@@ -23,13 +23,14 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-        <div className={clsx('relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full', sizeStyles[size])}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} />
+        <div className={clsx('relative vf-card shadow-xl w-full', sizeStyles[size])}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+            <h3 className="font-headline text-headline-md font-semibold text-on-surface">{title}</h3>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="btn-icon-neutral p-2 text-on-surface-variant"
             >
               <X size={20} />
             </button>

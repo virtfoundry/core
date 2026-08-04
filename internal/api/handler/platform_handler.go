@@ -864,6 +864,45 @@ func (h *PlatformHandler) GetVMSSH(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, info)
 }
 
+func (h *PlatformHandler) DashboardSummary(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	summary, err := h.svc.DashboardSummary(r.Context(), tid)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, summary)
+}
+
+func (h *PlatformHandler) Search(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	q := r.URL.Query().Get("q")
+	perms := []string{auth.PermAll}
+	if actor := middleware.GetActor(r.Context()); actor != nil {
+		perms = actor.Permissions
+	}
+	hits := h.svc.Search(r.Context(), tid, q, perms)
+	respondJSON(w, http.StatusOK, map[string]interface{}{"results": nonNilSlice(hits)})
+}
+
+func (h *PlatformHandler) Notifications(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	items := h.svc.Notifications(r.Context(), tid)
+	respondJSON(w, http.StatusOK, map[string]interface{}{"notifications": nonNilSlice(items)})
+}
+
 func (h *PlatformHandler) tenantID(r *http.Request) (string, error) {
 	claims := middleware.GetClaims(r.Context())
 	tid := middleware.GetTenantID(r.Context())

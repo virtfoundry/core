@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { ptBR, enUS } from 'date-fns/locale';
 import type { Locale as DateFnsLocale } from 'date-fns';
+import clsx from 'clsx';
 
 export type Locale = 'pt' | 'en';
 
@@ -9,6 +10,10 @@ const STORAGE_KEY = 'virtfoundry_locale';
 const dict = {
   pt: {
     'nav.dashboard': 'Dashboard',
+    'nav.compute': 'Compute',
+    'nav.storage': 'Armazenamento',
+    'nav.network': 'Rede',
+    'nav.platform': 'Plataforma',
     'nav.vms': 'Máquinas Virtuais',
     'nav.templates': 'Imagens / Templates',
     'nav.sshKeys': 'Chaves SSH',
@@ -24,6 +29,12 @@ const dict = {
     'nav.logout': 'Sair',
     'nav.selectTenant': '— Selecionar tenant —',
     'nav.impersonatingTenant': 'Operando como tenant',
+    'sidebar.settings': 'Configurações',
+    'sidebar.theme': 'Tema',
+    'sidebar.themeLight': 'Modo claro',
+    'sidebar.themeDark': 'Modo escuro',
+    'sidebar.language': 'Idioma',
+    'sidebar.about': 'VirtFoundry v1.0.0',
     'common.create': 'Criar',
     'common.cancel': 'Cancelar',
     'common.save': 'Salvar',
@@ -83,6 +94,12 @@ const dict = {
     'dashboard.newVpc': 'Nova VPC',
     'dashboard.snapshot': 'Snapshot',
     'dashboard.running': 'em execução',
+    'header.searchPlaceholder': 'Buscar recursos...',
+    'header.searchEmpty': 'Nenhum resultado',
+    'header.notifications': 'Notificações',
+    'header.notificationsEmpty': 'Nenhum alerta ativo',
+    'header.help': 'Documentação',
+    'header.dashboard': 'Dashboard',
     'vms.selectTenant': 'Selecione um tenant no menu superior para gerenciar VMs.',
     'vms.subtitle': 'instâncias · atualização automática',
     'vms.searchPlaceholder': 'Buscar por nome, display name ou IP...',
@@ -216,8 +233,9 @@ const dict = {
     'vms.networkMode': 'Conectividade',
     'vms.networkModePrivate': 'Somente IP privado (VPC)',
     'vms.networkModePublic': 'IP público (acesso externo)',
-    'vms.networkModePrivateHint': 'VM conectada a sub-rede(s) isoladas dentro de uma VPC. Sem IP público.',
+    'vms.networkModePrivateHint': 'IP privado na VPC default do tenant. Acesso via console ou bastion na mesma rede.',
     'vms.networkModePublicHint': 'VM recebe IP do pool público. Acesso externo controlado pelo Security Group (estilo AWS/GCP).',
+    'vms.defaultVpcHint': 'Usa a VPC default (10.0.0.0/16) automaticamente. Sub-redes extras são opcionais.',
     'vms.privateSubnetRequired': 'Sub-rede VPC (obrigatória)',
     'vms.privateSubnetsOptional': 'Sub-redes privadas adicionais (opcional)',
     'vms.securityGroupRequired': 'Security Group (obrigatório para IP público)',
@@ -339,6 +357,10 @@ const dict = {
   },
   en: {
     'nav.dashboard': 'Dashboard',
+    'nav.compute': 'Compute',
+    'nav.storage': 'Storage',
+    'nav.network': 'Network',
+    'nav.platform': 'Platform',
     'nav.vms': 'Virtual Machines',
     'nav.templates': 'Images / Templates',
     'nav.sshKeys': 'SSH Keys',
@@ -354,6 +376,12 @@ const dict = {
     'nav.logout': 'Sign out',
     'nav.selectTenant': '— Select tenant —',
     'nav.impersonatingTenant': 'Operating as tenant',
+    'sidebar.settings': 'Settings',
+    'sidebar.theme': 'Theme',
+    'sidebar.themeLight': 'Light mode',
+    'sidebar.themeDark': 'Dark mode',
+    'sidebar.language': 'Language',
+    'sidebar.about': 'VirtFoundry v1.0.0',
     'common.create': 'Create',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
@@ -413,6 +441,12 @@ const dict = {
     'dashboard.newVpc': 'New VPC',
     'dashboard.snapshot': 'Snapshot',
     'dashboard.running': 'running',
+    'header.searchPlaceholder': 'Search resources...',
+    'header.searchEmpty': 'No results',
+    'header.notifications': 'Notifications',
+    'header.notificationsEmpty': 'No active alerts',
+    'header.help': 'Documentation',
+    'header.dashboard': 'Dashboard',
     'vms.selectTenant': 'Select a tenant in the top menu to manage VMs.',
     'vms.subtitle': 'instances · automatic refresh',
     'vms.searchPlaceholder': 'Search by name, display name, or IP...',
@@ -546,8 +580,9 @@ const dict = {
     'vms.networkMode': 'Connectivity',
     'vms.networkModePrivate': 'Private IP only (VPC)',
     'vms.networkModePublic': 'Public IP (external access)',
-    'vms.networkModePrivateHint': 'VM attached to isolated subnet(s) inside a VPC. No public IP.',
+    'vms.networkModePrivateHint': 'Private IP on the tenant default VPC. Access via console or bastion on the same network.',
     'vms.networkModePublicHint': 'VM gets an IP from the public pool. External access controlled by Security Group (AWS/GCP style).',
+    'vms.defaultVpcHint': 'Uses the default VPC (10.0.0.0/16) automatically. Extra subnets are optional.',
     'vms.privateSubnetRequired': 'VPC subnet (required)',
     'vms.privateSubnetsOptional': 'Additional private subnets (optional)',
     'vms.securityGroupRequired': 'Security Group (required for public IP)',
@@ -723,10 +758,14 @@ export function useI18n() {
 
 export function LanguageToggle({ onDark = false }: { onDark?: boolean }) {
   const { locale, setLocale, t } = useI18n();
-  const inactive = onDark ? 'text-white/80 hover:bg-white/10' : 'hover:bg-gray-100';
-  const active = onDark ? 'bg-white text-brand-700' : 'bg-brand-500 text-white';
+  const inactive = onDark
+    ? 'text-white/80 hover:bg-white/10'
+    : 'text-on-surface-variant hover:bg-surface-variant';
+  const active = onDark
+    ? 'bg-white text-primary-container'
+    : 'bg-primary-container text-on-primary-container';
   return (
-    <div className={`flex rounded-lg border overflow-hidden text-sm ${onDark ? 'border-white/30' : ''}`}>
+    <div className={clsx('flex rounded-lg border overflow-hidden text-sm font-mono', onDark ? 'border-white/30' : 'border-outline-variant')}>
       <button
         type="button"
         onClick={() => setLocale('pt')}

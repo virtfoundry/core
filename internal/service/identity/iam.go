@@ -158,6 +158,9 @@ func (s *Service) DeleteRole(tenantID, roleID string) error {
 }
 
 func (s *Service) CreateAPIKey(userID, tenantID string, in CreateAPIKeyInput, actor *auth.Actor) (*CreateAPIKeyResult, error) {
+	if actor == nil || userID != actor.UserID {
+		return nil, fmt.Errorf("forbidden")
+	}
 	u, ok := s.store.GetUser(userID)
 	if !ok {
 		return nil, fmt.Errorf("user not found")

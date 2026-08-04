@@ -1,12 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react';
 import type { SecurityGroup } from '../lib/platform-api';
 import { useI18n } from '../lib/i18n';
+import { formInputClass, formSelectClass } from './shell';
 
 export type SGRule = SecurityGroup['rules'][number];
 
 export const defaultSGRules = (): SGRule[] => [
   { direction: 'ingress', protocol: 'tcp', port_from: 80, cidr: '0.0.0.0/0' },
 ];
+
+const compactInputClass = `${formInputClass} !h-9 !px-2 !py-1.5 text-sm`;
+const compactSelectClass = `${formSelectClass} !h-9 !px-2 !py-1.5 text-sm`;
 
 export function SGRulesEditor({
   rules,
@@ -32,33 +36,36 @@ export function SGRulesEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium">{t('sg.rules')}</label>
-        <button type="button" onClick={addRule} className="text-sm text-primary-600 hover:underline flex items-center gap-1">
+        <label className="block text-sm font-medium text-on-surface">{t('sg.rules')}</label>
+        <button type="button" onClick={addRule} className="btn-ghost-brand flex items-center gap-1">
           <Plus size={14} /> {t('sg.addRule')}
         </button>
       </div>
       {rules.length === 0 ? (
-        <p className="text-sm text-gray-500">{t('sg.noRules')}</p>
+        <p className="text-sm text-on-surface-variant">{t('sg.noRules')}</p>
       ) : (
         rules.map((rule, index) => (
-          <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-3 border rounded-lg bg-gray-50 dark:bg-dark-200">
+          <div
+            key={index}
+            className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-3 border border-outline-variant rounded-lg bg-surface-container-high inner-glow"
+          >
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t('sg.direction')}</label>
+              <label className="block text-xs text-on-surface-variant mb-1">{t('sg.direction')}</label>
               <select
                 value={rule.direction}
                 onChange={(e) => updateRule(index, { direction: e.target.value })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
+                className={compactSelectClass}
               >
                 <option value="ingress">{t('sg.ingress')}</option>
                 <option value="egress">{t('sg.egress')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t('sg.protocol')}</label>
+              <label className="block text-xs text-on-surface-variant mb-1">{t('sg.protocol')}</label>
               <select
                 value={rule.protocol}
                 onChange={(e) => updateRule(index, { protocol: e.target.value })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
+                className={compactSelectClass}
               >
                 <option value="tcp">TCP</option>
                 <option value="udp">UDP</option>
@@ -66,18 +73,18 @@ export function SGRulesEditor({
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t('sg.portFrom')}</label>
+              <label className="block text-xs text-on-surface-variant mb-1">{t('sg.portFrom')}</label>
               <input
                 type="number"
                 min={1}
                 max={65535}
                 value={rule.port_from ?? ''}
                 onChange={(e) => updateRule(index, { port_from: Number(e.target.value) || undefined })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
+                className={compactInputClass}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t('sg.portTo')}</label>
+              <label className="block text-xs text-on-surface-variant mb-1">{t('sg.portTo')}</label>
               <input
                 type="number"
                 min={1}
@@ -85,16 +92,16 @@ export function SGRulesEditor({
                 placeholder="—"
                 value={rule.port_to ?? ''}
                 onChange={(e) => updateRule(index, { port_to: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
+                className={compactInputClass}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">CIDR</label>
+              <label className="block text-xs text-on-surface-variant mb-1">CIDR</label>
               <input
                 required
                 value={rule.cidr}
                 onChange={(e) => updateRule(index, { cidr: e.target.value })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
+                className={compactInputClass}
                 placeholder="0.0.0.0/0"
               />
             </div>
@@ -102,7 +109,7 @@ export function SGRulesEditor({
               <button
                 type="button"
                 onClick={() => removeRule(index)}
-                className="p-2 text-red-500 hover:bg-red-50 rounded"
+                className="btn-icon-danger p-2"
                 title={t('sg.removeRule')}
               >
                 <Trash2 size={16} />

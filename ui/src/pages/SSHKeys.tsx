@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Key, Upload, Copy, Check } from 'lucide-react';
+import { Plus, Key, Upload, Copy, Check } from 'lucide-react';
 import {
   listSSHKeys, createSSHKey, registerSSHKey, deleteSSHKey,
 } from '../lib/platform-api';
@@ -12,7 +12,12 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  formInputClass, formTextareaClass, InfoBanner,
+} from '../components/shell';
 
 type CreateMode = 'generate' | 'register';
 
@@ -26,13 +31,12 @@ export function SSHKeys() {
   const [copied, setCopied] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.sshKeys,
     queryFn: listSSHKeys,
     enabled: !needsTenant,
-    refetchInterval: 12_000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
@@ -96,79 +100,73 @@ export function SSHKeys() {
   const error = createMutation.error || registerMutation.error;
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">{t('common.selectTenant')}</div>;
+    return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('ssh.title')}</h1>
-          <p className="text-gray-500">{keys.length} {t('ssh.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
-          <button
-            onClick={() => { resetForm(); setCreateMode('register'); setCreateModal(true); }}
-            className="btn-secondary"
-          >
-            <Upload size={18} /> {t('ssh.register')}
-          </button>
-          <button
-            onClick={() => { resetForm(); setCreateMode('generate'); setCreateModal(true); }}
-            className="btn-primary"
-          >
-            <Plus size={18} /> {t('ssh.create')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('ssh.title')}
+        subtitle={`${keys.length} ${t('ssh.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button
+              type="button"
+              onClick={() => { resetForm(); setCreateMode('register'); setCreateModal(true); }}
+              className="btn-secondary"
+            >
+              <Upload size={18} /> {t('ssh.register')}
+            </button>
+            <button
+              type="button"
+              onClick={() => { resetForm(); setCreateMode('generate'); setCreateModal(true); }}
+              className="btn-primary"
+            >
+              <Plus size={18} /> {t('ssh.create')}
+            </button>
+          </>
+        }
+      />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={`${t('common.search')}...`}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg"
-        />
-      </div>
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
           {isLoading ? (
-            <div className="col-span-full text-center py-12">{t('common.loading')}</div>
+            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
           ) : filtered.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <Key size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-4">{t('ssh.empty')}</p>
-              <Link to="/vms" className="text-brand-600 hover:underline text-sm">
-                → Deploy VM com chave SSH
-              </Link>
-            </div>
+            <>
+              <EmptyState icon={<Key size={48} />} title={t('ssh.empty')} />
+              <p className="col-span-full text-center -mt-6">
+                <Link to="/vms" className="text-primary-fixed-dim hover:underline text-sm">
+                  → Deploy VM com chave SSH
+                </Link>
+              </p>
+            </>
           ) : (
             filtered.map((key: SSHKeyPair) => (
-              <div key={key.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
+              <ResourceGridCard key={key.id}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-brand-100 dark:bg-brand-900/30 rounded-lg flex items-center justify-center">
-                    <Key size={20} className="text-brand-600" />
+                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
+                    <Key size={20} className="text-primary-fixed-dim" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{key.name}</h3>
-                    <p className="text-xs text-gray-500 font-mono truncate">{key.fingerprint}</p>
+                    <h3 className="font-headline text-headline-md font-semibold text-on-surface truncate">{key.name}</h3>
+                    <p className="text-xs text-on-surface-variant font-data-mono truncate">{key.fingerprint}</p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 font-mono break-all line-clamp-2 mb-3" title={key.public_key}>
+                <p className="text-xs text-on-surface-variant font-data-mono break-all line-clamp-2 mb-3" title={key.public_key}>
                   {key.public_key}
                 </p>
                 <button
                   type="button"
                   onClick={() => setDeleteTarget({ id: key.id, name: key.name })}
-                  className="btn-ghost-muted flex items-center gap-1 text-red-600 hover:text-red-700 mt-3 pt-3 border-t w-full justify-end"
+                  className="btn-ghost-muted flex items-center gap-1 text-error hover:text-error w-full justify-end mt-3 pt-3 border-t border-outline-variant"
                 >
                   {t('common.delete')}
                 </button>
-              </div>
+              </ResourceGridCard>
             ))
           )}
         </div>
@@ -187,7 +185,7 @@ export function SSHKeys() {
               pattern="[-a-z0-9]+"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder={t('ssh.namePlaceholder')}
             />
           </div>
@@ -199,19 +197,17 @@ export function SSHKeys() {
                 rows={5}
                 value={form.public_key}
                 onChange={(e) => setForm({ ...form, public_key: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg font-mono text-xs"
+                className={formTextareaClass}
                 placeholder="ssh-ed25519 AAAA... user@host"
               />
-              <p className="text-xs text-gray-500 mt-1">{t('ssh.registerHint')}</p>
+              <p className="text-xs text-on-surface-variant mt-1">{t('ssh.registerHint')}</p>
             </div>
           )}
           {createMode === 'generate' && (
-            <p className="text-sm text-gray-500 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-              {t('ssh.privateKeyWarning')}
-            </p>
+            <InfoBanner variant="warning">{t('ssh.privateKeyWarning')}</InfoBanner>
           )}
           {error && (
-            <p className="text-red-500 text-sm">{(error as Error).message}</p>
+            <p className="text-error text-sm">{(error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">
@@ -232,13 +228,11 @@ export function SSHKeys() {
       >
         {privateKeyModal && (
           <div className="space-y-4">
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-              {t('ssh.privateKeyWarning')}
-            </p>
-            <p className="text-sm text-gray-600">
+            <InfoBanner variant="warning">{t('ssh.privateKeyWarning')}</InfoBanner>
+            <p className="text-sm text-on-surface">
               <strong>{privateKeyModal.name}</strong>
             </p>
-            <pre className="text-xs font-mono bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
+            <pre className="text-xs font-data-mono bg-surface-container-high text-success p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-all">
               {privateKeyModal.pem}
             </pre>
             <div className="flex justify-end gap-3">

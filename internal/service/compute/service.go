@@ -756,15 +756,27 @@ func (s *Service) GetVMSSH(ctx context.Context, tenantID, vmName string) (*VMSSH
 
 func (s *Service) resolveDeployNetworks(tenantID string, publicIP bool, networkIDs []string) ([]string, error) {
 	ids := append([]string{}, networkIDs...)
+
+	if len(ids) == 0 {
+		defID, err := s.tenantDefaultNetworkID(tenantID)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, defID)
+	} else if publicIP && !s.hasIsolatedNetwork(ids) {
+		defID, err := s.tenantDefaultNetworkID(tenantID)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, defID)
+	}
+
 	if publicIP {
 		sharedNet, ok := s.store.GetSharedNetwork()
 		if !ok {
 			return nil, fmt.Errorf("public network is not configured")
 		}
 		ids = append([]string{sharedNet.ID}, ids...)
-	}
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("select a VPC subnet or enable public IP")
 	}
 	for _, id := range ids {
 		net, ok := s.store.GetNetwork(id)
@@ -776,6 +788,30 @@ func (s *Service) resolveDeployNetworks(tenantID string, publicIP bool, networkI
 		}
 	}
 	return ids, nil
+}
+
+func (s *Service) tenantDefaultNetworkID(tenantID string) (string, error) {
+	for _, vpc := range s.store.ListVPCs(tenantID) {
+		if vpc.Name != branding.DefaultVPCName {
+			continue
+		}
+		for _, net := range s.store.ListNetworks(tenantID) {
+			if net.VPCID == vpc.ID && net.Name == "default" {
+				return net.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("default VPC not provisioned for tenant")
+}
+
+func (s *Service) hasIsolatedNetwork(networkIDs []string) bool {
+	for _, id := range networkIDs {
+		net, ok := s.store.GetNetwork(id)
+		if ok && net.NetworkType == platform.NetworkTypeIsolated {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) validatePublicSecurityGroups(tenantID string, sgIDs []string) error {

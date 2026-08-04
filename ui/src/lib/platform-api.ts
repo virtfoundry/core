@@ -1,5 +1,9 @@
 const API_BASE = import.meta.env.VITE_PLATFORM_API_URL || '/api/v1';
 
+function dispatchUnauthorized() {
+  void import('../store').then(({ dispatchUnauthorized: dispatch }) => dispatch());
+}
+
 export interface PlatformUser {
   id: string;
   username: string;
@@ -151,6 +155,10 @@ async function platformFetch<T>(path: string, options: RequestInit = {}): Promis
   if (tenantId) headers['X-Tenant-ID'] = tenantId;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401 && !path.startsWith('/auth/login')) {
+    dispatchUnauthorized();
+    throw new Error('Session expired');
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = body.error || body.errortext || body.errorText || res.statusText;
@@ -225,7 +233,11 @@ export async function fetchVMLogs(name: string, tail = 200) {
   const tenantId = localStorage.getItem('tenant_id');
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
   if (tenantId) headers['X-Tenant-ID'] = tenantId;
-  const res = await fetch(`/api/v1/vms/${encodeURIComponent(name)}/logs?tail=${tail}`, { headers });
+  const res = await fetch(`${API_BASE}/vms/${encodeURIComponent(name)}/logs?tail=${tail}`, { headers });
+  if (res.status === 401) {
+    dispatchUnauthorized();
+    throw new Error('Session expired');
+  }
   const text = await res.text();
   if (!res.ok) {
     try {
@@ -249,6 +261,7 @@ export async function deployVM(data: {
   name: string;
   image?: string;
   template_id?: string;
+  service_offering_id?: string;
   cpu?: number;
   memory_mi?: number;
   network_ids?: string[];
@@ -407,6 +420,16 @@ export async function exposeVMSSH(name: string, nodePort?: number) {
   });
 }
 
+export interface ServiceOffering {
+  id: string;
+  name: string;
+  display_name: string;
+  cpu: number;
+  memory_mi: number;
+  state: string;
+  storage_tags?: string;
+}
+
 export interface VMTemplate {
   id: string;
   tenant_id?: string;
@@ -425,6 +448,13 @@ export interface VMTemplate {
   hypervisor: string;
   state: string;
   created_at?: string;
+}
+
+export async function listServiceOfferings() {
+  const res = await platformFetch<{ service_offerings: ServiceOffering[] | null }>('/service-offerings');
+  return {
+    service_offerings: (res.service_offerings ?? []).filter((o) => o.state === 'Active'),
+  };
 }
 
 export async function listVMTemplates() {
@@ -469,13 +499,6 @@ export async function updateVMTemplate(id: string, data: {
 export async function deleteVMTemplate(id: string) {
   return platformFetch<{ success: boolean }>(`/vm-templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
-
-export const VM_SIZES = [
-  { id: 'small', cpu: 1, memory_mi: 1024, label: 'Small (1 vCPU, 1 GB)' },
-  { id: 'medium', cpu: 2, memory_mi: 4096, label: 'Medium (2 vCPU, 4 GB)' },
-  { id: 'large', cpu: 4, memory_mi: 8192, label: 'Large (4 vCPU, 8 GB)' },
-  { id: 'windows-large', cpu: 4, memory_mi: 16384, label: 'Windows Large (4 vCPU, 16 GB)', os: 'windows' as const },
-];
 
 export interface IAMUser {
   id: string;
@@ -546,4 +569,50 @@ export async function createIAMAPIKey(data: { name: string; expires_in_days?: nu
 
 export async function revokeIAMAPIKey(id: string) {
   return platformFetch<void>(`/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export interface DashboardSummary {
+  vms: { total: number; running?: number; error?: number };
+  volumes: { total: number };
+  vpcs: { total: number };
+  networks: { total: number };
+  security_groups: { total: number };
+  health: 'ok' | 'warning' | 'critical';
+  recent_activity: Array<{
+    type: string;
+    name: string;
+    display_name?: string;
+    state: string;
+    updated_at?: string;
+    path: string;
+  }>;
+}
+
+export interface SearchHit {
+  type: string;
+  id: string;
+  name: string;
+  subtitle?: string;
+  path: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  level: 'info' | 'warning' | 'error';
+  title: string;
+  message: string;
+  path?: string;
+  created_at?: string;
+}
+
+export async function getDashboardSummary() {
+  return platformFetch<DashboardSummary>('/dashboard/summary');
+}
+
+export async function globalSearch(q: string) {
+  return platformFetch<{ results: SearchHit[] }>(`/search?q=${encodeURIComponent(q)}`);
+}
+
+export async function listNotifications() {
+  return platformFetch<{ notifications: NotificationItem[] }>('/notifications');
 }

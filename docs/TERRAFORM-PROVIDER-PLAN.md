@@ -4,8 +4,8 @@ Track provider work against the VirtFoundry REST API. Update this file when API 
 
 **Rule:** see [.cursor/rules/terraform-provider.mdc](../.cursor/rules/terraform-provider.mdc) — major API additions require a provider update before release.
 
-!!! warning "Blocked on IAM"
-    Do **not** start provider auth for production until [AUTH-IAM-PLAN.md](./AUTH-IAM-PLAN.md) Phase 3 (API keys) ships. Terraform needs long-lived `api_key` credentials with scoped permissions.
+!!! note "Credentials"
+    Prefer **`api_key`** (`vfd_live_...`) for automation. Username/password uses JWT login and is suitable for development.
 
 ## Goal
 
@@ -57,20 +57,21 @@ Status legend: `—` not started · `plan` designed · `dev` in progress · `don
 
 | API route | Terraform | Status | Notes |
 |-----------|-----------|--------|-------|
-| `POST /auth/login` | Provider config | — | JWT cached in provider meta |
-| `GET/POST /tenants` | `virtfoundry_tenant` | — | Root credentials only |
-| `GET/POST/PATCH/DELETE /vpcs` | `virtfoundry_vpc` | — | |
-| `GET/POST/PATCH/DELETE /networks` | `virtfoundry_network` | — | `vpc_id`, CIDR |
-| `GET/POST/PATCH/DELETE /security-groups` | `virtfoundry_security_group` | — | Rules inline or `dynamic` block |
-| `GET/POST /volumes` | `virtfoundry_volume` | — | Size, name; storage class gap in API |
-| `GET/POST /snapshots` | `virtfoundry_volume_snapshot` | — | Volume snapshot |
-| `GET/POST/PATCH/DELETE /vm-templates` | `virtfoundry_vm_template` | — | container + iso `source_type` |
-| `GET/POST/PATCH/DELETE /vms` (+ start/stop/delete) | `virtfoundry_vm` | — | `desired_state`, networks, SGs, SSH key |
-| `GET/POST /vm-snapshots` (+ restore/delete) | `virtfoundry_vm_snapshot` | — | Optional separate resource or VM nested |
-| `GET/POST/DELETE /ssh-keys` | `virtfoundry_ssh_key` | — | Register public key material |
-| `GET /service-offerings` | `virtfoundry_service_offerings` (data) | — | Read-only seed |
+| `POST /auth/login` | Provider config | done | JWT or API key |
+| `GET/POST /tenants` | `virtfoundry_tenant` | done | Root credentials only |
+| `GET/POST/PATCH/DELETE /vpcs` | `virtfoundry_vpc` | done | `default_network_id` computed |
+| `GET/POST/PATCH/DELETE /networks` | `virtfoundry_network` | done | `vpc_id`, CIDR |
+| `GET/POST/PATCH/DELETE /security-groups` | `virtfoundry_security_group` | done | `rule` nested blocks |
+| `GET/POST /volumes` | `virtfoundry_volume` | done | No API delete yet |
+| `GET/POST /snapshots` | `virtfoundry_volume_snapshot` | done | No API delete yet |
+| `GET/POST/PATCH/DELETE /vm-templates` | `virtfoundry_vm_template` | done | container + iso `source_type` |
+| `GET/POST/PATCH/DELETE /vms` (+ start/stop/delete) | `virtfoundry_vm` | done | `desired_state`, networks, SGs |
+| `GET/POST /vm-snapshots` (+ restore/delete) | `virtfoundry_vm_snapshot` | done | Delete via POST body |
+| `GET/POST/DELETE /ssh-keys` | `virtfoundry_ssh_key` | done | Register public key material |
+| `GET /service-offerings` | `virtfoundry_service_offerings` (data) | done | Read-only seed |
+| `GET /vm-templates` | `virtfoundry_vm_templates` (data) | done | List tenant templates |
 | `GET /vpcs/cidr-plan`, `/networks/cidr-plan` | data source (optional) | n/a | Can compute client-side |
-| `POST /vms/{name}/ssh` | attribute on `virtfoundry_vm` | — | `expose_ssh`, SG linkage |
+| `POST /vms/{name}/ssh` | attribute on `virtfoundry_vm` | — | Deprecated in UI — use public network or noVNC console |
 | WebSocket `/ws/console` | — | n/a | Use UI or virtctl |
 
 ---
@@ -79,9 +80,9 @@ Status legend: `—` not started · `plan` designed · `dev` in progress · `don
 
 ### Phase 0 — Repository bootstrap
 
-- [ ] Create `virtfoundry/terraform-provider-virtfoundry` repo
-- [ ] Scaffold with `terraform-plugin-framework` (Go)
-- [ ] Provider block + login + health check
+- [x] Create `virtfoundry/terraform-provider-virtfoundry` repo
+- [x] Scaffold with `terraform-plugin-framework` (Go)
+- [x] Provider block + login + health check
 - [ ] CI: `go test`, `golangci-lint`, acceptance tests (optional VirtFoundry in Kind)
 - [ ] Release: GitHub Releases + Terraform Registry publish workflow
 
@@ -89,38 +90,38 @@ Status legend: `—` not started · `plan` designed · `dev` in progress · `don
 
 ### Phase 1 — Identity & tenancy
 
-- [ ] `virtfoundry_tenant` (root)
-- [ ] Provider `tenant_id` default + per-resource override
+- [x] `virtfoundry_tenant` (root)
+- [x] Provider `tenant_id` default + per-resource override
 - [ ] Document root vs tenant-scoped tokens
 
 ### Phase 2 — Networking
 
-- [ ] `virtfoundry_vpc`
-- [ ] `virtfoundry_network`
-- [ ] `virtfoundry_security_group` (ingress/egress rules)
+- [x] `virtfoundry_vpc`
+- [x] `virtfoundry_network`
+- [x] `virtfoundry_security_group` (ingress/egress rules)
 
 **Exit criteria:** Terraform applies VPC + network + SG; VM can attach later.
 
 ### Phase 3 — Compute
 
-- [ ] `virtfoundry_vm_template` (container disk first)
-- [ ] `virtfoundry_vm` (deploy, start/stop via desired state)
-- [ ] `virtfoundry_ssh_key` + VM SSH exposure attributes
+- [x] `virtfoundry_vm_template` (container disk first)
+- [x] `virtfoundry_vm` (deploy, start/stop via desired state)
+- [x] `virtfoundry_ssh_key` + VM SSH exposure attributes
 - [ ] ISO template path after CDI fields stable
 
 **Exit criteria:** `examples/minimal` — one Ubuntu VM with SSH SG from Terraform only.
 
 ### Phase 4 — Storage
 
-- [ ] `virtfoundry_volume`
-- [ ] `virtfoundry_volume_snapshot`
-- [ ] `virtfoundry_vm_snapshot`
+- [x] `virtfoundry_volume`
+- [x] `virtfoundry_volume_snapshot`
+- [x] `virtfoundry_vm_snapshot`
 
 ### Phase 5 — Docs & Registry
 
 - [ ] Provider docs on GitHub Pages or Registry docs
 - [ ] Link from helm-charts installation guide
-- [ ] Example module: `examples/full-stack` (tenant + net + vm)
+- [x] Example module: `examples/full-stack` (tenant + net + vm)
 
 ---
 
@@ -170,4 +171,4 @@ When merging a **major API feature** in `virtfoundry`:
 - Plugin Framework: https://developer.hashicorp.com/terraform/plugin/framework
 - Registry publishing: https://developer.hashicorp.com/terraform/registry/providers/publishing
 
-**Last updated:** 2026-08-03 (plan created; provider repo not scaffolded yet)
+**Last updated:** 2026-08-04 (full resource inventory in [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry))

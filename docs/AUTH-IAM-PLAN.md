@@ -133,13 +133,13 @@ Body: `username`, `password`, `role_id` or `role_name`, `email`.
 | PATCH | `/api/v1/roles/{id}` | `users:write` |
 | DELETE | `/api/v1/roles/{id}` | `users:write` (not system roles) |
 
-### API keys (own keys or admin for tenant)
+### API keys (self-service)
 
-| Method | Path | Permission |
-|--------|------|------------|
-| GET | `/api/v1/api-keys` | `users:read` (own) / all if admin |
-| POST | `/api/v1/api-keys` | `users:write` — returns secret **once** |
-| DELETE | `/api/v1/api-keys/{id}` | revoke |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/v1/api-keys` | Own keys; tenant admins see all tenant keys |
+| POST | `/api/v1/api-keys` | **Authenticated user only** — creates key for `actor.UserID`; secret shown **once** |
+| DELETE | `/api/v1/api-keys/{id}` | Revoke own key; admin can revoke any tenant key |
 
 Body: `name`, `expires_in_days`, optional `scopes[]` (must be ⊆ user permissions).
 

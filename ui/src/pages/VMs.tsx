@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Play, Trash2, Plus, Search, Power, Monitor, Camera, Shield } from 'lucide-react';
+import { Play, Trash2, Plus, Power, Monitor, Camera, Shield } from 'lucide-react';
+import clsx from 'clsx';
 import {
   listVMs, startVM, stopVM, deleteVM, deployVM, createVMSnapshot, listNetworks,
-  listSSHKeys, listVolumes, listSecurityGroups, createSecurityGroup, listVMTemplates, VM_SIZES,
-  PlatformVM, VMTemplate,
+  listSSHKeys, listVolumes, listSecurityGroups, createSecurityGroup, listVMTemplates,
+  listServiceOfferings, PlatformVM, VMTemplate,
 } from '../lib/platform-api';
+import {
+  isWindowsTemplate, offeringsForTemplate, offeringLabel, findOfferingByName,
+} from '../lib/offerings';
 import { Modal } from '../components/Modal';
 import { SGRulesEditor, defaultSGRules } from '../components/SGRulesEditor';
 import { openConsole } from '../lib/console-url';
@@ -15,33 +19,22 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { isVMTransitional } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
+import { PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, formInputClass, formSelectClass, formTextareaClass } from '../components/shell';
+import { StatusBadge } from '../components/StatusBadge';
 
-function stateColor(state: string) {
-  switch (state?.toLowerCase()) {
-    case 'running': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-    case 'stopped': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-    case 'starting': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'stopping': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-    case 'error': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-    default: return 'bg-gray-100 text-gray-800';
-  }
+function optionCardClass(selected: boolean) {
+  return clsx(
+    'flex-1 border rounded-lg p-3 cursor-pointer transition-colors inner-glow',
+    selected ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant hover:border-primary-container/40',
+  );
 }
 
 function fmtMem(mi: number) {
   if (mi >= 1024) return `${(mi / 1024).toFixed(1)} GB`;
   return `${mi} MiB`;
-}
-
-function isWindowsTemplate(tmpl?: VMTemplate | null) {
-  return tmpl?.os_type?.toLowerCase() === 'windows';
-}
-
-function sizesForTemplate(tmpl?: VMTemplate | null) {
-  return isWindowsTemplate(tmpl)
-    ? VM_SIZES.filter((s) => s.id === 'windows-large')
-    : VM_SIZES.filter((s) => s.id !== 'windows-large');
 }
 
 export function VMs() {
@@ -56,16 +49,15 @@ export function VMs() {
   const [form, setForm] = useState({
     name: '',
     template_id: '',
-    offering: 'small',
+    offering: '',
     network_mode: 'private' as 'private' | 'public',
     network_ids: [] as string[],
     security_group_ids: [] as string[],
     ssh_key_id: '',
     data_volume_id: '',
-    expose_ssh: false,
   });
   const queryClient = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
   const { data: netData } = useQuery({
     queryKey: queryKeys.networks,
     queryFn: listNetworks,
@@ -107,6 +99,24 @@ export function VMs() {
     }
   }, [deployModal, form.network_mode, form.security_group_ids.length, defaultSg?.id]);
 
+  const { data: offeringsData } = useQuery({
+    queryKey: queryKeys.offerings,
+    queryFn: listServiceOfferings,
+    enabled: !needsTenant && deployModal,
+  });
+  const offerings = offeringsData?.service_offerings || [];
+  const templateOfferings = offeringsForTemplate(offerings, selectedTemplate);
+
+  useEffect(() => {
+    if (!deployModal || offerings.length === 0) return;
+    const available = offeringsForTemplate(offerings, selectedTemplate);
+    if (available.length === 0) return;
+    if (!available.some((o) => o.id === form.offering)) {
+      const preferred = findOfferingByName(available, isWindowsTemplate(selectedTemplate) ? 'windows-large' : 'small');
+      setForm((f) => ({ ...f, offering: preferred?.id || available[0].id }));
+    }
+  }, [deployModal, offerings, selectedTemplate, form.offering]);
+
   useEffect(() => {
     if (!deployModal || form.template_id || templates.length === 0) return;
     const preferred = templates.find((tmpl) => tmpl.name === 'ubuntu-2204') || templates.find((tmpl) => !isWindowsTemplate(tmpl));
@@ -114,17 +124,18 @@ export function VMs() {
       setForm((f) => ({ ...f, template_id: preferred.id }));
     }
   }, [deployModal, form.template_id, templates]);
+
   const sshKeys = sshData?.ssh_keys || [];
   const volumes = volData?.volumes || [];
 
-  const { data, isLoading, isFetching, refetch, error, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, error, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vms,
     queryFn: listVMs,
     enabled: !needsTenant,
     refetchInterval: (q) => {
       const vms = q.state.data?.vms || [];
-      if (vms.some((vm) => isVMTransitional(vm.state))) return 3000;
-      return 12_000;
+      if (vms.some((vm) => isVMTransitional(vm.state))) return 3_000;
+      return false;
     },
   });
 
@@ -156,9 +167,9 @@ export function VMs() {
       invalidate();
       setDeployModal(false);
       setForm({
-        name: '', template_id: '', offering: 'small',
+        name: '', template_id: '', offering: '',
         network_mode: 'private', network_ids: [], security_group_ids: [],
-        ssh_key_id: '', data_volume_id: '', expose_ssh: false,
+        ssh_key_id: '', data_volume_id: '',
       });
     },
   });
@@ -172,14 +183,11 @@ export function VMs() {
 
   const handleDeploy = (e: React.FormEvent) => {
     e.preventDefault();
-    const size = VM_SIZES.find((s) => s.id === form.offering) || VM_SIZES[0];
+    const offering = offerings.find((o) => o.id === form.offering) || templateOfferings[0];
     const linux = !isWindowsTemplate(selectedTemplate);
     const isPublic = form.network_mode === 'public';
 
-    if (!form.template_id) {
-      return;
-    }
-    if (!isPublic && form.network_ids.length === 0) {
+    if (!form.template_id || !offering) {
       return;
     }
     if (isPublic && form.security_group_ids.length === 0) {
@@ -189,94 +197,84 @@ export function VMs() {
     deployMutation.mutate({
       name: form.name,
       template_id: form.template_id,
-      cpu: size.cpu,
-      memory_mi: size.memory_mi,
+      service_offering_id: offering.id,
+      cpu: offering.cpu,
+      memory_mi: offering.memory_mi,
       ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
       ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
       ...(linux && form.ssh_key_id ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
-      ...(linux && form.expose_ssh ? { expose_ssh: true } : {}),
     });
   };
 
   if (needsTenant) {
-    return (
-      <div className="text-center py-12 text-amber-600">
-        {t('vms.selectTenant')}
-      </div>
-    );
+    return <TenantRequiredNotice message={t('vms.selectTenant')} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.vms')}</h1>
-          <p className="text-gray-500">{vms.length} {t('vms.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton
-            onRefresh={() => refetch()}
-            isFetching={isFetching}
-            dataUpdatedAt={dataUpdatedAt}
-          />
-          <button onClick={() => setDeployModal(true)} className="btn-primary">
-            <Plus size={18} /> Deploy VM
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('nav.vms')}
+        subtitle={`${vms.length} ${t('vms.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton
+              onRefresh={() => refetch()}
+              isFetching={isRefetching}
+              dataUpdatedAt={dataUpdatedAt}
+            />
+            <button type="button" onClick={() => setDeployModal(true)} className="btn-primary">
+              <Plus size={18} /> Deploy VM
+            </button>
+          </>
+        }
+      />
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div className="p-3 bg-error-container/30 border border-error-container rounded-lg text-on-error-container text-sm">
           {(error as Error).message}
         </div>
       )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('vms.searchPlaceholder')}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white dark:bg-dark-100"
-        />
-      </div>
+      <SearchField
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={t('vms.searchPlaceholder')}
+      />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="bg-white dark:bg-dark-100 rounded-xl border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-dark-200 text-gray-600">
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+      <SurfaceCard padding="none" className="overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead className="bg-surface-container-high border-b border-card-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium">{t('common.name')}</th>
-              <th className="text-left px-4 py-3 font-medium">{t('vms.col.displayName')}</th>
-              <th className="text-left px-4 py-3 font-medium">{t('common.state')}</th>
-              <th className="text-left px-4 py-3 font-medium">IP</th>
-              <th className="text-left px-4 py-3 font-medium">Zone</th>
-              <th className="text-left px-4 py-3 font-medium">Host</th>
-              <th className="text-left px-4 py-3 font-medium">Offering</th>
-              <th className="text-left px-4 py-3 font-medium">Template</th>
-              <th className="text-right px-4 py-3 font-medium">{t('common.actions')}</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('common.name')}</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('vms.col.displayName')}</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('common.state')}</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">IP</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Zone</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Host</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Offering</th>
+              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Template</th>
+              <th className="text-right px-4 py-3 font-label text-on-surface-variant">{t('common.actions')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-card-border">
             {isLoading ? (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-500">{t('common.loading')}</td></tr>
+              <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
             ) : filteredVMs.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-12 text-gray-500">{t('vms.empty')}</td></tr>
+              <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('vms.empty')}</td></tr>
             ) : (
               filteredVMs.map((vm: PlatformVM) => (
-                <tr key={vm.id || vm.name} className="border-t hover:bg-gray-50/80 dark:hover:bg-dark-200/50">
+                <tr key={vm.id || vm.name} className="table-row-hover">
                   <td className="px-4 py-3">
-                    <Link to={`/vms/${vm.name}`} className="font-medium text-brand-600 hover:underline">
+                    <Link to={`/vms/${vm.name}`} className="font-medium text-primary hover:text-primary-fixed-dim hover:underline">
                       {vm.name}
                     </Link>
                   </td>
                   <td className="px-4 py-3">{vm.display_name || vm.name}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stateColor(vm.state)}`}>
-                      {vm.state}
-                    </span>
+                    <StatusBadge status={vm.state || 'inactive'} />
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{vm.ip || '—'}</td>
                   <td className="px-4 py-3">{vm.zone || '—'}</td>
@@ -320,7 +318,8 @@ export function VMs() {
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      </SurfaceCard>
       </RefreshingPanel>
 
       <Modal isOpen={deployModal} onClose={() => setDeployModal(false)} title={t('vms.deployModalTitle')} size="lg">
@@ -333,7 +332,7 @@ export function VMs() {
               pattern="[-a-z0-9]+"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="web-server-01"
             />
           </div>
@@ -345,14 +344,19 @@ export function VMs() {
                 value={form.template_id}
                 onChange={(e) => {
                   const template_id = e.target.value;
-                  const tmpl = templates.find((t) => t.id === template_id);
+                  const tmpl = templates.find((t) => t.id === template_id) || null;
+                  const available = offeringsForTemplate(offerings, tmpl);
+                  const preferred = findOfferingByName(
+                    available,
+                    isWindowsTemplate(tmpl) ? 'windows-large' : 'small',
+                  );
                   setForm({
                     ...form,
                     template_id,
-                    offering: isWindowsTemplate(tmpl) ? 'windows-large' : form.offering === 'windows-large' ? 'small' : form.offering,
+                    offering: preferred?.id || available[0]?.id || '',
                   });
                 }}
-                className="w-full px-4 py-2 border rounded-lg"
+                className={formSelectClass}
               >
                 <option value="">{t('vms.selectTemplate')}</option>
                 {linuxTemplates.length > 0 && (
@@ -370,21 +374,21 @@ export function VMs() {
                   </optgroup>
                 )}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                <Link to="/templates" className="text-brand-600 hover:underline">{t('templates.manageLink')}</Link>
+              <p className="text-xs text-on-surface-variant mt-1">
+                <Link to="/templates" className="text-primary hover:text-primary-fixed-dim hover:underline">{t('templates.manageLink')}</Link>
               </p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Offering</label>
-              <select value={form.offering} onChange={(e) => setForm({ ...form, offering: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
-                {sizesForTemplate(selectedTemplate).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              <select value={form.offering} onChange={(e) => setForm({ ...form, offering: e.target.value })} className={formSelectClass}>
+                {templateOfferings.map((o) => <option key={o.id} value={o.id}>{offeringLabel(o)}</option>)}
               </select>
             </div>
           </div>
-          <div className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">
             <label className="block text-sm font-medium">{t('vms.networkMode')}</label>
             <div className="flex flex-col sm:flex-row gap-3">
-              <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${form.network_mode === 'private' ? 'border-brand-500 bg-brand-50' : ''}`}>
+              <label className={optionCardClass(form.network_mode === 'private')}>
                 <input
                   type="radio"
                   name="network_mode"
@@ -393,9 +397,9 @@ export function VMs() {
                   onChange={() => setForm({ ...form, network_mode: 'private', security_group_ids: [] })}
                 />
                 <span className="font-medium">{t('vms.networkModePrivate')}</span>
-                <p className="text-xs text-gray-500 mt-1 ml-5">{t('vms.networkModePrivateHint')}</p>
+                <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkModePrivateHint')}</p>
               </label>
-              <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${form.network_mode === 'public' ? 'border-brand-500 bg-brand-50' : ''}`}>
+              <label className={optionCardClass(form.network_mode === 'public')}>
                 <input
                   type="radio"
                   name="network_mode"
@@ -404,33 +408,33 @@ export function VMs() {
                   onChange={() => setForm({ ...form, network_mode: 'public' })}
                 />
                 <span className="font-medium">{t('vms.networkModePublic')}</span>
-                <p className="text-xs text-gray-500 mt-1 ml-5">{t('vms.networkModePublicHint')}</p>
+                <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkModePublicHint')}</p>
               </label>
             </div>
 
             {form.network_mode === 'private' && (
-              privateNetworks.length > 0 ? (
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetRequired')}</label>
-                  <select
-                    multiple
-                    required
-                    value={form.network_ids}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                      setForm({ ...form, network_ids: selected });
-                    }}
-                    className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
-                  >
-                    {privateNetworks.map((n) => (
-                      <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">{t('vms.multiSelectHint')}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-amber-700">{t('vms.noPrivateSubnets')}</p>
-              )
+              <div>
+                <p className="text-sm text-on-surface-variant mb-2">{t('vms.defaultVpcHint')}</p>
+                {privateNetworks.length > 0 && (
+                  <>
+                    <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetsOptional')}</label>
+                    <select
+                      multiple
+                      value={form.network_ids}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (o) => o.value);
+                        setForm({ ...form, network_ids: selected });
+                      }}
+                      className={clsx(formSelectClass, 'min-h-[88px] !h-auto')}
+                    >
+                      {privateNetworks.map((n) => (
+                        <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-on-surface-variant mt-1">{t('vms.multiSelectHint')}</p>
+                  </>
+                )}
+              </div>
             )}
 
             {form.network_mode === 'public' && (
@@ -441,7 +445,7 @@ export function VMs() {
                     <button
                       type="button"
                       onClick={() => setCreateSgModal(true)}
-                      className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+                      className="btn-ghost-brand flex items-center gap-1"
                     >
                       <Shield size={14} /> {t('vms.createSecurityGroup')}
                     </button>
@@ -454,7 +458,7 @@ export function VMs() {
                       const selected = Array.from(e.target.selectedOptions, (o) => o.value);
                       setForm({ ...form, security_group_ids: selected });
                     }}
-                    className="w-full px-4 py-2 border rounded-lg min-h-[88px]"
+                    className={clsx(formSelectClass, 'min-h-[88px] !h-auto')}
                   >
                     {securityGroups.map((sg) => (
                       <option key={sg.id} value={sg.id}>
@@ -462,7 +466,7 @@ export function VMs() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">{t('vms.multiSgHint')}</p>
+                  <p className="text-xs text-on-surface-variant mt-1">{t('vms.multiSgHint')}</p>
                 </div>
                 {privateNetworks.length > 0 && (
                   <div>
@@ -474,7 +478,7 @@ export function VMs() {
                         const selected = Array.from(e.target.selectedOptions, (o) => o.value);
                         setForm({ ...form, network_ids: selected });
                       }}
-                      className="w-full px-4 py-2 border rounded-lg min-h-[72px]"
+                      className={clsx(formSelectClass, 'min-h-[72px] !h-auto')}
                     >
                       {privateNetworks.map((n) => (
                         <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
@@ -492,16 +496,16 @@ export function VMs() {
                 <select
                   value={form.ssh_key_id}
                   onChange={(e) => setForm({ ...form, ssh_key_id: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className={formSelectClass}
                 >
                   <option value="">{t('common.noneFem')}</option>
                   {sshKeys.map((k) => (
                     <option key={k.id} value={k.id}>{k.name} ({k.fingerprint})</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-on-surface-variant mt-1">
                   {t('ssh.deployHint')}{' '}
-                  <Link to="/ssh-keys" className="text-brand-600 hover:underline">{t('vms.manageKeys')}</Link>
+                  <Link to="/ssh-keys" className="text-primary hover:text-primary-fixed-dim hover:underline">{t('vms.manageKeys')}</Link>
                 </p>
               </div>
               <div>
@@ -509,29 +513,19 @@ export function VMs() {
                 <select
                   value={form.data_volume_id}
                   onChange={(e) => setForm({ ...form, data_volume_id: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className={formSelectClass}
                 >
                   <option value="">{t('common.none')}</option>
                   {volumes.map((v) => (
                     <option key={v.id} value={v.id}>{v.name} ({v.size_gi} Gi)</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">{t('ssh.dataVolumeHint')}</p>
+                <p className="text-xs text-on-surface-variant mt-1">{t('ssh.dataVolumeHint')}</p>
               </div>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.expose_ssh}
-                  onChange={(e) => setForm({ ...form, expose_ssh: e.target.checked })}
-                  className="rounded border-gray-300"
-                />
-                {t('vms.exposeSsh')}
-                <span className="text-xs text-gray-500">({t('ssh.exposeHint')})</span>
-              </label>
             </>
           )}
           {deployMutation.isError && (
-            <p className="text-red-500 text-sm">{(deployMutation.error as Error)?.message}</p>
+            <p className="text-error text-sm">{(deployMutation.error as Error)?.message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setDeployModal(false)} className="btn-secondary">{t('common.cancel')}</button>
@@ -540,7 +534,6 @@ export function VMs() {
               disabled={
                 deployMutation.isPending ||
                 !form.template_id ||
-                (form.network_mode === 'private' && form.network_ids.length === 0) ||
                 (form.network_mode === 'public' && form.security_group_ids.length === 0)
               }
               className="btn-primary"
@@ -569,7 +562,7 @@ export function VMs() {
               required
               value={sgForm.name}
               onChange={(e) => setSgForm({ ...sgForm, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="web-servers"
             />
           </div>
@@ -578,13 +571,13 @@ export function VMs() {
             <textarea
               value={sgForm.description}
               onChange={(e) => setSgForm({ ...sgForm, description: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formTextareaClass}
               rows={2}
             />
           </div>
           <SGRulesEditor rules={sgForm.rules} onChange={(rules) => setSgForm({ ...sgForm, rules })} />
           {createSgMutation.isError && (
-            <p className="text-red-500 text-sm">{(createSgMutation.error as Error).message}</p>
+            <p className="text-error text-sm">{(createSgMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setCreateSgModal(false)} className="btn-secondary">{t('common.cancel')}</button>
@@ -608,7 +601,7 @@ export function VMs() {
             pattern="[-a-z0-9]+"
             value={snapshotForm.name}
             onChange={(e) => setSnapshotForm({ name: e.target.value.toLowerCase() })}
-            className="w-full px-4 py-2 border rounded-lg"
+            className={formInputClass}
           />
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setSnapshotModal(null)} className="btn-secondary">{t('common.cancel')}</button>

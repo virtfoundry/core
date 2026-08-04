@@ -196,7 +196,6 @@ func (h *IAMHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Name          string   `json:"name"`
-		UserID        string   `json:"user_id"`
 		ExpiresInDays int      `json:"expires_in_days"`
 		Scopes        []string `json:"scopes"`
 	}
@@ -204,11 +203,7 @@ func (h *IAMHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	userID := actor.UserID
-	if req.UserID != "" && auth.HasPermission(actor.Permissions, auth.PermUsersWrite) {
-		userID = req.UserID
-	}
-	res, err := h.svc.CreateAPIKey(userID, tid, identity.CreateAPIKeyInput{
+	res, err := h.svc.CreateAPIKey(actor.UserID, tid, identity.CreateAPIKeyInput{
 		Name: req.Name, ExpiresInDays: req.ExpiresInDays, Scopes: req.Scopes,
 	}, actor)
 	if err != nil {

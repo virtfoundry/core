@@ -1,5 +1,7 @@
+import clsx from 'clsx';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
+import { formInputClass, formSelectClass } from './shell';
 
 export interface CIDRBlock {
   cidr: string;
@@ -34,7 +36,7 @@ export function CIDRPicker({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-4 text-sm">
+      <div className="flex gap-4 text-sm text-on-surface">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="radio"
@@ -57,16 +59,16 @@ export function CIDRPicker({
       </div>
 
       {mode === 'auto' ? (
-        <div className="rounded-lg border bg-gray-50 dark:bg-dark-200 px-4 py-3">
+        <div className="rounded-lg border border-outline-variant bg-surface-container-high px-4 py-3 inner-glow">
           {loading ? (
-            <p className="text-sm text-gray-500">{t('cidr.calculating')}</p>
+            <p className="text-sm text-on-surface-variant">{t('cidr.calculating')}</p>
           ) : selectedAuto ? (
-            <p className="font-mono text-sm">
-              <span className="text-gray-500">{t('cidr.willUse')} </span>
+            <p className="font-data-mono text-sm">
+              <span className="text-on-surface-variant">{t('cidr.willUse')} </span>
               {selectedAuto}
             </p>
           ) : (
-            <p className="text-sm text-amber-600">{t('cidr.noFreeBlocks')}</p>
+            <p className="text-sm text-warning">{t('cidr.noFreeBlocks')}</p>
           )}
         </div>
       ) : (
@@ -76,11 +78,11 @@ export function CIDRPicker({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={customPlaceholder}
-            className="w-full px-4 py-2 border rounded-lg font-mono text-sm"
+            className={clsx(formInputClass, 'font-data-mono')}
           />
           {suggestions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">{t('cidr.suggestions')}</p>
+              <p className="font-label text-on-surface-variant normal-case">{t('cidr.suggestions')}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {suggestions.map((block) => (
                   <button
@@ -88,22 +90,23 @@ export function CIDRPicker({
                     type="button"
                     disabled={!block.available}
                     onClick={() => onChange(block.cidr)}
-                    className={`flex items-start gap-2 text-left px-3 py-2 rounded-lg border text-sm transition ${
+                    className={clsx(
+                      'flex items-start gap-2 text-left px-3 py-2 rounded-lg border text-sm transition inner-glow',
                       block.available
                         ? value === block.cidr
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'hover:border-blue-300'
-                        : 'opacity-50 cursor-not-allowed'
-                    }`}
+                          ? 'border-primary-container bg-primary-container/10'
+                          : 'border-outline-variant hover:border-primary-container/40'
+                        : 'opacity-50 cursor-not-allowed border-outline-variant',
+                    )}
                   >
                     {block.available ? (
-                      <CheckCircle2 size={16} className="text-green-500 shrink-0 mt-0.5" />
+                      <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
                     ) : (
-                      <XCircle size={16} className="text-gray-400 shrink-0 mt-0.5" />
+                      <XCircle size={16} className="text-on-surface-variant shrink-0 mt-0.5" />
                     )}
                     <span>
-                      <span className="font-mono block">{block.cidr}</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="font-data-mono block">{block.cidr}</span>
+                      <span className="text-xs text-on-surface-variant">
                         {block.available ? block.label : block.reason || t('common.unavailable')}
                       </span>
                     </span>
@@ -130,12 +133,8 @@ export function SubnetPrefixSelect({ prefix, onChange }: SubnetPrefixSelectProps
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">{t('cidr.subnetSize')}</label>
-      <select
-        value={prefix}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full px-4 py-2 border rounded-lg"
-      >
+      <label className="block text-sm font-medium mb-1 text-on-surface">{t('cidr.subnetSize')}</label>
+      <select value={prefix} onChange={(e) => onChange(Number(e.target.value))} className={formSelectClass}>
         {SUBNET_PREFIXES.map((p) => (
           <option key={p} value={p}>
             /{p} ({Math.pow(2, 32 - p) - 2} {t('cidr.usableAddresses')})

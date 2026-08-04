@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { listTenants, createTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
+import { useAppSelector } from '../store/hooks';
+import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SearchField, EmptyState, ResourceGridCard,
+  formInputClass,
+} from '../components/shell';
+import { StatusBadge } from '../components/StatusBadge';
 
 export function Tenants() {
   const { t } = useI18n();
@@ -15,13 +21,12 @@ export function Tenants() {
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ name: '', slug: '', admin_password: '' });
   const queryClient = useQueryClient();
-  const isRoot = authService.isRoot();
+  const isRoot = useAppSelector(selectIsRoot);
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.tenants,
     queryFn: listTenants,
     enabled: isRoot,
-    refetchInterval: 15_000,
   });
 
   const createMutation = useMutation({
@@ -35,7 +40,7 @@ export function Tenants() {
 
   if (!isRoot) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-16 text-on-surface-variant">
         {t('tenants.rootOnly')}
       </div>
     );
@@ -49,52 +54,42 @@ export function Tenants() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.tenants')}</h1>
-          <p className="text-gray-500">{tenants.length} {t('tenants.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
-          <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> {t('tenants.create')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('nav.tenants')}
+        subtitle={`${tenants.length} ${t('tenants.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
+              <Plus size={18} /> {t('tenants.create')}
+            </button>
+          </>
+        }
+      />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('tenants.searchPlaceholder')}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg"
-        />
-      </div>
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('tenants.searchPlaceholder')} />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12">{t('common.loading')}</div>
-        ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <Users size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">{t('tenants.empty')}</p>
-          </div>
-        ) : (
-          filtered.map((tenant) => (
-            <div key={tenant.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
-              <h3 className="font-semibold text-lg">{tenant.name}</h3>
-              <p className="text-sm text-gray-500 mb-3">{tenant.slug}</p>
-              <div className="text-sm space-y-1">
-                <p><span className="text-gray-500">{t('common.region')}:</span> {tenant.slug}</p>
-                <p><span className="text-gray-500">{t('common.state')}:</span> {tenant.state}</p>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+          {isLoading ? (
+            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
+          ) : filtered.length === 0 ? (
+            <EmptyState icon={<Users size={48} />} title={t('tenants.empty')} />
+          ) : (
+            filtered.map((tenant) => (
+              <ResourceGridCard key={tenant.id}>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tenant.name}</h3>
+                  <StatusBadge status={tenant.state || 'active'} pulse={false} />
+                </div>
+                <p className="text-sm text-on-surface-variant mb-3">{tenant.slug}</p>
+                <div className="text-sm space-y-1">
+                  <p><span className="text-on-surface-variant">{t('common.region')}:</span> {tenant.slug}</p>
+                </div>
+              </ResourceGridCard>
+            ))
+          )}
+        </div>
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('tenants.modalTitle')}>
@@ -111,7 +106,7 @@ export function Tenants() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="Acme Corp"
             />
           </div>
@@ -122,7 +117,7 @@ export function Tenants() {
               pattern="[-a-z0-9]+"
               value={form.slug}
               onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase() })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="acme"
             />
           </div>
@@ -133,11 +128,11 @@ export function Tenants() {
               type="password"
               value={form.admin_password}
               onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
             />
           </div>
           {createMutation.isError && (
-            <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
+            <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>

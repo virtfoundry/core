@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n';
 
 interface RefreshButtonProps {
   onRefresh: () => void;
+  /** Prefer isRefetching from useQuery — avoids spin on unrelated background fetches */
   isFetching: boolean;
   dataUpdatedAt?: number;
   label?: string;
@@ -31,7 +32,7 @@ export function RefreshButton({
   return (
     <div className={clsx('flex items-center gap-2', className)}>
       {!compact && lastUpdate && !isFetching && (
-        <span className="text-xs text-gray-400 hidden sm:inline">
+        <span className="text-xs text-on-surface-variant hidden sm:inline font-data-mono">
           {lastUpdate}
         </span>
       )}
@@ -41,24 +42,16 @@ export function RefreshButton({
         disabled={isFetching}
         title={isFetching ? t('refresh.fetching') : t('refresh.title')}
         className={clsx(
-          'flex items-center gap-2 border rounded-lg transition-all duration-200',
-          compact ? 'p-2' : 'px-4 py-2',
-          isFetching
-            ? 'opacity-80 cursor-wait border-brand-300 bg-brand-50 dark:bg-brand-900/20 text-brand-700'
-            : 'hover:bg-gray-50 dark:hover:bg-dark-200 active:scale-95'
+          compact ? 'btn-secondary p-2' : 'btn-secondary',
+          isFetching && 'opacity-80 cursor-wait border-primary-container/40 bg-primary-container/10',
         )}
       >
         <RefreshCw
           size={18}
-          className={clsx(
-            'transition-transform',
-            isFetching && 'animate-spin text-brand-600'
-          )}
+          className={clsx('transition-transform', isFetching && 'animate-spin text-primary-fixed-dim')}
         />
         {!compact && (
-          <span className="text-sm font-medium">
-            {isFetching ? t('refresh.fetching') : refreshLabel}
-          </span>
+          <span>{isFetching ? t('refresh.fetching') : refreshLabel}</span>
         )}
       </button>
     </div>

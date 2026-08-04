@@ -3,15 +3,15 @@ import clsx from 'clsx';
 type Status = 'running' | 'stopped' | 'starting' | 'stopping' | 'error' | 'enabled' | 'disabled' | 'active' | 'inactive';
 
 const statusStyles: Record<Status, string> = {
-  running: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  stopped: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  starting: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  stopping: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  enabled: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  disabled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  running: 'bg-success-muted text-success border border-success/20',
+  stopped: 'bg-surface-container border border-outline-variant text-on-surface-variant',
+  starting: 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30',
+  stopping: 'bg-warning-muted text-warning border border-warning/20',
+  error: 'bg-error-container/20 text-error border border-error/30',
+  enabled: 'bg-success-muted text-success border border-success/20',
+  disabled: 'bg-surface-container border border-outline-variant text-on-surface-variant',
+  active: 'bg-success-muted text-success border border-success/20',
+  inactive: 'bg-surface-container border border-outline-variant text-on-surface-variant',
 };
 
 const statusLabels: Record<Status, string> = {
@@ -29,15 +29,24 @@ const statusLabels: Record<Status, string> = {
 interface StatusBadgeProps {
   status: string;
   className?: string;
+  pulse?: boolean;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, className, pulse = true }: StatusBadgeProps) {
   const normalizedStatus = status.toLowerCase() as Status;
   const style = statusStyles[normalizedStatus] || statusStyles.inactive;
   const label = statusLabels[normalizedStatus] || status;
+  const showPulse = pulse && (normalizedStatus === 'running' || normalizedStatus === 'starting' || normalizedStatus === 'active' || normalizedStatus === 'error');
 
   return (
-    <span className={clsx('inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', style, className)}>
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-mono',
+        style,
+        className,
+      )}
+    >
+      {showPulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-vf-pulse" />}
       {label}
     </span>
   );

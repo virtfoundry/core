@@ -28,7 +28,10 @@ var resourcePermMap = map[string]string{
 // AutoPermission enforces <resource>:read|write from URL path and HTTP method.
 func AutoPermission(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/auth/me" {
+		if r.URL.Path == "/api/v1/auth/me" ||
+			r.URL.Path == "/api/v1/dashboard/summary" ||
+			r.URL.Path == "/api/v1/search" ||
+			r.URL.Path == "/api/v1/notifications" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -43,6 +46,10 @@ func AutoPermission(next http.Handler) http.Handler {
 			return
 		}
 		segment := parts[2]
+		if segment == "api-keys" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		base, ok := resourcePermMap[segment]
 		if !ok {
 			next.ServeHTTP(w, r)

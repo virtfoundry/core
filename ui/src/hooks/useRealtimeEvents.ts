@@ -1,23 +1,28 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { isPlatformQueryKey } from '../lib/query-keys';
+import {
+  invalidateConnectivityFallback,
+  invalidateForPlatformEvent,
+  type PlatformEvent,
+} from '../lib/realtime-invalidation';
 
 const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
-/** Poll interval fallback when WebSocket is disconnected or misses events. */
-const FALLBACK_POLL_MS = 12_000;
+/** Safety poll only when WebSocket is disconnected (not a global refetch). */
+const WS_DOWN_FALLBACK_MS = 45_000;
 
 export function useRealtimeEvents() {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const connectedRef = useRef(false);
 
-  const refreshPlatform = useCallback(() => {
-    queryClient.refetchQueries({
-      predicate: (q) => isPlatformQueryKey(q.queryKey),
-      type: 'active',
-    });
-  }, [queryClient]);
+  const handleEvent = useCallback(
+    (event: PlatformEvent) => {
+      if (!event.type) return;
+      invalidateForPlatformEvent(queryClient, event);
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout>;
@@ -33,10 +38,8 @@ export function useRealtimeEvents() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type) {
-            refreshPlatform();
-          }
+          const data = JSON.parse(event.data) as PlatformEvent;
+          handleEvent(data);
         } catch {
           // ignore malformed messages
         }
@@ -54,17 +57,18 @@ export function useRealtimeEvents() {
 
     connect();
 
-    // Fallback polling keeps UI fresh even if WS drops events
     fallbackTimer = setInterval(() => {
-      refreshPlatform();
-    }, FALLBACK_POLL_MS);
+      if (!connectedRef.current) {
+        invalidateConnectivityFallback(queryClient);
+      }
+    }, WS_DOWN_FALLBACK_MS);
 
     return () => {
       clearTimeout(reconnectTimer);
       clearInterval(fallbackTimer);
       wsRef.current?.close();
     };
-  }, [refreshPlatform]);
+  }, [handleEvent, queryClient]);
 }
 
 export function isVMTransitional(state?: string) {

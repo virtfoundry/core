@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Disc } from 'lucide-react';
+import { Plus, Disc } from 'lucide-react';
 import {
   listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
@@ -12,7 +12,12 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { ResourceActions } from '../components/ResourceActions';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  formInputClass, formSelectClass, formTextareaClass,
+} from '../components/shell';
 
 type TemplateForm = {
   name: string;
@@ -48,13 +53,12 @@ export function Templates() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState(emptyForm());
   const queryClient = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.templates,
     queryFn: listVMTemplates,
     enabled: !needsTenant,
-    refetchInterval: 12_000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.templates });
@@ -93,69 +97,62 @@ export function Templates() {
   );
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">{t('common.selectTenant')}</div>;
+    return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('templates.title')}</h1>
-          <p className="text-gray-500">{templates.length} {t('templates.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
-          <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> {t('templates.create')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('templates.title')}
+        subtitle={`${templates.length} ${t('templates.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
+              <Plus size={18} /> {t('templates.create')}
+            </button>
+          </>
+        }
+      />
 
-      <p className="text-sm text-gray-500">{t('templates.hint')}</p>
+      <p className="text-sm text-on-surface-variant">{t('templates.hint')}</p>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg" />
-      </div>
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
           {isLoading ? (
-            <div className="col-span-full text-center py-12">{t('common.loading')}</div>
+            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
           ) : filtered.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <Disc size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">{t('templates.empty')}</p>
-            </div>
+            <EmptyState icon={<Disc size={48} />} title={t('templates.empty')} />
           ) : (
             filtered.map((tmpl) => (
-              <div key={tmpl.id} className="bg-white dark:bg-dark-100 rounded-xl border p-5">
+              <ResourceGridCard key={tmpl.id}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
-                    <Disc size={20} className="text-sky-500" />
+                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
+                    <Disc size={20} className="text-primary-fixed-dim" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold">{tmpl.display_name}</h3>
+                      <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tmpl.display_name}</h3>
                       {!tmpl.tenant_id && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
                           {t('templates.platformBadge')}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">{tmpl.name}</p>
+                    <p className="text-sm text-on-surface-variant">{tmpl.name}</p>
                   </div>
                 </div>
-                <p className="text-xs font-mono text-gray-500 truncate mb-2" title={tmpl.image}>{tmpl.image}</p>
-                <div className="flex gap-2 text-xs text-gray-500 mb-3 flex-wrap">
+                <p className="text-xs font-data-mono text-on-surface-variant truncate mb-2" title={tmpl.image}>{tmpl.image}</p>
+                <div className="flex gap-2 text-xs text-on-surface-variant mb-3 flex-wrap">
                   <span>{tmpl.os_type || 'linux'}</span>
                   <span>·</span>
                   <span>{tmpl.source_type || 'container'}</span>
                   {tmpl.import_state && tmpl.import_state !== 'ready' && (
                     <>
                       <span>·</span>
-                      <span className="text-amber-600">{t('templates.importState')}: {tmpl.import_state}</span>
+                      <span className="text-warning">{t('templates.importState')}: {tmpl.import_state}</span>
                     </>
                   )}
                   {tmpl.cloud_init_user_data && tmpl.source_type !== 'iso' && (
@@ -173,9 +170,9 @@ export function Templates() {
                     onDelete={() => setDeleteTarget({ id: tmpl.id, name: tmpl.display_name })}
                   />
                 ) : (
-                  <p className="text-xs text-gray-400">{t('templates.platformReadOnly')}</p>
+                  <p className="text-xs text-on-surface-variant/70">{t('templates.platformReadOnly')}</p>
                 )}
-              </div>
+              </ResourceGridCard>
             ))
           )}
         </div>
@@ -276,7 +273,7 @@ function TemplateFormModal({
               readOnly={nameReadOnly}
               value={form.name}
               onChange={(e) => onChange({ name: e.target.value.toLowerCase() })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="ubuntu-2204"
             />
           </div>
@@ -286,7 +283,7 @@ function TemplateFormModal({
               required
               value={form.display_name}
               onChange={(e) => onChange({ display_name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg"
+              className={formInputClass}
               placeholder="Ubuntu 22.04"
             />
           </div>
@@ -299,10 +296,10 @@ function TemplateFormModal({
             required={form.source_type !== 'iso' || !form.image}
             value={form.image}
             onChange={(e) => onChange({ image: e.target.value })}
-            className="w-full px-4 py-2 border rounded-lg font-mono text-sm"
+            className={`${formInputClass} font-data-mono text-sm`}
             placeholder={form.source_type === 'iso' ? 'https://go.microsoft.com/fwlink/?linkid=2195280' : 'quay.io/containerdisks/ubuntu:22.04'}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-on-surface-variant mt-1">
             {form.source_type === 'iso' ? t('templates.isoHint') : t('templates.imageHint')}
           </p>
         </div>
@@ -310,29 +307,29 @@ function TemplateFormModal({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">{t('templates.isoSizeGi')}</label>
-              <input type="number" min={1} value={form.iso_size_gi} onChange={(e) => onChange({ iso_size_gi: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg" />
+              <input type="number" min={1} value={form.iso_size_gi} onChange={(e) => onChange({ iso_size_gi: Number(e.target.value) })} className={formInputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t('templates.bootDiskSizeGi')}</label>
-              <input type="number" min={1} value={form.boot_disk_size_gi} onChange={(e) => onChange({ boot_disk_size_gi: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg" />
+              <input type="number" min={1} value={form.boot_disk_size_gi} onChange={(e) => onChange({ boot_disk_size_gi: Number(e.target.value) })} className={formInputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t('templates.storageClass')}</label>
-              <input value={form.storage_class} onChange={(e) => onChange({ storage_class: e.target.value })} className="w-full px-4 py-2 border rounded-lg" placeholder="local-path" />
+              <input value={form.storage_class} onChange={(e) => onChange({ storage_class: e.target.value })} className={formInputClass} placeholder="local-path" />
             </div>
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">{t('templates.sourceType')}</label>
-            <select value={form.source_type} onChange={(e) => onChange({ source_type: e.target.value, os_type: e.target.value === 'iso' ? 'windows' : form.os_type })} className="w-full px-4 py-2 border rounded-lg">
+            <select value={form.source_type} onChange={(e) => onChange({ source_type: e.target.value, os_type: e.target.value === 'iso' ? 'windows' : form.os_type })} className={formSelectClass}>
               <option value="container">{t('templates.sourceContainer')}</option>
               <option value="iso">{t('templates.sourceIso')}</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t('templates.osType')}</label>
-            <select value={form.os_type} onChange={(e) => onChange({ os_type: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
+            <select value={form.os_type} onChange={(e) => onChange({ os_type: e.target.value })} className={formSelectClass}>
               <option value="linux">Linux</option>
               <option value="windows">Windows</option>
               <option value="other">{t('templates.osOther')}</option>
@@ -341,7 +338,7 @@ function TemplateFormModal({
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">{t('templates.description')}</label>
-          <input value={form.description} onChange={(e) => onChange({ description: e.target.value })} className="w-full px-4 py-2 border rounded-lg" />
+          <input value={form.description} onChange={(e) => onChange({ description: e.target.value })} className={formInputClass} />
         </div>
         {form.source_type !== 'iso' && (
         <div>
@@ -349,14 +346,14 @@ function TemplateFormModal({
           <textarea
             value={form.cloud_init_user_data}
             onChange={(e) => onChange({ cloud_init_user_data: e.target.value })}
-            className="w-full px-4 py-2 border rounded-lg font-mono text-sm"
+            className={`${formTextareaClass} font-data-mono text-sm`}
             rows={5}
             placeholder="#cloud-config\npackages:\n  - nginx"
           />
-          <p className="text-xs text-gray-500 mt-1">{t('templates.cloudInitHint')}</p>
+          <p className="text-xs text-on-surface-variant mt-1">{t('templates.cloudInitHint')}</p>
         </div>
         )}
-        {error && <p className="text-red-500 text-sm">{error.message}</p>}
+        {error && <p className="text-error text-sm">{error.message}</p>}
         <div className="flex justify-end gap-3 pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">{t('common.cancel')}</button>
           <button type="submit" disabled={pending} className="btn-primary">{submitLabel}</button>

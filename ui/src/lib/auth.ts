@@ -1,69 +1,50 @@
-const API_BASE = import.meta.env.VITE_PLATFORM_API_URL || '/api/v1';
+import { store } from '../store';
+import {
+  loginThunk,
+  validateSessionThunk,
+  logout,
+  selectUser,
+  selectIsRoot,
+  selectIsAuthenticated,
+  type AuthUser,
+} from '../store/authSlice';
+import { setTenantId } from '../store/uiSlice';
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
+export type { AuthUser };
 
-export interface AuthUser {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  tenant_id?: string;
-}
-
-class AuthService {
-  async login(credentials: LoginCredentials): Promise<AuthUser> {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      throw new Error(body.error || 'Credenciais inválidas');
-    }
-
-    localStorage.setItem('jwt_token', body.token);
-    if (body.user?.tenant_id) {
-      localStorage.setItem('tenant_id', body.user.tenant_id);
-    }
-
-    const user: AuthUser = {
-      id: body.user.id,
-      username: body.user.username,
-      email: body.user.email || `${body.user.username}@virtfoundry.local`,
-      role: body.user.role,
-      tenant_id: body.user.tenant_id,
-    };
-    localStorage.setItem('user', JSON.stringify(user));
+export const authService = {
+  async login(credentials: { username: string; password: string }): Promise<AuthUser> {
+    const user = await store.dispatch(loginThunk(credentials)).unwrap();
+    store.dispatch(setTenantId(user.tenant_id ?? null));
     return user;
-  }
+  },
+
+  async validateSession(): Promise<AuthUser | null> {
+    const user = await store.dispatch(validateSessionThunk()).unwrap();
+    if (user?.tenant_id) {
+      store.dispatch(setTenantId(user.tenant_id));
+    }
+    return user;
+  },
 
   logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('tenant_id');
-  }
+    store.dispatch(logout());
+    store.dispatch(setTenantId(null));
+  },
 
   getUser(): AuthUser | null {
-    const stored = localStorage.getItem('user');
-    if (!stored) return null;
-    return JSON.parse(stored);
-  }
+    return selectUser(store.getState());
+  },
 
   isAuthenticated(): boolean {
-    return localStorage.getItem('jwt_token') !== null;
-  }
+    return selectIsAuthenticated(store.getState());
+  },
 
   getToken(): string {
-    return localStorage.getItem('jwt_token') || '';
-  }
+    return store.getState().auth.token || localStorage.getItem('jwt_token') || '';
+  },
 
   isRoot(): boolean {
-    return this.getUser()?.role === 'root';
-  }
-}
-
-export const authService = new AuthService();
+    return selectIsRoot(store.getState());
+  },
+};

@@ -4,6 +4,40 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.1.0] - 2026-08-04
+
+### Added
+
+- Default VPC per tenant (`10.0.0.0/16` + `default` subnet) on bootstrap; VMs without explicit subnet use it automatically
+- Public VM deploy attaches private (default VPC) + public NIC for bastion-style access on the same tenant network
+- Self-service API keys: any authenticated user can create and revoke their own keys (no `users:write` required)
+- Redux Toolkit for UI client state (auth, theme, sidebar, tenant selection)
+- Sidebar accordion navigation (Compute, Storage, Network, Platform)
+- Header user menu and settings popover (theme, language, docs, about)
+- Bundled JetBrains Mono fonts; `favicon.svg` (V monogram)
+- Targeted React Query invalidation from WebSocket events (reduced full-page refresh noise)
+
+### Changed
+
+- VM deploy UI: removed SSH NodePort exposure; access via public-network SSH or noVNC console
+- IAM UI: API Keys tab for all users; Users/Roles tabs limited to tenant admins
+- Dashboard: removed compute allocation chart; centered resource stat cards
+- VirtFoundry logo: light/dark PNG stack for instant theme swap
+- Header layout: tenant selector, notifications, settings, and user avatar grouped on the right
+
+### Fixed
+
+- Circular import between Redux store and `platform-api` causing blank UI on load
+- Dark mode sidebar lag (scoped CSS transitions off theme-sensitive surfaces)
+- Background polling no longer triggers visible full-page refresh overlays
+
+## [1.0.0] - 2026-08-03
+
+### Added
+
+- IAM: users, roles, API keys (`vfd_live_...`), permission middleware
+- Tenant admin bootstrap, `/iam` UI for users and roles
+
 ## [0.2.0] - 2026-08-02
 
 ### Added
@@ -34,5 +68,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.1.0]: https://github.com/virtfoundry/core/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0

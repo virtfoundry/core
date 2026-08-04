@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Provider } from 'react-redux';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
@@ -20,12 +22,16 @@ import { VMConsole } from './pages/VMConsole';
 
 import { I18nProvider } from './lib/i18n';
 import { ThemeProvider } from './lib/theme';
+import { store } from './store';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { selectAuthStatus, validateSessionThunk } from './store/authSlice';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      refetchOnWindowFocus: true,
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       retry: 1,
     },
@@ -33,48 +39,72 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = localStorage.getItem('jwt_token') !== null;
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  const dispatch = useAppDispatch();
+  const status = useAppSelector(selectAuthStatus);
+
+  useEffect(() => {
+    if (status === 'idle') {
+      void dispatch(validateSessionThunk());
+    }
+  }, [dispatch, status]);
+
+  if (status === 'idle' || status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-on-surface-variant">
+        Loading…
+      </div>
+    );
+  }
+
+  return status === 'authenticated' ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-      <I18nProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/console" element={
-            <ProtectedRoute>
-              <VMConsole />
-            </ProtectedRoute>
-          } />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tenants" element={<Tenants />} />
-            <Route path="vms" element={<VMs />} />
-            <Route path="vms/:name" element={<VMDetail />} />
-            <Route path="templates" element={<Templates />} />
-            <Route path="ssh-keys" element={<SSHKeys />} />
-            <Route path="volumes" element={<Volumes />} />
-            <Route path="vpcs" element={<VPCs />} />
-            <Route path="networks/public" element={<PublicNetwork />} />
-            <Route path="networks" element={<Networks />} />
-            <Route path="security-groups" element={<SecurityGroups />} />
-            <Route path="snapshots" element={<Snapshots />} />
-            <Route path="vm-snapshots" element={<VMSnapshots />} />
-            <Route path="iam" element={<IAM />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      </I18nProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <I18nProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/console"
+                  element={
+                    <ProtectedRoute>
+                      <VMConsole />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="tenants" element={<Tenants />} />
+                  <Route path="vms" element={<VMs />} />
+                  <Route path="vms/:name" element={<VMDetail />} />
+                  <Route path="templates" element={<Templates />} />
+                  <Route path="ssh-keys" element={<SSHKeys />} />
+                  <Route path="volumes" element={<Volumes />} />
+                  <Route path="vpcs" element={<VPCs />} />
+                  <Route path="networks/public" element={<PublicNetwork />} />
+                  <Route path="networks" element={<Networks />} />
+                  <Route path="security-groups" element={<SecurityGroups />} />
+                  <Route path="snapshots" element={<Snapshots />} />
+                  <Route path="vm-snapshots" element={<VMSnapshots />} />
+                  <Route path="iam" element={<IAM />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </I18nProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </Provider>
   );
 }

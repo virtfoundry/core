@@ -37,6 +37,8 @@ const (
 	DefaultTenantSlug       = "default"
 	DefaultTenantName       = "Default"
 	DefaultSecurityGroupName = "default"
+	DefaultVPCName           = "default"
+	DefaultVPCCIDR           = "10.0.0.0/16"
 	ServiceName         = "virtfoundry-iaas"
 	EmailDomain         = "virtfoundry.local"
 	DBName              = "virtfoundry"

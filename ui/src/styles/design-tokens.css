@@ -1,0 +1,126 @@
+/**
+ * VirtFoundry / Cloud Orchestrator design tokens.
+ * Light: style guide (Primary #2563EB, Neutral #F9FAFB).
+ * Dark: style guide + HTML mockups (background #0b1326, card #1e293b).
+ */
+:root {
+  --vf-background: #f8f9fa;
+  --vf-on-background: #191c1d;
+  --vf-surface: #f8f9fa;
+  --vf-on-surface: #191c1d;
+  --vf-surface-tint: #0053db;
+
+  --vf-primary: #004ac6;
+  --vf-primary-container: #2563eb;
+  --vf-on-primary: #ffffff;
+  --vf-on-primary-container: #eeefff;
+  --vf-primary-fixed: #dbe1ff;
+  --vf-primary-fixed-dim: #b4c5ff;
+  --vf-inverse-primary: #b4c5ff;
+
+  --vf-secondary: #565e74;
+  --vf-secondary-container: #dae2fd;
+  --vf-on-secondary: #ffffff;
+  --vf-secondary-fixed: #dae2fd;
+  --vf-secondary-fixed-dim: #bec6e0;
+
+  --vf-tertiary: #006329;
+  --vf-tertiary-container: #007f36;
+  --vf-on-tertiary: #ffffff;
+  --vf-on-tertiary-container: #c7ffca;
+  --vf-tertiary-fixed-dim: #62df7d;
+
+  --vf-surface-container-lowest: #ffffff;
+  --vf-surface-container-low: #f3f4f5;
+  --vf-surface-container: #edeeef;
+  --vf-surface-container-high: #e7e8e9;
+  --vf-surface-container-highest: #e1e3e4;
+  --vf-surface-variant: #e1e3e4;
+  --vf-surface-bright: #f8f9fa;
+  --vf-surface-dim: #d9dadb;
+
+  --vf-on-surface-variant: #434655;
+  --vf-outline: #737686;
+  --vf-outline-variant: #c3c6d7;
+
+  --vf-error: #ba1a1a;
+  --vf-on-error: #ffffff;
+  --vf-error-container: #ffdad6;
+  --vf-on-error-container: #93000a;
+
+  --vf-inverse-surface: #2e3132;
+  --vf-inverse-on-surface: #f0f1f2;
+
+  /* Elevated card (bento panels) */
+  --vf-card: #ffffff;
+  --vf-card-border: #c3c6d7;
+
+  /* Semantic (style guide) */
+  --vf-success: #16a34a;
+  --vf-success-muted: #dcfce7;
+  --vf-warning: #f59e0b;
+  --vf-warning-muted: #fef3c7;
+
+  --vf-nav-glow: rgba(37, 99, 235, 0.25);
+  --vf-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.dark {
+  --vf-background: #0b1326;
+  --vf-on-background: #dae2fd;
+  --vf-surface: #0b1326;
+  --vf-on-surface: #dae2fd;
+  --vf-surface-tint: #b4c5ff;
+
+  --vf-primary: #b4c5ff;
+  --vf-primary-container: #2563eb;
+  --vf-on-primary: #002a78;
+  --vf-on-primary-container: #eeefff;
+  --vf-primary-fixed: #dbe1ff;
+  --vf-primary-fixed-dim: #b4c5ff;
+  --vf-inverse-primary: #0053db;
+
+  --vf-secondary: #7bd0ff;
+  --vf-secondary-container: #00a6e0;
+  --vf-on-secondary: #00354a;
+  --vf-secondary-fixed: #c4e7ff;
+  --vf-secondary-fixed-dim: #7bd0ff;
+
+  --vf-tertiary: #b7c8e1;
+  --vf-tertiary-container: #5e6e85;
+  --vf-on-tertiary: #213145;
+  --vf-on-tertiary-container: #e9f0ff;
+  --vf-tertiary-fixed-dim: #b7c8e1;
+
+  --vf-surface-container-lowest: #060e20;
+  --vf-surface-container-low: #131b2e;
+  --vf-surface-container: #171f33;
+  --vf-surface-container-high: #222a3d;
+  --vf-surface-container-highest: #2d3449;
+  --vf-surface-variant: #2d3449;
+  --vf-surface-bright: #31394d;
+  --vf-surface-dim: #0b1326;
+
+  --vf-on-surface-variant: #c3c6d7;
+  --vf-outline: #8d90a0;
+  --vf-outline-variant: #434655;
+
+  --vf-error: #ffb4ab;
+  --vf-on-error: #690005;
+  --vf-error-container: #93000a;
+  --vf-on-error-container: #ffdad6;
+
+  --vf-inverse-surface: #dae2fd;
+  --vf-inverse-on-surface: #283044;
+
+  --vf-card: #1e293b;
+  --vf-card-border: #334155;
+
+  --vf-success: #10b981;
+  --vf-success-muted: rgba(16, 185, 129, 0.1);
+  --vf-warning: #f59e0b;
+  --vf-warning-muted: rgba(245, 158, 11, 0.1);
+
+  --vf-nav-glow: rgba(37, 99, 235, 0.3);
+  --vf-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}

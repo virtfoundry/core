@@ -70,6 +70,9 @@ func (s *PlatformService) BootstrapDefaultSecurityGroups(ctx context.Context) er
 		if _, err := s.network.EnsureDefaultSecurityGroup(ctx, t.ID); err != nil {
 			return fmt.Errorf("default security group for tenant %s: %w", t.Slug, err)
 		}
+		if _, err := s.network.EnsureDefaultVPC(ctx, t.ID); err != nil {
+			return fmt.Errorf("default vpc for tenant %s: %w", t.Slug, err)
+		}
 		if err := s.compute.EnsureDefaultTemplates(t.ID); err != nil {
 			return fmt.Errorf("default templates for tenant %s: %w", t.Slug, err)
 		}
@@ -147,6 +150,9 @@ func (s *PlatformService) CreateTenant(ctx context.Context, name, slug, adminPas
 		return nil, nil, err
 	}
 	if _, err := s.network.EnsureDefaultSecurityGroup(ctx, tenant.ID); err != nil {
+		return nil, nil, err
+	}
+	if _, err := s.network.EnsureDefaultVPC(ctx, tenant.ID); err != nil {
 		return nil, nil, err
 	}
 	if err := s.compute.EnsureDefaultTemplates(tenant.ID); err != nil {

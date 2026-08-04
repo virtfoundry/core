@@ -116,6 +116,35 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 	return vpc, defNet, nil
 }
 
+// EnsureDefaultVPC creates the AWS-style default VPC (10.0.0.0/16 + default subnet) if missing.
+func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platform.Network, error) {
+	if net, ok := s.defaultVPCNetwork(tenantID); ok {
+		return net, nil
+	}
+	_, defNet, err := s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, branding.DefaultVPCCIDR)
+	if err != nil {
+		_, defNet, err = s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, "")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return defNet, nil
+}
+
+func (s *Service) defaultVPCNetwork(tenantID string) (*platform.Network, bool) {
+	for _, vpc := range s.store.ListVPCs(tenantID) {
+		if vpc.Name != branding.DefaultVPCName {
+			continue
+		}
+		for _, net := range s.store.ListNetworks(tenantID) {
+			if net.VPCID == vpc.ID && net.Name == "default" {
+				return net, true
+			}
+		}
+	}
+	return nil, false
+}
+
 func (s *Service) ListVPCs(tenantID string) []*platform.VPC {
 	return s.store.ListVPCs(tenantID)
 }

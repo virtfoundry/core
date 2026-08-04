@@ -40,7 +40,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 |--------|----------|---------|-----|-------------|
 | **Identity** | users, JWT | `auth/login`, `auth/me` | Login | — |
 | **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `virtfoundry-tenant-{slug}` |
-| **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy |
+| **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy; **default VPC** (`10.0.0.0/16`) per tenant |
 | **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
 | **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC, VolumeSnapshot |
 | **Jobs** | async_jobs | internal (worker) | — | — |
@@ -156,16 +156,15 @@ Tenant ────────────────────────�
 | `/vm-snapshots` | VMSnapshots | VM snapshots CRUD + restore |
 | `/console` | VMConsole | noVNC full-screen, keyboard commands |
 
-**UI stack:** React 18, Vite, TypeScript, Tailwind, TanStack Query, React Router, noVNC.
+**UI stack:** React 18, Vite, TypeScript, Tailwind, Redux Toolkit, TanStack Query, React Router, noVNC.
 
 **Conventions:** query keys in `lib/query-keys.ts`; API client in `lib/platform-api.ts`.
 
 ### Known UI gaps
 
 - Hardcoded catalog (`VM_IMAGES`, `VM_SIZES`) — `/service-offerings` and `/vm-templates` exist but are unused
-- No network selector on VM deploy (backend supports `network_ids`)
+- VM deploy uses default VPC subnet automatically; optional extra subnets only (no full network picker)
 - No async deploy toggle
-- No users page
 
 ---
 

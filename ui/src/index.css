@@ -1,62 +1,112 @@
+@import './styles/fonts.css';
+@import './styles/design-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --brand-color: #2563eb;
-  --brand-color-dark: #1d4ed8;
-}
-
 body {
-  @apply bg-gray-50 dark:bg-dark-200;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  @apply bg-background text-on-surface font-sans text-body-md antialiased;
 }
 
-/* Custom scrollbar */
+::selection {
+  background-color: var(--vf-primary-container);
+  color: var(--vf-on-primary-container);
+}
+
+/* Typography — JetBrains Mono everywhere (Cloud Orchestrator dark style) */
+.font-headline {
+  @apply font-mono tracking-tight;
+}
+
+.font-label {
+  @apply font-mono text-label-sm uppercase tracking-wider;
+}
+
+.font-data-mono {
+  @apply font-mono text-data-mono;
+}
+
+@keyframes vf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-vf-pulse {
+  animation: vf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar — dark mockup style */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-dark-100;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-600 rounded;
+  background: var(--vf-card-border);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-500;
+  background: var(--vf-outline);
 }
 
 @layer components {
+  .inner-glow {
+    box-shadow: var(--vf-inner-glow);
+  }
+
+  .vf-card {
+    @apply bg-card border border-card-border rounded-xl inner-glow;
+  }
+
+  .vf-card-header {
+    @apply px-4 py-3 md:px-6 border-b border-card-border bg-surface-container-low;
+  }
+
+  .chart-grid {
+    background-image:
+      linear-gradient(to right, var(--vf-card-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--vf-card-border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.25;
+  }
+
+  .table-row-hover {
+    @apply hover:bg-surface-container-highest transition-colors;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100;
   }
 
   .btn-primary {
-    @apply btn px-4 py-2 bg-brand-500 text-white hover:bg-brand-600 hover:shadow-sm;
+    @apply btn px-4 py-2 h-10 bg-primary-container text-on-primary-container hover:bg-inverse-primary inner-glow shadow-btn-primary text-label-md font-mono;
   }
 
   .btn-secondary {
-    @apply btn px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-200;
+    @apply btn px-4 py-2 h-10 border border-outline-variant text-on-surface bg-transparent hover:bg-surface-variant inner-glow text-label-md font-mono;
   }
 
   .btn-success-soft {
-    @apply btn px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm hover:bg-green-100 dark:hover:bg-green-900/40;
+    @apply btn px-3 py-2 bg-success-muted text-success text-sm hover:opacity-80;
   }
 
   .btn-danger-soft {
-    @apply btn px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm hover:bg-red-100 dark:hover:bg-red-900/40;
+    @apply btn px-3 py-2 text-error text-sm;
+    background-color: color-mix(in srgb, var(--vf-error-container) 20%, transparent);
   }
 
   .btn-outline-sm {
-    @apply btn px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-50 dark:hover:bg-dark-200 disabled:opacity-40;
+    @apply btn px-3 py-2 border border-outline-variant text-sm hover:bg-surface-variant disabled:opacity-40;
   }
 
   .btn-danger-outline {
-    @apply btn px-3 py-2 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-900/20;
+    @apply btn px-3 py-2 border border-error-container text-error text-sm;
   }
 
   .btn-icon {
@@ -64,58 +114,57 @@ body {
   }
 
   .btn-icon-neutral {
-    @apply btn-icon border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-dark-200;
+    @apply btn-icon border border-outline-variant hover:bg-surface-variant;
   }
 
   .btn-icon-success {
-    @apply btn-icon text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20;
+    @apply btn-icon text-success hover:bg-success-muted;
   }
 
   .btn-icon-danger {
-    @apply btn-icon text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20;
+    @apply btn-icon text-error hover:bg-surface-variant;
   }
 
   .btn-icon-warning {
-    @apply btn-icon text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20;
+    @apply btn-icon text-warning hover:bg-warning-muted;
   }
 
   .btn-ghost {
-    @apply transition-colors duration-200 hover:text-gray-900 dark:hover:text-gray-100;
+    @apply transition-colors duration-200 hover:text-on-surface;
   }
 
   .btn-ghost-muted {
-    @apply btn-ghost text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300;
+    @apply btn-ghost text-sm text-on-surface-variant hover:text-on-surface;
   }
 
   .btn-ghost-brand {
-    @apply btn-ghost text-sm text-brand-600 hover:text-brand-700 hover:underline;
+    @apply btn-ghost text-sm text-primary hover:text-primary-fixed-dim hover:underline;
   }
 
   .btn-tab {
-    @apply pb-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200 hover:text-brand-600;
+    @apply pb-3 text-sm font-medium border-b-2 -mb-px transition-colors duration-200 hover:text-primary-container;
   }
 
   .btn-sidebar {
-    @apply p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-dark-200;
+    @apply p-2 rounded-lg transition-colors duration-200 hover:bg-surface-variant text-on-surface-variant;
   }
 
   .btn-action-row {
-    @apply flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-sm border rounded-lg transition-all duration-200 hover:bg-gray-50 dark:hover:bg-dark-200 disabled:opacity-40;
+    @apply flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-sm border border-outline-variant rounded-lg transition-all duration-200 hover:bg-surface-variant disabled:opacity-40;
   }
 
   .btn-action-danger {
-    @apply p-1.5 border border-red-200 text-red-500 rounded-lg transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-900/20;
+    @apply p-1.5 border border-error-container text-error rounded-lg transition-all duration-200;
   }
 
-  /* Console page — visible controls on dark background */
   .btn-console {
-    @apply btn px-2.5 py-1 text-xs font-medium
-      bg-slate-600 text-slate-50
-      border border-slate-400/70
-      shadow-sm shadow-black/20
-      hover:bg-slate-500 hover:border-slate-300 hover:text-white hover:shadow-md
-      active:bg-slate-400
-      disabled:opacity-40 disabled:hover:bg-slate-600 disabled:hover:border-slate-400/70;
+    @apply btn px-2.5 py-1 text-xs font-medium font-mono
+      bg-surface-container-high text-on-surface
+      border border-outline-variant
+      shadow-sm inner-glow
+      hover:bg-surface-container-highest hover:border-outline-variant
+      active:scale-[0.98]
+      disabled:opacity-40 disabled:hover:bg-surface-container-high;
   }
 
   .btn-console-back {
@@ -124,14 +173,13 @@ body {
 
   .btn-console-action {
     @apply btn px-3 py-2 text-sm font-semibold
-      bg-brand-500 text-white
-      border border-brand-400
+      bg-primary-container text-on-primary-container
+      border border-outline-variant
       shadow-sm shadow-black/20
-      hover:bg-brand-400 hover:border-brand-300 hover:shadow-md
+      hover:bg-inverse-primary hover:shadow-md
       disabled:opacity-40;
   }
 
-  /* VNC viewport — noVNC scaleViewport centers/scales HD framebuffer */
   .console-viewport {
     @apply w-full h-full bg-black;
   }

@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, HardDrive } from 'lucide-react';
+import { Plus, HardDrive } from 'lucide-react';
 import { listVolumes, createVolume } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
+import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+  formInputClass,
+} from '../components/shell';
+import { StatusBadge } from '../components/StatusBadge';
 
 export function Volumes() {
   const { t } = useI18n();
@@ -15,13 +22,12 @@ export function Volumes() {
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ name: '', size_gi: 10 });
   const queryClient = useQueryClient();
-  const needsTenant = authService.isRoot() && !localStorage.getItem('tenant_id');
+  const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.volumes,
     queryFn: listVolumes,
     enabled: !needsTenant,
-    refetchInterval: 12_000,
   });
 
   const createMutation = useMutation({
@@ -37,66 +43,60 @@ export function Volumes() {
   const filtered = volumes.filter((v) => v.name?.toLowerCase().includes(search.toLowerCase()));
 
   if (needsTenant) {
-    return <div className="text-center py-12 text-amber-600">{t('volumes.selectTenant')}</div>;
+    return <TenantRequiredNotice message={t('volumes.selectTenant')} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('nav.volumes')}</h1>
-          <p className="text-gray-500">{volumes.length} {t('volumes.subtitle')}</p>
-        </div>
-        <div className="flex gap-3">
-          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
-          <button onClick={() => setCreateModal(true)} className="btn-primary">
-            <Plus size={18} /> {t('volumes.create')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('nav.volumes')}
+        subtitle={`${volumes.length} ${t('volumes.subtitle')}`}
+        actions={
+          <>
+            <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
+              <Plus size={18} /> {t('volumes.create')}
+            </button>
+          </>
+        }
+      />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('volumes.searchPlaceholder')}
-          className="w-full pl-10 pr-4 py-3 border rounded-lg" />
-      </div>
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('volumes.searchPlaceholder')} />
 
-      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-      <div className="bg-white dark:bg-dark-100 rounded-xl border overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-dark-200">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('volumes.col.volume')}</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('volumes.size')}</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">{t('common.state')}</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">PVC</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {isLoading ? (
-              <tr><td colSpan={4} className="text-center py-8">{t('common.loading')}</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-8 text-gray-500">{t('volumes.empty')}</td></tr>
-            ) : (
-              filtered.map((vol) => (
-                <tr key={vol.id} className="hover:bg-gray-50 dark:hover:bg-dark-200">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <HardDrive size={16} className="text-brand-500" />
-                      <span className="font-medium">{vol.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">{vol.size_gi} Gi</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">{vol.state}</span>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{vol.pvc_name}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('volumes.col.volume')}</PageTableTh>
+              <PageTableTh>{t('volumes.size')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>PVC</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('volumes.empty')}</td></tr>
+              ) : (
+                filtered.map((vol) => (
+                  <PageTableRow key={vol.id}>
+                    <PageTableTd>
+                      <div className="flex items-center gap-3">
+                        <HardDrive size={16} className="text-primary-fixed-dim" />
+                        <span className="font-medium">{vol.name}</span>
+                      </div>
+                    </PageTableTd>
+                    <PageTableTd>{vol.size_gi} Gi</PageTableTd>
+                    <PageTableTd>
+                      <StatusBadge status={vol.state || 'active'} pulse={false} />
+                    </PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{vol.pvc_name}</PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('volumes.modalTitle')}>
@@ -111,16 +111,16 @@ export function Volumes() {
             <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input required pattern="[-a-z0-9]+" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
-              className="w-full px-4 py-2 border rounded-lg" placeholder="data-disk-01" />
+              className={formInputClass} placeholder="data-disk-01" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t('volumes.sizeGi')}</label>
             <input type="number" min={1} required value={form.size_gi}
               onChange={(e) => setForm({ ...form, size_gi: parseInt(e.target.value, 10) })}
-              className="w-full px-4 py-2 border rounded-lg" />
+              className={formInputClass} />
           </div>
           {createMutation.isError && (
-            <p className="text-red-500 text-sm">{(createMutation.error as Error).message}</p>
+            <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
