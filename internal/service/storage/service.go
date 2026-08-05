@@ -7,6 +7,7 @@ import (
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -51,10 +52,10 @@ func (s *Service) ListVolumes(tenantID string) []*platform.Volume {
 func (s *Service) DeleteVolume(ctx context.Context, tenantID, volumeID string) error {
 	vol, ok := s.store.GetVolume(volumeID)
 	if !ok || vol.TenantID != tenantID {
-		return fmt.Errorf("volume not found")
+		return iaerrors.NewNotFoundError("volume", volumeID)
 	}
 	if vol.VMID != "" {
-		return fmt.Errorf("volume is attached to a VM")
+		return iaerrors.NewResourceInUseError("volume", "attached to a VM")
 	}
 	if err := s.k8s.DeletePVC(ctx, vol.Namespace, vol.PVCName); err != nil {
 		return fmt.Errorf("delete pvc: %w", err)
