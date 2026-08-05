@@ -4,6 +4,14 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.3.0] - 2026-08-05
+
+### Added
+
+- Service offerings CRUD API for root users (`POST/PATCH/DELETE /service-offerings`) with validation and soft-delete (state → Inactive)
+- Admin UI at `/offerings` to list, create, edit, and deactivate offerings
+- VM resize persists `service_offering_id` via `PATCH /vms/{name}`; VM detail overview shows offering name
+
 ## [1.2.0] - 2026-08-05
 
 ### Added
@@ -92,6 +100,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.3.0]: https://github.com/virtfoundry/core/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/virtfoundry/core/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/virtfoundry/core/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/virtfoundry/core/compare/v1.0.0...v1.1.0
