@@ -4,6 +4,18 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.2.0] - 2026-08-05
+
+### Added
+
+- Volume attach and detach API (`POST/GET/DELETE /vms/{name}/volumes`) with KubeVirt hot-plug
+- Volume delete endpoint (`DELETE /volumes/{id}`) with guard when still attached to a VM
+- VM Detail **Storage** tab: list attached volumes, attach unattached volumes, detach
+- Volumes page: show attached VM; deploy dropdown lists only unattached volumes
+- `platform.storage.defaultClass` from Helm wired to tenant volume PVC creation
+- `volume.vm_id` tracked on deploy, attach, and detach
+- E2E API smoke scripts under `scripts/e2e/` (phases 1–3)
+
 ## [1.1.1] - 2026-08-04
 
 ### Fixed
@@ -80,6 +92,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.2.0]: https://github.com/virtfoundry/core/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/virtfoundry/core/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/virtfoundry/core/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v1.0.0
