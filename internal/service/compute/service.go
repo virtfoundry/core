@@ -700,8 +700,9 @@ func (s *Service) buildVMNetworks(tenantID string, networkIDs []string) ([]hyper
 	if !s.allowPodNetwork {
 		return specs, nics, nil
 	}
-	specs = append([]hypervisor.VMNetworkSpec{{Name: "default", Default: true}}, specs...)
-	nics = append([]platform.VMNic{{Name: "default", Type: "pod"}}, nics...)
+	// Pod NIC must not be named "default" — tenant subnets use that name and KubeVirt requires unique network names.
+	specs = append([]hypervisor.VMNetworkSpec{{Name: "pod", Default: true}}, specs...)
+	nics = append([]platform.VMNic{{Name: "pod", Type: "pod"}}, nics...)
 	return specs, nics, nil
 }
 

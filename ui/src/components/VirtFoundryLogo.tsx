@@ -38,7 +38,8 @@ function LogoStack({
   alt,
   className,
   imgClass,
-  style,
+  imgStyle,
+  layout = 'inline',
 }: {
   lightSrc: string;
   darkSrc: string;
@@ -46,15 +47,22 @@ function LogoStack({
   alt: string;
   className?: string;
   imgClass: string;
-  style?: React.CSSProperties;
+  imgStyle?: React.CSSProperties;
+  layout?: 'inline' | 'block';
 }) {
   return (
-    <span className={clsx('grid shrink-0 [&>img]:col-start-1 [&>img]:row-start-1', className)} style={style}>
+    <span
+      className={clsx(
+        layout === 'block' ? 'block w-full' : 'inline-flex shrink-0 items-center overflow-hidden',
+        className,
+      )}
+    >
       <img
         src={lightSrc}
         alt={isDark ? '' : alt}
         aria-hidden={isDark}
-        className={clsx(imgClass, isDark && 'invisible')}
+        className={clsx(imgClass, isDark && 'hidden')}
+        style={imgStyle}
         decoding="sync"
         draggable={false}
       />
@@ -62,7 +70,8 @@ function LogoStack({
         src={darkSrc}
         alt={isDark ? alt : ''}
         aria-hidden={!isDark}
-        className={clsx(imgClass, !isDark && 'invisible')}
+        className={clsx(imgClass, !isDark && 'hidden')}
+        style={imgStyle}
         decoding="sync"
         draggable={false}
       />
@@ -81,16 +90,15 @@ export function VirtFoundryLogo({
   const isDark = variant ? variant === 'dark' : theme === 'dark';
 
   const imgClass = clsx(
-    'select-none',
-    iconOnly ? 'object-contain' : 'object-contain object-left',
-    fullWidth && !iconOnly && 'h-auto w-full',
+    'select-none object-contain object-left block',
+    iconOnly ? 'h-full w-full' : fullWidth ? 'h-auto w-full' : 'h-auto w-auto max-w-full',
   );
 
-  const sizeStyle = iconOnly
+  const imgStyle: React.CSSProperties | undefined = iconOnly
     ? { width: height, height, minWidth: height }
     : fullWidth
-      ? { width: '100%' }
-      : { height, width: 'auto' as const };
+      ? undefined
+      : { height, width: 'auto' };
 
   if (iconOnly) {
     return (
@@ -99,9 +107,9 @@ export function VirtFoundryLogo({
         darkSrc={iconDark}
         isDark={isDark}
         alt="VirtFoundry"
-        className={className}
+        className={clsx('overflow-hidden', className)}
         imgClass={imgClass}
-        style={sizeStyle}
+        imgStyle={imgStyle}
       />
     );
   }
@@ -112,9 +120,10 @@ export function VirtFoundryLogo({
       darkSrc={logoDark}
       isDark={isDark}
       alt="VirtFoundry Cloud Orchestrator"
-      className={clsx(fullWidth && 'w-full', className)}
+      layout={fullWidth ? 'block' : 'inline'}
+      className={className}
       imgClass={imgClass}
-      style={sizeStyle}
+      imgStyle={imgStyle}
     />
   );
 }
