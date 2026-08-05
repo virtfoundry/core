@@ -3,6 +3,7 @@ import { ExternalLink, HelpCircle, LogOut, Moon, Settings, Sun, User } from 'luc
 import clsx from 'clsx';
 import { useI18n } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
+import { appVersionLabel } from '../lib/version';
 import { useAppSelector } from '../store/hooks';
 import { selectUser } from '../store/authSlice';
 
@@ -119,7 +120,7 @@ export function SettingsMenu({ open, onToggle, onClose }: SettingsMenuProps) {
 
         <div className="px-4 py-3 border-t border-card-border flex items-center gap-2 text-xs text-on-surface-variant">
           <User size={14} />
-          {t('sidebar.about')}
+          {appVersionLabel()}
         </div>
       </HeaderPopover>
     </div>

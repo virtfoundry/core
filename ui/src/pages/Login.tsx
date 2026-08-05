@@ -9,6 +9,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectIsDarkTheme } from '../store/themeSlice';
 import { formInputClass } from '../components/shell';
 import loginBg from '../assets/login-bg.svg';
+import { appVersionLabel } from '../lib/version';
 
 function LoginPreferences({ onDark = false }: { onDark?: boolean }) {
   return (
@@ -195,7 +196,7 @@ export function Login() {
                 </button>
               </form>
 
-              <p className="mt-8 text-center text-sm text-on-surface-variant">{t('login.version')}</p>
+              <p className="mt-8 text-center text-sm text-on-surface-variant">{appVersionLabel()}</p>
             </div>
           </div>
         </main>

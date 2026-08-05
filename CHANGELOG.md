@@ -4,6 +4,14 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.4.1] - 2026-08-05
+
+### Fixed
+
+- Volume delete while attached to a VM returns **409 Conflict** instead of HTTP 500
+- Volume delete for missing ID returns **404 Not Found** via typed API errors
+- Login and settings UI show app version from `ui/package.json` at build time (was hardcoded v1.1.1)
+
 ## [1.4.0] - 2026-08-05
 
 ### Added
@@ -112,6 +120,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.4.1]: https://github.com/virtfoundry/core/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/virtfoundry/core/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/virtfoundry/core/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/virtfoundry/core/compare/v1.1.1...v1.2.0
