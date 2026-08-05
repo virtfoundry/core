@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
+
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 )
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -15,6 +18,15 @@ func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 }
 
 func respondError(w http.ResponseWriter, err error) {
+	var iaErr *iaerrors.IaaSError
+	if errors.As(err, &iaErr) {
+		msg := iaErr.Message
+		if iaErr.Detail != "" {
+			msg = msg + ": " + iaErr.Detail
+		}
+		respondJSON(w, iaErr.HTTPStatus(), map[string]string{"error": sanitizeClientError(msg)})
+		return
+	}
 	status := http.StatusInternalServerError
 	msg := sanitizeClientError(err.Error())
 	if msg == "tenant not found" || msg == "tenant_id required for root" || msg == "no tenant assigned" {

@@ -41,7 +41,7 @@ print(len([v for v in json.load(sys.stdin)['volumes'] if v['id']=='$VOL_ID']))
   [ "$COUNT" = "1" ] || e2e_fail "volume not listed on VM"
 
   DEL_ATT=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE_URL/volumes/$VOL_ID" -X DELETE -H "$AUTH")
-  [[ "$DEL_ATT" == "200" || "$DEL_ATT" == "204" ]] && e2e_fail "delete should fail while attached (got $DEL_ATT)"
+  [ "$DEL_ATT" = "409" ] || e2e_fail "delete should return 409 while attached (got $DEL_ATT)"
   e2e_pass "delete blocked while attached (HTTP $DEL_ATT)"
 
   DET=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE_URL/vms/$VM_NAME/volumes/$VOL_ID" -X DELETE -H "$AUTH")
