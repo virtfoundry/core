@@ -55,6 +55,14 @@ ROOT_PASSWORD=virtfoundry go run ./cmd/server
 cd ui && npm install && npm run dev
 ```
 
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and API overview |
+| [docs/VM-TEMPLATES.md](docs/VM-TEMPLATES.md) | VM template catalog, ISO import, container disks |
+| [docs/PRODUCT.md](docs/PRODUCT.md) | Product model (core vs enterprise) |
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

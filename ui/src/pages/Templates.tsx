@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Disc } from 'lucide-react';
+import { Plus, Disc, Loader2 } from 'lucide-react';
 import {
   listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
@@ -32,6 +32,10 @@ type TemplateForm = {
   storage_class: string;
 };
 
+function isTemplateImporting(state?: string) {
+  return state === 'pending' || state === 'importing';
+}
+
 const emptyForm = (): TemplateForm => ({
   name: '',
   display_name: '',
@@ -59,6 +63,11 @@ export function Templates() {
     queryKey: queryKeys.templates,
     queryFn: listVMTemplates,
     enabled: !needsTenant,
+    refetchInterval: (q) => {
+      const templates = q.state.data?.vm_templates || [];
+      if (templates.some((tmpl) => isTemplateImporting(tmpl.import_state))) return 5_000;
+      return false;
+    },
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.templates });
@@ -140,6 +149,17 @@ export function Templates() {
                           {t('templates.platformBadge')}
                         </span>
                       )}
+                      {isTemplateImporting(tmpl.import_state) && (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning-muted text-warning border border-warning/20">
+                          <Loader2 size={12} className="animate-spin" />
+                          {tmpl.import_state}
+                        </span>
+                      )}
+                      {tmpl.import_state === 'failed' && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-error-container/20 text-error border border-error/30">
+                          {tmpl.import_state}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-on-surface-variant">{tmpl.name}</p>
                   </div>
@@ -149,7 +169,7 @@ export function Templates() {
                   <span>{tmpl.os_type || 'linux'}</span>
                   <span>·</span>
                   <span>{tmpl.source_type || 'container'}</span>
-                  {tmpl.import_state && tmpl.import_state !== 'ready' && (
+                  {tmpl.import_state && tmpl.import_state !== 'ready' && !isTemplateImporting(tmpl.import_state) && tmpl.import_state !== 'failed' && (
                     <>
                       <span>·</span>
                       <span className="text-warning">{t('templates.importState')}: {tmpl.import_state}</span>

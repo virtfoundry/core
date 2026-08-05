@@ -9,7 +9,9 @@
 - [x] Realtime WebSocket + VM detail page + noVNC console
 - [x] MySQL persistence (`store.Repository` — Memory + MySQL, shared by API and worker)
 - [x] Async jobs: `deploy_vm`, `reconcile` (orphan adoption + destroyed detection)
-- [x] VM catalog: service offerings, templates, Multus NICs
+- [x] VM catalog: service offerings, templates (platform + tenant), Multus NICs
+- [x] Templates UI (`/templates`) with container disk and ISO import
+- [x] VM deploy uses `/vm-templates` and `/service-offerings` API catalog
 
 ## Next
 
@@ -22,4 +24,3 @@
 - [ ] Post-deploy migration job in cluster
 - [ ] Ingress TLS
 - [ ] Public/private networks + load balancer
-- [ ] UI: offering/template selector on VM create
