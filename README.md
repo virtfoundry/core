@@ -25,7 +25,7 @@ VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, s
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
 helm install virtfoundry virtfoundry/virtfoundry \
-  --version 1.1.0 \
+  --version 1.1.1 \
   -n virtfoundry-system --create-namespace \
   --set secrets.rootPassword='change-me' \
   --set secrets.jwtSecret='change-me'

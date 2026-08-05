@@ -4,6 +4,18 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.1.1] - 2026-08-04
+
+### Fixed
+
+- VM create with pod network: pod NIC renamed from `default` to `pod` to avoid KubeVirt duplicate network name conflict with the default VPC subnet
+- Login page: full-width navbar, theme-aware light/dark hero panels, logo rendering, and pointer-event handling on desktop
+- VirtFoundry logo PNG assets optimized (~3 MB → ~65 KB)
+
+### Changed
+
+- Login layout: split hero and sign-in panel with edge-to-edge header
+
 ## [1.1.0] - 2026-08-04
 
 ### Added
@@ -68,6 +80,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.1.1]: https://github.com/virtfoundry/core/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/virtfoundry/core/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
