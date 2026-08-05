@@ -35,6 +35,7 @@ export interface PlatformVM {
   hypervisor?: string;
   zone?: string;
   host_name?: string;
+  service_offering_id?: string;
   tenant_id?: string;
   nics?: Array<{ name: string; ip?: string; mac?: string; type?: string }>;
   created_at?: string;
@@ -251,7 +252,12 @@ export async function fetchVMLogs(name: string, tail = 200) {
   return text;
 }
 
-export async function updateVM(name: string, data: { display_name?: string; cpu?: number; memory_mi?: number }) {
+export async function updateVM(name: string, data: {
+  display_name?: string;
+  cpu?: number;
+  memory_mi?: number;
+  service_offering_id?: string;
+}) {
   return platformFetch<{ vm: PlatformVM }>(`/vms/${encodeURIComponent(name)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -478,6 +484,39 @@ export async function listServiceOfferings() {
   return {
     service_offerings: (res.service_offerings ?? []).filter((o) => o.state === 'Active'),
   };
+}
+
+export async function listAllServiceOfferings() {
+  const res = await platformFetch<{ service_offerings: ServiceOffering[] | null }>('/service-offerings?include_inactive=true');
+  return { service_offerings: res.service_offerings ?? [] };
+}
+
+export async function createServiceOffering(data: {
+  name: string;
+  display_name?: string;
+  cpu: number;
+  memory_mi: number;
+}) {
+  return platformFetch<{ service_offering: ServiceOffering }>('/service-offerings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateServiceOffering(id: string, data: {
+  display_name?: string;
+  cpu?: number;
+  memory_mi?: number;
+  state?: string;
+}) {
+  return platformFetch<{ service_offering: ServiceOffering }>(`/service-offerings/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteServiceOffering(id: string) {
+  return platformFetch<{ success: boolean }>(`/service-offerings/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export async function listVMTemplates() {

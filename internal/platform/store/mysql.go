@@ -803,6 +803,11 @@ func (m *MySQL) GetServiceOffering(id string) (*platform.ServiceOffering, bool) 
 	return scanOffering(row)
 }
 
+func (m *MySQL) GetServiceOfferingByName(name string) (*platform.ServiceOffering, bool) {
+	row := m.db.QueryRow(`SELECT id, name, display_name, cpu, memory_mi, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings WHERE name=?`, name)
+	return scanOffering(row)
+}
+
 func scanOffering(row *sql.Row) (*platform.ServiceOffering, bool) {
 	var o platform.ServiceOffering
 	var tags, ext, src sql.NullString

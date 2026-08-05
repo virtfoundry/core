@@ -14,6 +14,7 @@ import { SecurityGroups } from './pages/SecurityGroups';
 import { Snapshots } from './pages/Snapshots';
 import { VMSnapshots } from './pages/VMSnapshots';
 import { Tenants } from './pages/Tenants';
+import { Offerings } from './pages/Offerings';
 import { VPCs } from './pages/VPCs';
 import { Templates } from './pages/Templates';
 import { SSHKeys } from './pages/SSHKeys';
@@ -87,6 +88,7 @@ export default function App() {
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="tenants" element={<Tenants />} />
+                  <Route path="offerings" element={<Offerings />} />
                   <Route path="vms" element={<VMs />} />
                   <Route path="vms/:name" element={<VMDetail />} />
                   <Route path="templates" element={<Templates />} />

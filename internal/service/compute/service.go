@@ -83,13 +83,10 @@ type DeployVMInput struct {
 
 // UpdateVMInput patches VM metadata and resources.
 type UpdateVMInput struct {
-	DisplayName string
-	CPU         int
-	MemoryMi    int64
-}
-
-func (s *Service) ListServiceOfferings() []*platform.ServiceOffering {
-	return s.store.ListServiceOfferings(true)
+	DisplayName       string
+	CPU               int
+	MemoryMi          int64
+	ServiceOfferingID string
 }
 
 func (s *Service) ListVMTemplates(tenantID string) []*platform.VMTemplate {
@@ -250,6 +247,15 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 	}
 	if in.DisplayName != "" {
 		vm.DisplayName = in.DisplayName
+	}
+	if in.ServiceOfferingID != "" {
+		off, ok := s.store.GetServiceOffering(in.ServiceOfferingID)
+		if !ok {
+			return nil, fmt.Errorf("service offering not found")
+		}
+		in.CPU = off.CPU
+		in.MemoryMi = off.MemoryMi
+		vm.ServiceOfferingID = in.ServiceOfferingID
 	}
 	if in.CPU > 0 || in.MemoryMi > 0 {
 		ns, err := shared.TenantNamespace(s.store, tenantID)

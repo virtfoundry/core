@@ -13,6 +13,7 @@ import {
   Camera as CameraIcon,
   Key as KeyIcon,
   Disc as DiscIcon,
+  Cpu as CpuIcon,
   ChevronDown,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -85,6 +86,7 @@ export const menuItems: MenuItem[] = [
     labelKey: 'nav.platform',
     items: [
       { path: '/iam', icon: KeyIcon, labelKey: 'nav.iam' },
+      { path: '/offerings', icon: CpuIcon, labelKey: 'nav.offerings', rootOnly: true },
       { path: '/tenants', icon: UsersIcon, labelKey: 'nav.tenants', rootOnly: true },
     ],
   },
