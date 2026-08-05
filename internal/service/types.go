@@ -6,7 +6,9 @@ import (
 
 // Input types re-exported for handlers and migrate CLI.
 type (
-	PlatformDeployVMInput = compute.DeployVMInput
-	UpdateVMInput         = compute.UpdateVMInput
-	CreateVMTemplateInput = compute.CreateVMTemplateInput
+	PlatformDeployVMInput   = compute.DeployVMInput
+	UpdateVMInput           = compute.UpdateVMInput
+	CreateVMTemplateInput   = compute.CreateVMTemplateInput
+	CreateServiceOfferingInput = compute.CreateServiceOfferingInput
+	UpdateServiceOfferingInput = compute.UpdateServiceOfferingInput
 )

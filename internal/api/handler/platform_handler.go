@@ -558,18 +558,20 @@ func (h *PlatformHandler) UpdateVM(w http.ResponseWriter, r *http.Request) {
 	}
 	name := mux.Vars(r)["name"]
 	var req struct {
-		DisplayName string `json:"display_name"`
-		CPU         int    `json:"cpu"`
-		MemoryMi    int64  `json:"memory_mi"`
+		DisplayName       string `json:"display_name"`
+		CPU               int    `json:"cpu"`
+		MemoryMi          int64  `json:"memory_mi"`
+		ServiceOfferingID string `json:"service_offering_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
 	vm, err := h.svc.UpdateVM(r.Context(), tid, name, service.UpdateVMInput{
-		DisplayName: req.DisplayName,
-		CPU:         req.CPU,
-		MemoryMi:    req.MemoryMi,
+		DisplayName:       req.DisplayName,
+		CPU:               req.CPU,
+		MemoryMi:          req.MemoryMi,
+		ServiceOfferingID: req.ServiceOfferingID,
 	})
 	if err != nil {
 		respondError(w, err)
@@ -579,7 +581,60 @@ func (h *PlatformHandler) UpdateVM(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PlatformHandler) ListServiceOfferings(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]interface{}{"service_offerings": h.svc.ListServiceOfferings()})
+	activeOnly := r.URL.Query().Get("include_inactive") != "true"
+	respondJSON(w, http.StatusOK, map[string]interface{}{"service_offerings": h.svc.ListServiceOfferings(activeOnly)})
+}
+
+func (h *PlatformHandler) CreateServiceOffering(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name        string `json:"name"`
+		DisplayName string `json:"display_name"`
+		CPU         int    `json:"cpu"`
+		MemoryMi    int64  `json:"memory_mi"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	off, err := h.svc.CreateServiceOffering(service.CreateServiceOfferingInput{
+		Name: req.Name, DisplayName: req.DisplayName, CPU: req.CPU, MemoryMi: req.MemoryMi,
+	})
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusCreated, map[string]interface{}{"service_offering": off})
+}
+
+func (h *PlatformHandler) UpdateServiceOffering(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	var req struct {
+		DisplayName string `json:"display_name"`
+		CPU         int    `json:"cpu"`
+		MemoryMi    int64  `json:"memory_mi"`
+		State       string `json:"state"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	off, err := h.svc.UpdateServiceOffering(id, service.UpdateServiceOfferingInput{
+		DisplayName: req.DisplayName, CPU: req.CPU, MemoryMi: req.MemoryMi, State: req.State,
+	})
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"service_offering": off})
+}
+
+func (h *PlatformHandler) DeleteServiceOffering(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if err := h.svc.DeleteServiceOffering(id); err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"success": true})
 }
 
 func (h *PlatformHandler) ListVMTemplates(w http.ResponseWriter, r *http.Request) {

@@ -14,6 +14,7 @@ export const queryKeys = {
   securityGroups: ['platform-sgs'] as const,
   sshKeys: ['platform-ssh-keys'] as const,
   offerings: ['platform-offerings'] as const,
+  allOfferings: ['platform-offerings', 'all'] as const,
   templates: ['platform-templates'] as const,
   iamUsers: ['platform-iam-users'] as const,
   iamRoles: ['platform-iam-roles'] as const,

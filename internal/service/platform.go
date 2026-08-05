@@ -256,8 +256,20 @@ func (s *PlatformService) ListSnapshots(tenantID string) []*platform.Snapshot {
 
 // --- compute ---
 
-func (s *PlatformService) ListServiceOfferings() []*platform.ServiceOffering {
-	return s.compute.ListServiceOfferings()
+func (s *PlatformService) ListServiceOfferings(activeOnly bool) []*platform.ServiceOffering {
+	return s.compute.ListServiceOfferings(activeOnly)
+}
+
+func (s *PlatformService) CreateServiceOffering(in compute.CreateServiceOfferingInput) (*platform.ServiceOffering, error) {
+	return s.compute.CreateServiceOffering(in)
+}
+
+func (s *PlatformService) UpdateServiceOffering(id string, in compute.UpdateServiceOfferingInput) (*platform.ServiceOffering, error) {
+	return s.compute.UpdateServiceOffering(id, in)
+}
+
+func (s *PlatformService) DeleteServiceOffering(id string) error {
+	return s.compute.DeleteServiceOffering(id)
 }
 
 func (s *PlatformService) ListVMTemplates(tenantID string) []*platform.VMTemplate {

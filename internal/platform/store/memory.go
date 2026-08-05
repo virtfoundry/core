@@ -500,6 +500,17 @@ func (m *Memory) GetServiceOffering(id string) (*platform.ServiceOffering, bool)
 	return o, ok
 }
 
+func (m *Memory) GetServiceOfferingByName(name string) (*platform.ServiceOffering, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, o := range m.serviceOfferings {
+		if o.Name == name {
+			return o, true
+		}
+	}
+	return nil, false
+}
+
 func (m *Memory) ListServiceOfferings(activeOnly bool) []*platform.ServiceOffering {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -105,14 +105,10 @@ export function VMDetail() {
     onSuccess: () => navigate('/vms'),
   });
   const updateMutation = useMutation({
-    mutationFn: () => {
-      const offering = offerings.find((o) => o.id === editForm.offering) || offerings[0];
-      return updateVM(name, {
-        display_name: editForm.display_name,
-        cpu: offering?.cpu,
-        memory_mi: offering?.memory_mi,
-      });
-    },
+    mutationFn: () => updateVM(name, {
+      display_name: editForm.display_name,
+      service_offering_id: editForm.offering,
+    }),
     onSuccess: () => {
       invalidate();
       setEditMode(false);
@@ -154,10 +150,24 @@ export function VMDetail() {
   };
 
   const resolveOfferingId = (v: PlatformVM) => {
+    if (v.service_offering_id) {
+      const byId = offerings.find((o) => o.id === v.service_offering_id);
+      if (byId) return byId.id;
+    }
     const matched = findOfferingBySpec(offerings, v.cpu, v.memory_mi);
     if (matched) return matched.id;
     if (isWindowsVM(v)) return findOfferingByName(offerings, 'windows-large')?.id || '';
     return findOfferingByName(offerings, 'small')?.id || offerings[0]?.id || '';
+  };
+
+  const resolveOfferingLabel = (v: PlatformVM) => {
+    if (v.service_offering_id) {
+      const byId = offerings.find((o) => o.id === v.service_offering_id);
+      if (byId) return offeringLabel(byId);
+    }
+    const matched = findOfferingBySpec(offerings, v.cpu, v.memory_mi);
+    if (matched) return offeringLabel(matched);
+    return `${v.cpu} vCPU, ${fmtMem(v.memory_mi)}`;
   };
 
   const stopped = vm.state?.toLowerCase() === 'stopped';
@@ -302,6 +312,7 @@ export function VMDetail() {
                 <div><dt className="text-on-surface-variant">{t('vmDetail.platform')}</dt><dd className="text-on-surface">VirtFoundry Compute</dd></div>
                 <div><dt className="text-on-surface-variant">Template</dt><dd className="text-on-surface">{vm.template || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('common.image')}</dt><dd className="font-data-mono text-xs break-all text-on-surface">{vm.image || '—'}</dd></div>
+                <div><dt className="text-on-surface-variant">{t('vmDetail.serviceOffering')}</dt><dd className="text-on-surface">{resolveOfferingLabel(vm)}</dd></div>
                 <div><dt className="text-on-surface-variant">vCPUs</dt><dd className="text-on-surface">{vm.cpu}</dd></div>
                 <div><dt className="text-on-surface-variant">RAM</dt><dd className="text-on-surface">{fmtMem(vm.memory_mi)}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.primaryIp')}</dt><dd className="font-data-mono text-on-surface">{vm.ip || '—'}</dd></div>
