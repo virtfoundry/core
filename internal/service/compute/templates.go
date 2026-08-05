@@ -27,10 +27,18 @@ type CreateVMTemplateInput struct {
 
 func defaultTenantTemplates() []platform.VMTemplate {
 	return []platform.VMTemplate{
-		{Name: "cirros", DisplayName: "Cirros (demo)", Image: "quay.io/kubevirt/cirros-container-disk-demo", OSType: "linux", SourceType: "container"},
-		{Name: "ubuntu-2204", DisplayName: "Ubuntu 22.04", Image: "quay.io/containerdisks/ubuntu:22.04", OSType: "linux", SourceType: "container"},
 		{Name: "fedora-39", DisplayName: "Fedora 39", Image: "quay.io/kubevirt/fedora-container-disk-demo", OSType: "linux", SourceType: "container"},
 	}
+}
+
+func platformTemplateNames(r store.Repository) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, t := range r.ListVMTemplates(false) {
+		if t.TenantID == "" {
+			names[t.Name] = struct{}{}
+		}
+	}
+	return names
 }
 
 func (s *Service) EnsureDefaultTemplates(tenantID string) error {
@@ -44,8 +52,12 @@ func (s *Service) EnsureDefaultTemplates(tenantID string) error {
 	if hasOwn {
 		return nil
 	}
+	platformNames := platformTemplateNames(s.store)
 	now := store.Now()
 	for _, want := range defaultTenantTemplates() {
+		if _, exists := platformNames[want.Name]; exists {
+			continue
+		}
 		t := want
 		t.ID = store.NewID()
 		t.TenantID = tenantID

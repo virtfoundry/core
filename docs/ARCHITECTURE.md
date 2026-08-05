@@ -116,7 +116,8 @@ Tenant ────────────────────────�
 | `/vm-snapshots/delete` | POST | JWT |
 | `/vm-snapshots/restore` | POST | JWT |
 | `/service-offerings` | GET | JWT |
-| `/vm-templates` | GET | JWT |
+| `/vm-templates` | GET, POST | JWT |
+| `/vm-templates/{id}` | PATCH, DELETE | JWT |
 | `/vms` | GET, POST | JWT |
 | `/vms/{name}` | GET, PATCH | JWT |
 | `/vms/start`, `/stop`, `/delete` | POST | JWT |
@@ -154,6 +155,7 @@ Tenant ────────────────────────�
 | `/security-groups` | SecurityGroups | List/create + rules |
 | `/snapshots` | Snapshots | Volume snapshots |
 | `/vm-snapshots` | VMSnapshots | VM snapshots CRUD + restore |
+| `/templates` | Templates | List/create/edit tenant templates; platform catalog read-only |
 | `/console` | VMConsole | noVNC full-screen, keyboard commands |
 
 **UI stack:** React 18, Vite, TypeScript, Tailwind, Redux Toolkit, TanStack Query, React Router, noVNC.
@@ -162,7 +164,6 @@ Tenant ────────────────────────�
 
 ### Known UI gaps
 
-- Hardcoded catalog (`VM_IMAGES`, `VM_SIZES`) — `/service-offerings` and `/vm-templates` exist but are unused
 - VM deploy uses default VPC subnet automatically; optional extra subnets only (no full network picker)
 - No async deploy toggle
 
@@ -191,7 +192,7 @@ Schema: `internal/platform/store/migrations/schema.sql`
 | `networks` | Multus NAD (namespace + name) |
 | `security_groups` | Rules as JSON |
 | `service_offerings` | CPU/mem catalog |
-| `vm_templates` | Container disk images |
+| `vm_templates` | Container disk and ISO images (`source_type`, `import_state`) |
 | `vms` | KubeVirt metadata |
 | `vm_nics` | NICs per VM |
 | `volumes` | PVCs |
