@@ -4,6 +4,18 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [1.4.0] - 2026-08-05
+
+### Added
+
+- `docs/VM-TEMPLATES.md`: container disks, ISO import (CDI), platform vs tenant scope, UI and API registration
+- Templates UI polls every 5s during ISO import with spinner/failed badges on template cards
+
+### Changed
+
+- Template seed deduplication: platform catalog keeps global templates (cirros, ubuntu-2204, windows); tenant bootstrap only adds fedora-39 and skips names already in platform catalog
+- Updated `docs/ARCHITECTURE.md`, `TODO.md`, and README docs section for current templates API and UI
+
 ## [1.3.0] - 2026-08-05
 
 ### Added
@@ -100,6 +112,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.4.0]: https://github.com/virtfoundry/core/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/virtfoundry/core/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/virtfoundry/core/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/virtfoundry/core/compare/v1.1.0...v1.1.1
