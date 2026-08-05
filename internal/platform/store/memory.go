@@ -332,6 +332,24 @@ func (m *Memory) GetVolume(id string) (*platform.Volume, bool) {
 	return v, ok
 }
 
+func (m *Memory) ListVolumesByVMID(tenantID, vmID string) []*platform.Volume {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.Volume
+	for _, v := range m.volumes {
+		if v.TenantID == tenantID && v.VMID == vmID {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func (m *Memory) DeleteVolume(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.volumes, id)
+}
+
 func (m *Memory) SaveSnapshot(s *platform.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

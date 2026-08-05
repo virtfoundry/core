@@ -1027,3 +1027,141 @@ func mergeLabels(base, extra map[string]string) map[string]string {
 	}
 	return out
 }
+
+var protectedVMDiskNames = map[string]struct{}{
+	"containerdisk": {}, "cloudinitdisk": {}, "bootdisk": {}, "installiso": {},
+}
+
+// GetRawVM returns the KubeVirt VirtualMachine resource (for OS labels and disk inspection).
+func (d *KubeVirtDriver) GetRawVM(ctx context.Context, name string) (*kubevirtv1.VirtualMachine, error) {
+	vm, err := d.virtClient.VirtualMachine(d.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get VM: %w", err)
+	}
+	return vm, nil
+}
+
+// AttachVolumeToVM hot-plugs a PVC disk into a running or stopped VM.
+func (d *KubeVirtDriver) AttachVolumeToVM(ctx context.Context, vmName, pvcName, bus string) error {
+	if bus == "" {
+		bus = "virtio"
+	}
+	for attempt := 0; attempt < 5; attempt++ {
+		vm, err := d.virtClient.VirtualMachine(d.namespace).Get(ctx, vmName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("get VM: %w", err)
+		}
+		if vm.Spec.Template == nil {
+			return fmt.Errorf("vm template missing")
+		}
+		if pvcAttachedToVM(vm, pvcName) {
+			return nil
+		}
+		diskName := uniqueDiskNameForPVC(vm, pvcName)
+		vm.Spec.Template.Spec.Volumes = append(vm.Spec.Template.Spec.Volumes, pvcVolume(diskName, pvcName))
+		vm.Spec.Template.Spec.Domain.Devices.Disks = append(vm.Spec.Template.Spec.Domain.Devices.Disks, kubevirtv1.Disk{
+			Name:       diskName,
+			DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBus(bus)}},
+		})
+		_, err = d.virtClient.VirtualMachine(d.namespace).Update(ctx, vm, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !errors.IsConflict(err) {
+			return fmt.Errorf("attach volume: %w", err)
+		}
+	}
+	return fmt.Errorf("attach volume: conflict after retries")
+}
+
+// DetachVolumeFromVM removes a PVC disk from the VM spec by claim name.
+func (d *KubeVirtDriver) DetachVolumeFromVM(ctx context.Context, vmName, pvcName string) error {
+	for attempt := 0; attempt < 5; attempt++ {
+		vm, err := d.virtClient.VirtualMachine(d.namespace).Get(ctx, vmName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("get VM: %w", err)
+		}
+		if vm.Spec.Template == nil {
+			return fmt.Errorf("vm template missing")
+		}
+		diskName := diskNameForPVC(vm, pvcName)
+		if diskName == "" {
+			return nil
+		}
+		if _, protected := protectedVMDiskNames[diskName]; protected {
+			return fmt.Errorf("cannot detach system disk %q", diskName)
+		}
+		vm.Spec.Template.Spec.Volumes = removeVolumeByName(vm.Spec.Template.Spec.Volumes, diskName)
+		vm.Spec.Template.Spec.Domain.Devices.Disks = removeDiskByName(vm.Spec.Template.Spec.Domain.Devices.Disks, diskName)
+		_, err = d.virtClient.VirtualMachine(d.namespace).Update(ctx, vm, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !errors.IsConflict(err) {
+			return fmt.Errorf("detach volume: %w", err)
+		}
+	}
+	return fmt.Errorf("detach volume: conflict after retries")
+}
+
+func pvcAttachedToVM(vm *kubevirtv1.VirtualMachine, pvcName string) bool {
+	return diskNameForPVC(vm, pvcName) != ""
+}
+
+func diskNameForPVC(vm *kubevirtv1.VirtualMachine, pvcName string) string {
+	if vm.Spec.Template == nil {
+		return ""
+	}
+	for _, vol := range vm.Spec.Template.Spec.Volumes {
+		if vol.PersistentVolumeClaim != nil && vol.PersistentVolumeClaim.ClaimName == pvcName {
+			return vol.Name
+		}
+	}
+	return ""
+}
+
+func uniqueDiskNameForPVC(vm *kubevirtv1.VirtualMachine, pvcName string) string {
+	candidate := "vol-" + strings.NewReplacer("_", "-", ".", "-").Replace(pvcName)
+	if !diskNameInUse(vm, candidate) {
+		return candidate
+	}
+	for i := 2; i < 100; i++ {
+		name := fmt.Sprintf("vol-%d", i)
+		if !diskNameInUse(vm, name) {
+			return name
+		}
+	}
+	return "vol-extra"
+}
+
+func diskNameInUse(vm *kubevirtv1.VirtualMachine, name string) bool {
+	if vm.Spec.Template == nil {
+		return false
+	}
+	for _, d := range vm.Spec.Template.Spec.Domain.Devices.Disks {
+		if d.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func removeVolumeByName(vols []kubevirtv1.Volume, name string) []kubevirtv1.Volume {
+	out := make([]kubevirtv1.Volume, 0, len(vols))
+	for _, v := range vols {
+		if v.Name != name {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func removeDiskByName(disks []kubevirtv1.Disk, name string) []kubevirtv1.Disk {
+	out := make([]kubevirtv1.Disk, 0, len(disks))
+	for _, d := range disks {
+		if d.Name != name {
+			out = append(out, d)
+		}
+	}
+	return out
+}
