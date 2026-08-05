@@ -140,6 +140,7 @@ func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.Ne
 
 func (s *PlatformService) BootstrapStorage(cfg config.StorageConfig) {
 	s.compute.ConfigureStorage(cfg.DefaultClass, cfg.WindowsBootSizeGi, cfg.WindowsISOSizeGi)
+	s.storage.ConfigureStorage(cfg.DefaultClass)
 }
 
 // --- tenant ---
@@ -244,6 +245,22 @@ func (s *PlatformService) CreateVolume(ctx context.Context, tenantID, name strin
 
 func (s *PlatformService) ListVolumes(tenantID string) []*platform.Volume {
 	return s.storage.ListVolumes(tenantID)
+}
+
+func (s *PlatformService) DeleteVolume(ctx context.Context, tenantID, volumeID string) error {
+	return s.storage.DeleteVolume(ctx, tenantID, volumeID)
+}
+
+func (s *PlatformService) ListVolumesForVM(tenantID, vmName string) []*platform.Volume {
+	return s.compute.ListVolumesForVM(tenantID, vmName)
+}
+
+func (s *PlatformService) AttachVolumeToVM(ctx context.Context, tenantID, vmName, volumeID string) (*platform.Volume, error) {
+	return s.compute.AttachVolumeToVM(ctx, tenantID, vmName, volumeID)
+}
+
+func (s *PlatformService) DetachVolumeFromVM(ctx context.Context, tenantID, vmName, volumeID string) (*platform.Volume, error) {
+	return s.compute.DetachVolumeFromVM(ctx, tenantID, vmName, volumeID)
 }
 
 func (s *PlatformService) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string) (*platform.Snapshot, error) {

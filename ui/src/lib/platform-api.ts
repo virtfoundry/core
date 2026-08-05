@@ -48,6 +48,7 @@ export interface Volume {
   state: string;
   namespace: string;
   pvc_name: string;
+  vm_id?: string;
 }
 
 export interface VPC {
@@ -299,6 +300,28 @@ export async function createVolume(data: { name: string; size_gi: number }) {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+export async function deleteVolume(id: string) {
+  return platformFetch(`/volumes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function listVMVolumes(vmName: string) {
+  return platformFetch<{ volumes: Volume[] }>(`/vms/${encodeURIComponent(vmName)}/volumes`);
+}
+
+export async function attachVolumeToVM(vmName: string, volumeId: string) {
+  return platformFetch<{ volume: Volume }>(`/vms/${encodeURIComponent(vmName)}/volumes`, {
+    method: 'POST',
+    body: JSON.stringify({ volume_id: volumeId }),
+  });
+}
+
+export async function detachVolumeFromVM(vmName: string, volumeId: string) {
+  return platformFetch<{ volume: Volume }>(
+    `/vms/${encodeURIComponent(vmName)}/volumes/${encodeURIComponent(volumeId)}`,
+    { method: 'DELETE' },
+  );
 }
 
 export async function listNetworks() {

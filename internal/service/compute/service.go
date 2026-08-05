@@ -166,9 +166,11 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		}
 	}
 	if in.DataVolumeID != "" {
-		if vol, ok := s.store.GetVolume(in.DataVolumeID); ok && vol.TenantID == tenantID {
-			spec.DataPVC = vol.PVCName
+		vol, err := s.validateUnattachedVolume(tenantID, in.DataVolumeID)
+		if err != nil {
+			return nil, fmt.Errorf("data volume: %w", err)
 		}
+		spec.DataPVC = vol.PVCName
 	}
 
 	if deployTmpl != nil && strings.EqualFold(deployTmpl.SourceType, "iso") {
@@ -216,6 +218,11 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		}
 	}
 	s.store.SaveVM(vm)
+	if in.DataVolumeID != "" {
+		if vol, ok := s.store.GetVolume(in.DataVolumeID); ok {
+			s.markVolumeAttached(vol, vm)
+		}
+	}
 	s.broadcastVM("vm.created", vm)
 	return vm, nil
 }
@@ -378,6 +385,7 @@ func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {
 		return err
 	}
 	if vm, ok := s.store.GetVMByName(tenantID, vmName); ok {
+		s.releaseVolumesForVM(tenantID, vm.ID)
 		s.store.DeleteVM(vm.ID)
 	}
 	key := vmStateKey{tenantID: tenantID, name: vmName}

@@ -61,7 +61,9 @@ type Repository interface {
 
 	SaveVolume(v *platform.Volume)
 	ListVolumes(tenantID string) []*platform.Volume
+	ListVolumesByVMID(tenantID, vmID string) []*platform.Volume
 	GetVolume(id string) (*platform.Volume, bool)
+	DeleteVolume(id string)
 
 	SaveSnapshot(s *platform.Snapshot)
 	ListSnapshots(tenantID string) []*platform.Snapshot

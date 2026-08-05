@@ -463,6 +463,29 @@ func (m *MySQL) GetVolume(id string) (*platform.Volume, bool) {
 	return &v, true
 }
 
+func (m *MySQL) ListVolumesByVMID(tenantID, vmID string) []*platform.Volume {
+	rows, err := m.db.Query(`SELECT id, tenant_id, name, size_gi, namespace, pvc_name, state, vm_id, created_at FROM volumes WHERE tenant_id=? AND vm_id=?`, tenantID, vmID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []*platform.Volume
+	for rows.Next() {
+		var v platform.Volume
+		var attached sql.NullString
+		if err := rows.Scan(&v.ID, &v.TenantID, &v.Name, &v.SizeGi, &v.Namespace, &v.PVCName, &v.State, &attached, &v.CreatedAt); err != nil {
+			continue
+		}
+		v.VMID = attached.String
+		out = append(out, &v)
+	}
+	return out
+}
+
+func (m *MySQL) DeleteVolume(id string) {
+	_, _ = m.db.Exec(`DELETE FROM volumes WHERE id=?`, id)
+}
+
 func (m *MySQL) SaveSnapshot(s *platform.Snapshot) {
 	_, _ = m.db.Exec(`INSERT INTO snapshots (id, tenant_id, volume_id, name, namespace, snapshot_uid, state, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)

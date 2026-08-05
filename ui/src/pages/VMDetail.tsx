@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Play, Power, Trash2, Monitor, Camera, Save,
+  ArrowLeft, Play, Power, Trash2, Monitor, Camera, Save, HardDrive, Unlink, Plus,
 } from 'lucide-react';
 import {
   getVM, updateVM, startVM, stopVM, deleteVM, createVMSnapshot,
   listVMSnapshots, fetchVMLogs, listServiceOfferings,
+  listVMVolumes, listVolumes, attachVolumeToVM, detachVolumeFromVM,
   type PlatformVM,
 } from '../lib/platform-api';
 import {
@@ -34,7 +35,7 @@ function fmtMem(mi: number) {
   return `${mi} MiB`;
 }
 
-type Tab = 'overview' | 'networking' | 'logs' | 'snapshots';
+type Tab = 'overview' | 'networking' | 'storage' | 'logs' | 'snapshots';
 
 export function VMDetail() {
   const { name = '' } = useParams();
@@ -48,6 +49,7 @@ export function VMDetail() {
   const [editForm, setEditForm] = useState({ display_name: '', offering: '' });
   const [logText, setLogText] = useState<string | null>(null);
   const [logError, setLogError] = useState<string | null>(null);
+  const [attachVolumeId, setAttachVolumeId] = useState('');
   const [logLoading, setLogLoading] = useState(false);
 
   const needsTenant = useNeedsTenant();
@@ -89,6 +91,18 @@ export function VMDetail() {
     enabled: !needsTenant && tab === 'snapshots',
   });
 
+  const { data: vmVolData } = useQuery({
+    queryKey: ['platform-vm-volumes', name],
+    queryFn: () => listVMVolumes(name),
+    enabled: !needsTenant && !!name && tab === 'storage',
+  });
+
+  const { data: allVolData } = useQuery({
+    queryKey: queryKeys.volumes,
+    queryFn: listVolumes,
+    enabled: !needsTenant && tab === 'storage',
+  });
+
   const vm = data?.vm;
   const velasUrl = data?.velas_url;
   const vmSnaps = (snapData?.vm_snapshots || []).filter((s) => s.vm_name === name);
@@ -127,6 +141,24 @@ export function VMDetail() {
     },
   });
 
+  const invalidateStorage = () => {
+    queryClient.invalidateQueries({ queryKey: ['platform-vm-volumes', name] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.volumes });
+  };
+
+  const attachMutation = useMutation({
+    mutationFn: () => attachVolumeToVM(name, attachVolumeId),
+    onSuccess: () => {
+      invalidateStorage();
+      setAttachVolumeId('');
+    },
+  });
+
+  const detachMutation = useMutation({
+    mutationFn: (volumeId: string) => detachVolumeFromVM(name, volumeId),
+    onSuccess: invalidateStorage,
+  });
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('vmDetail.selectTenant')} />;
   }
@@ -163,9 +195,13 @@ export function VMDetail() {
   const stopped = vm.state?.toLowerCase() === 'stopped';
   const running = vm.state?.toLowerCase() === 'running';
 
+  const vmVolumes = vmVolData?.volumes || [];
+  const availableVolumes = (allVolData?.volumes || []).filter((v) => !v.vm_id);
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: t('vmDetail.overview') },
     { id: 'networking', label: t('vmDetail.networking') },
+    { id: 'storage', label: t('vmDetail.storage') },
     { id: 'logs', label: 'Logs' },
     { id: 'snapshots', label: 'Snapshots' },
   ];
@@ -339,6 +375,83 @@ export function VMDetail() {
               ))}
             </PageTableBody>
           </PageTable>
+        </SurfaceCard>
+      )}
+
+      {tab === 'storage' && (
+        <SurfaceCard>
+          <div className="space-y-4">
+            <p className="text-sm text-on-surface-variant">{t('vmDetail.storageHint')}</p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium mb-1">{t('vmDetail.attachVolume')}</label>
+                <select
+                  value={attachVolumeId}
+                  onChange={(e) => setAttachVolumeId(e.target.value)}
+                  className={formSelectClass}
+                >
+                  <option value="">{t('vmDetail.selectVolume')}</option>
+                  {availableVolumes.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name} ({v.size_gi} Gi)</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => attachMutation.mutate()}
+                disabled={!attachVolumeId || attachMutation.isPending}
+                className="btn-primary flex items-center gap-1"
+              >
+                <Plus size={16} /> {t('vmDetail.attachVolume')}
+              </button>
+            </div>
+            {attachMutation.isError && (
+              <p className="text-error text-sm">{(attachMutation.error as Error).message}</p>
+            )}
+            {vmVolumes.length === 0 ? (
+              <p className="text-on-surface-variant text-sm">{t('vmDetail.noVolumes')}</p>
+            ) : (
+              <PageTable>
+                <PageTableHead>
+                  <PageTableTh>{t('volumes.col.volume')}</PageTableTh>
+                  <PageTableTh>{t('volumes.size')}</PageTableTh>
+                  <PageTableTh>{t('common.state')}</PageTableTh>
+                  <PageTableTh>PVC</PageTableTh>
+                  <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+                </PageTableHead>
+                <PageTableBody>
+                  {vmVolumes.map((vol) => (
+                    <PageTableRow key={vol.id}>
+                      <PageTableTd>
+                        <div className="flex items-center gap-3">
+                          <HardDrive size={16} className="text-primary-fixed-dim" />
+                          <span className="font-medium">{vol.name}</span>
+                        </div>
+                      </PageTableTd>
+                      <PageTableTd>{vol.size_gi} Gi</PageTableTd>
+                      <PageTableTd>
+                        <StatusBadge status={vol.state || 'active'} pulse={false} />
+                      </PageTableTd>
+                      <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{vol.pvc_name}</PageTableTd>
+                      <PageTableTd className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => detachMutation.mutate(vol.id)}
+                          disabled={detachMutation.isPending}
+                          className="btn-outline-sm flex items-center gap-1 ml-auto"
+                        >
+                          <Unlink size={14} /> {t('vmDetail.detachVolume')}
+                        </button>
+                      </PageTableTd>
+                    </PageTableRow>
+                  ))}
+                </PageTableBody>
+              </PageTable>
+            )}
+            {detachMutation.isError && (
+              <p className="text-error text-sm">{(detachMutation.error as Error).message}</p>
+            )}
+          </div>
         </SurfaceCard>
       )}
 

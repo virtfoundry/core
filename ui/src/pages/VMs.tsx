@@ -126,7 +126,7 @@ export function VMs() {
   }, [deployModal, form.template_id, templates]);
 
   const sshKeys = sshData?.ssh_keys || [];
-  const volumes = volData?.volumes || [];
+  const volumes = (volData?.volumes || []).filter((v) => !v.vm_id);
 
   const { data, isLoading, isFetching, isRefetching, refetch, error, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vms,

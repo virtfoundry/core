@@ -12,12 +12,19 @@ import (
 
 // Service manages volumes and volume snapshots (PVC / VolumeSnapshot).
 type Service struct {
-	store store.Repository
-	k8s   *platformk8s.Manager
+	store        store.Repository
+	k8s          *platformk8s.Manager
+	storageClass string
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager) *Service {
 	return &Service{store: st, k8s: k8s}
+}
+
+func (s *Service) ConfigureStorage(defaultClass string) {
+	if defaultClass != "" {
+		s.storageClass = defaultClass
+	}
 }
 
 func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int) (*platform.Volume, error) {
@@ -26,7 +33,7 @@ func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeG
 		return nil, err
 	}
 	pvcName := shared.SanitizeSlug(name)
-	if _, err := s.k8s.CreatePVC(ctx, ns, pvcName, "", sizeGi); err != nil {
+	if _, err := s.k8s.CreatePVC(ctx, ns, pvcName, s.storageClass, sizeGi); err != nil {
 		return nil, err
 	}
 	vol := &platform.Volume{
@@ -39,6 +46,21 @@ func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeG
 
 func (s *Service) ListVolumes(tenantID string) []*platform.Volume {
 	return s.store.ListVolumes(tenantID)
+}
+
+func (s *Service) DeleteVolume(ctx context.Context, tenantID, volumeID string) error {
+	vol, ok := s.store.GetVolume(volumeID)
+	if !ok || vol.TenantID != tenantID {
+		return fmt.Errorf("volume not found")
+	}
+	if vol.VMID != "" {
+		return fmt.Errorf("volume is attached to a VM")
+	}
+	if err := s.k8s.DeletePVC(ctx, vol.Namespace, vol.PVCName); err != nil {
+		return fmt.Errorf("delete pvc: %w", err)
+	}
+	s.store.DeleteVolume(volumeID)
+	return nil
 }
 
 func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string) (*platform.Snapshot, error) {
