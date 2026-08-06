@@ -2,7 +2,7 @@
 
 Track provider work against the VirtFoundry REST API. Update this file when API resources change.
 
-**Rule:** see [.cursor/rules/terraform-provider.mdc](../.cursor/rules/terraform-provider.mdc) — major API additions require a provider update before release.
+**Rule:** major API additions require a provider update before release.
 
 !!! note "Credentials"
     Prefer **`api_key`** (`vfd_live_...`) for automation. Username/password uses JWT login and is suitable for development.

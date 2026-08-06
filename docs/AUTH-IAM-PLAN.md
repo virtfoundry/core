@@ -2,7 +2,6 @@
 
 Prerequisite for **Terraform provider**, automation, and multi-user tenants.
 
-**Rule:** [.cursor/rules/auth-iam.mdc](../.cursor/rules/auth-iam.mdc)  
 **Blocks:** [TERRAFORM-PROVIDER-PLAN.md](./TERRAFORM-PROVIDER-PLAN.md) until Phase 2 (API keys) minimum.
 
 ---

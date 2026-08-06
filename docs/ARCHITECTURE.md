@@ -246,8 +246,7 @@ virtfoundry/
 ├── config/               # Local dev config (cluster config → helm-charts)
 ├── docker/               # Dockerfiles + nginx config (images only)
 ├── docs/
-├── TODO.md
-└── AGENTS.md
+└── TODO.md
 ```
 
 **Monorepo decision:** domain packages in `internal/service/`, single deploy unit. No separate microservice repos until API boundaries stabilize.
