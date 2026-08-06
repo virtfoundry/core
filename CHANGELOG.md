@@ -42,7 +42,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - Volumes page: show attached VM; deploy dropdown lists only unattached volumes
 - `platform.storage.defaultClass` from Helm wired to tenant volume PVC creation
 - `volume.vm_id` tracked on deploy, attach, and detach
-- E2E API smoke scripts under `scripts/e2e/` (phases 1–3)
 
 ## [1.1.1] - 2026-08-04
 

@@ -18,3 +18,6 @@ ui/dist/
 .vscode/
 .cursor/
 *.log
+
+# Homelab E2E smokes — local only
+scripts/e2e/
