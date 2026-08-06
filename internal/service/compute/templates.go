@@ -72,10 +72,15 @@ func (s *Service) EnsureDefaultTemplates(tenantID string) error {
 
 func (s *Service) ListVMTemplatesForTenant(tenantID string) []*platform.VMTemplate {
 	var out []*platform.VMTemplate
-	for _, t := range s.store.ListVMTemplates(true) {
-		if t.TenantID == "" || t.TenantID == tenantID {
-			out = append(out, t)
+	for _, t := range s.store.ListVMTemplates(false) {
+		if t.TenantID != "" && t.TenantID != tenantID {
+			continue
 		}
+		// Include inactive templates while ISO CDI import is in progress (or failed).
+		if t.State != "Active" && strings.TrimSpace(t.ImportState) == "" {
+			continue
+		}
+		out = append(out, t)
 	}
 	return out
 }

@@ -543,14 +543,9 @@ export async function createVMTemplate(data: {
   });
 }
 
+/** UI allows rename only; other fields are create-time. */
 export async function updateVMTemplate(id: string, data: {
   display_name?: string;
-  description?: string;
-  image?: string;
-  source_type?: string;
-  os_type?: string;
-  cloud_init_user_data?: string;
-  state?: string;
 }) {
   return platformFetch<{ vm_template: VMTemplate }>(`/vm-templates/${encodeURIComponent(id)}`, {
     method: 'PATCH',

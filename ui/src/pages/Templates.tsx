@@ -227,48 +227,51 @@ export function Templates() {
       />
 
       {editTmpl && (
-        <TemplateFormModal
-          isOpen
-          onClose={() => setEditTmpl(null)}
-          title={t('templates.modalEdit')}
-          form={{
-            name: editTmpl.name,
-            display_name: editTmpl.display_name,
-            description: editTmpl.description || '',
-            image: editTmpl.image,
-            source_type: editTmpl.source_type || 'container',
-            os_type: editTmpl.os_type || 'linux',
-            cloud_init_user_data: editTmpl.cloud_init_user_data || '',
-            iso_size_gi: editTmpl.iso_size_gi || 8,
-            boot_disk_size_gi: editTmpl.boot_disk_size_gi || 32,
-            storage_class: editTmpl.storage_class || 'local-path',
-          }}
-          onChange={(patch) => setEditTmpl({ ...editTmpl, ...patch })}
-          nameReadOnly
-          onSubmit={(e) => {
-            e.preventDefault();
-            updateMutation.mutate({
-              id: editTmpl.id,
-              display_name: editTmpl.display_name,
-              description: editTmpl.description,
-              image: editTmpl.image,
-              source_type: editTmpl.source_type,
-              os_type: editTmpl.os_type,
-              cloud_init_user_data: editTmpl.cloud_init_user_data,
-            });
-          }}
-          pending={updateMutation.isPending}
-          error={updateMutation.error as Error | null}
-          submitLabel={t('common.save')}
-          t={t}
-        />
+        <Modal isOpen onClose={() => setEditTmpl(null)} title={t('templates.modalEdit')} size="md">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateMutation.mutate({
+                id: editTmpl.id,
+                display_name: editTmpl.display_name,
+              });
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+              <input readOnly value={editTmpl.name} className={formInputClass} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('templates.displayName')}</label>
+              <input
+                required
+                value={editTmpl.display_name}
+                onChange={(e) => setEditTmpl({ ...editTmpl, display_name: e.target.value })}
+                className={formInputClass}
+                placeholder="Ubuntu 22.04"
+              />
+            </div>
+            {updateMutation.error && (
+              <p className="text-error text-sm">{(updateMutation.error as Error).message}</p>
+            )}
+            <div className="flex justify-end gap-3 pt-4">
+              <button type="button" onClick={() => setEditTmpl(null)} className="btn-secondary">
+                {t('common.cancel')}
+              </button>
+              <button type="submit" disabled={updateMutation.isPending} className="btn-primary">
+                {t('common.save')}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
 }
 
 function TemplateFormModal({
-  isOpen, onClose, title, form, onChange, onSubmit, pending, error, submitLabel, nameReadOnly, t,
+  isOpen, onClose, title, form, onChange, onSubmit, pending, error, submitLabel, t,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -279,7 +282,6 @@ function TemplateFormModal({
   pending: boolean;
   error: Error | null;
   submitLabel: string;
-  nameReadOnly?: boolean;
   t: (key: string) => string;
 }) {
   return (
@@ -290,7 +292,6 @@ function TemplateFormModal({
             <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
             <input
               required
-              readOnly={nameReadOnly}
               value={form.name}
               onChange={(e) => onChange({ name: e.target.value.toLowerCase() })}
               className={formInputClass}
@@ -324,7 +325,7 @@ function TemplateFormModal({
           </p>
         </div>
         {form.source_type === 'iso' && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">{t('templates.isoSizeGi')}</label>
               <input type="number" min={1} value={form.iso_size_gi} onChange={(e) => onChange({ iso_size_gi: Number(e.target.value) })} className={formInputClass} />
@@ -332,10 +333,6 @@ function TemplateFormModal({
             <div>
               <label className="block text-sm font-medium mb-1">{t('templates.bootDiskSizeGi')}</label>
               <input type="number" min={1} value={form.boot_disk_size_gi} onChange={(e) => onChange({ boot_disk_size_gi: Number(e.target.value) })} className={formInputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">{t('templates.storageClass')}</label>
-              <input value={form.storage_class} onChange={(e) => onChange({ storage_class: e.target.value })} className={formInputClass} placeholder="local-path" />
             </div>
           </div>
         )}
