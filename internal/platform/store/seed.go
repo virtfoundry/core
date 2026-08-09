@@ -32,6 +32,19 @@ func SeedCatalog(r Repository) error {
 		Name: "windows-large", DisplayName: "Windows Large (4 vCPU, 16 GiB)",
 		CPU: 4, MemoryMi: 16384, State: "Active", CreatedAt: now,
 	})
+	// Dedicated offerings: Guaranteed QoS (request=limit=cores), no CPU overcommit.
+	ensureOffering(r, platform.ServiceOffering{
+		Name: "small-dedicated", DisplayName: "Small Dedicated (1 vCPU, 1 GiB)",
+		CPU: 1, MemoryMi: 1024, DedicatedCPU: true, State: "Active", CreatedAt: now,
+	})
+	ensureOffering(r, platform.ServiceOffering{
+		Name: "medium-dedicated", DisplayName: "Medium Dedicated (2 vCPU, 4 GiB)",
+		CPU: 2, MemoryMi: 4096, DedicatedCPU: true, State: "Active", CreatedAt: now,
+	})
+	ensureOffering(r, platform.ServiceOffering{
+		Name: "large-dedicated", DisplayName: "Large Dedicated (4 vCPU, 8 GiB)",
+		CPU: 4, MemoryMi: 8192, DedicatedCPU: true, State: "Active", CreatedAt: now,
+	})
 	ensureTemplate(r, platform.VMTemplate{
 		Name: "windows-server-2022", DisplayName: "Windows Server 2022 Eval",
 		Image: "windows-server-2022-eval", OSType: "windows", SourceType: "iso", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,

@@ -76,7 +76,16 @@ func (m *MySQL) Migrate() error {
 	if err := m.applyMigration005(); err != nil {
 		return err
 	}
+	if err := m.applyMigration006(); err != nil {
+		return err
+	}
 	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('001_initial')`)
+	return nil
+}
+
+func (m *MySQL) applyMigration006() error {
+	_, _ = m.db.Exec(`ALTER TABLE service_offerings ADD COLUMN dedicated_cpu TINYINT(1) NOT NULL DEFAULT 0`)
+	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('006_dedicated_cpu_offerings')`)
 	return nil
 }
 
@@ -790,30 +799,32 @@ func (m *MySQL) ListPendingJobs(limit int) []*platform.AsyncJob {
 }
 
 func (m *MySQL) SaveServiceOffering(o *platform.ServiceOffering) {
-	_, _ = m.db.Exec(`INSERT INTO service_offerings (id, name, display_name, cpu, memory_mi, storage_tags, state, external_uuid, import_source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, _ = m.db.Exec(`INSERT INTO service_offerings (id, name, display_name, cpu, memory_mi, dedicated_cpu, storage_tags, state, external_uuid, import_source, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), cpu=VALUES(cpu), memory_mi=VALUES(memory_mi),
-		storage_tags=VALUES(storage_tags), state=VALUES(state)`,
-		o.ID, o.Name, o.DisplayName, o.CPU, o.MemoryMi, nullStr(o.StorageTags), o.State,
+		dedicated_cpu=VALUES(dedicated_cpu), storage_tags=VALUES(storage_tags), state=VALUES(state)`,
+		o.ID, o.Name, o.DisplayName, o.CPU, o.MemoryMi, o.DedicatedCPU, nullStr(o.StorageTags), o.State,
 		nullStr(o.ExternalUUID), nullStr(o.ImportSource), o.CreatedAt)
 }
 
 func (m *MySQL) GetServiceOffering(id string) (*platform.ServiceOffering, bool) {
-	row := m.db.QueryRow(`SELECT id, name, display_name, cpu, memory_mi, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings WHERE id=?`, id)
+	row := m.db.QueryRow(`SELECT id, name, display_name, cpu, memory_mi, dedicated_cpu, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings WHERE id=?`, id)
 	return scanOffering(row)
 }
 
 func (m *MySQL) GetServiceOfferingByName(name string) (*platform.ServiceOffering, bool) {
-	row := m.db.QueryRow(`SELECT id, name, display_name, cpu, memory_mi, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings WHERE name=?`, name)
+	row := m.db.QueryRow(`SELECT id, name, display_name, cpu, memory_mi, dedicated_cpu, storage_tags, state, external_uuid, import_source, created_at from service_offerings WHERE name=?`, name)
 	return scanOffering(row)
 }
 
 func scanOffering(row *sql.Row) (*platform.ServiceOffering, bool) {
 	var o platform.ServiceOffering
 	var tags, ext, src sql.NullString
-	if err := row.Scan(&o.ID, &o.Name, &o.DisplayName, &o.CPU, &o.MemoryMi, &tags, &o.State, &ext, &src, &o.CreatedAt); err != nil {
+	var dedicated int
+	if err := row.Scan(&o.ID, &o.Name, &o.DisplayName, &o.CPU, &o.MemoryMi, &dedicated, &tags, &o.State, &ext, &src, &o.CreatedAt); err != nil {
 		return nil, false
 	}
+	o.DedicatedCPU = dedicated != 0
 	o.StorageTags = tags.String
 	o.ExternalUUID = ext.String
 	o.ImportSource = src.String
@@ -821,7 +832,7 @@ func scanOffering(row *sql.Row) (*platform.ServiceOffering, bool) {
 }
 
 func (m *MySQL) ListServiceOfferings(activeOnly bool) []*platform.ServiceOffering {
-	q := `SELECT id, name, display_name, cpu, memory_mi, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings`
+	q := `SELECT id, name, display_name, cpu, memory_mi, dedicated_cpu, storage_tags, state, external_uuid, import_source, created_at FROM service_offerings`
 	if activeOnly {
 		q += ` WHERE state='Active'`
 	}
@@ -835,9 +846,11 @@ func (m *MySQL) ListServiceOfferings(activeOnly bool) []*platform.ServiceOfferin
 	for rows.Next() {
 		var o platform.ServiceOffering
 		var tags, ext, src sql.NullString
-		if err := rows.Scan(&o.ID, &o.Name, &o.DisplayName, &o.CPU, &o.MemoryMi, &tags, &o.State, &ext, &src, &o.CreatedAt); err != nil {
+		var dedicated int
+		if err := rows.Scan(&o.ID, &o.Name, &o.DisplayName, &o.CPU, &o.MemoryMi, &dedicated, &tags, &o.State, &ext, &src, &o.CreatedAt); err != nil {
 			continue
 		}
+		o.DedicatedCPU = dedicated != 0
 		o.StorageTags = tags.String
 		o.ExternalUUID = ext.String
 		o.ImportSource = src.String

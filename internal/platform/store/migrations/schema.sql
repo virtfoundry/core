@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS service_offerings (
     display_name    VARCHAR(255) NOT NULL,
     cpu             INT NOT NULL,
     memory_mi       BIGINT NOT NULL,
+    dedicated_cpu   TINYINT(1) NOT NULL DEFAULT 0,
     storage_tags    VARCHAR(255) NULL,
     state           VARCHAR(32) NOT NULL DEFAULT 'Active',
     external_uuid   VARCHAR(64) NULL,

@@ -26,6 +26,7 @@ type OfferingForm = {
   display_name: string;
   cpu: number;
   memory_gi: number;
+  dedicated_cpu: boolean;
   state: string;
 };
 
@@ -34,6 +35,7 @@ const emptyForm = (): OfferingForm => ({
   display_name: '',
   cpu: 1,
   memory_gi: 1,
+  dedicated_cpu: false,
   state: 'Active',
 });
 
@@ -108,6 +110,7 @@ export function Offerings() {
       display_name: o.display_name,
       cpu: o.cpu,
       memory_gi: o.memory_mi / 1024,
+      dedicated_cpu: !!o.dedicated_cpu,
       state: o.state,
     });
     setEditOffering(o);
@@ -120,6 +123,7 @@ export function Offerings() {
       display_name: form.display_name,
       cpu: form.cpu,
       memory_mi: Math.round(form.memory_gi * 1024),
+      dedicated_cpu: form.dedicated_cpu,
     });
   };
 
@@ -131,6 +135,7 @@ export function Offerings() {
       display_name: form.display_name,
       cpu: form.cpu,
       memory_mi: Math.round(form.memory_gi * 1024),
+      dedicated_cpu: form.dedicated_cpu,
       state: form.state,
     });
   };
@@ -169,6 +174,10 @@ export function Offerings() {
                 <div className="text-sm space-y-1 mb-4">
                   <p><span className="text-on-surface-variant">{t('offerings.cpu')}:</span> {o.cpu} vCPU</p>
                   <p><span className="text-on-surface-variant">{t('offerings.memory')}:</span> {fmtMemGi(o.memory_mi)}</p>
+                  <p>
+                    <span className="text-on-surface-variant">{t('offerings.dedicatedCpu')}:</span>{' '}
+                    {o.dedicated_cpu ? t('common.yes') : t('common.no')}
+                  </p>
                 </div>
                 <ResourceActions
                   onEdit={() => openEdit(o)}
@@ -228,6 +237,18 @@ export function Offerings() {
               />
             </div>
           </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.dedicated_cpu}
+              onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">{t('offerings.dedicatedCpu')}</span>
+              <p className="text-xs text-on-surface-variant mt-0.5">{t('offerings.dedicatedCpuHint')}</p>
+            </span>
+          </label>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -279,6 +300,18 @@ export function Offerings() {
               />
             </div>
           </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.dedicated_cpu}
+              onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium">{t('offerings.dedicatedCpu')}</span>
+              <p className="text-xs text-on-surface-variant mt-0.5">{t('offerings.dedicatedCpuHint')}</p>
+            </span>
+          </label>
           <div>
             <label className="block text-sm font-medium mb-1">{t('common.state')}</label>
             <select

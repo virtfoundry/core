@@ -10,18 +10,20 @@ import (
 
 // CreateServiceOfferingInput registers a platform compute size.
 type CreateServiceOfferingInput struct {
-	Name        string
-	DisplayName string
-	CPU         int
-	MemoryMi    int64
+	Name         string
+	DisplayName  string
+	CPU          int
+	MemoryMi     int64
+	DedicatedCPU bool
 }
 
 // UpdateServiceOfferingInput patches an existing offering.
 type UpdateServiceOfferingInput struct {
-	DisplayName string
-	CPU         int
-	MemoryMi    int64
-	State       string
+	DisplayName  string
+	CPU          int
+	MemoryMi     int64
+	State        string
+	DedicatedCPU *bool
 }
 
 func (s *Service) ListServiceOfferings(activeOnly bool) []*platform.ServiceOffering {
@@ -48,7 +50,7 @@ func (s *Service) CreateServiceOffering(in CreateServiceOfferingInput) (*platfor
 	}
 	o := &platform.ServiceOffering{
 		ID: store.NewID(), Name: name, DisplayName: displayName,
-		CPU: in.CPU, MemoryMi: in.MemoryMi, State: "Active",
+		CPU: in.CPU, MemoryMi: in.MemoryMi, DedicatedCPU: in.DedicatedCPU, State: "Active",
 		CreatedAt: store.Now(),
 	}
 	s.store.SaveServiceOffering(o)
@@ -71,6 +73,9 @@ func (s *Service) UpdateServiceOffering(id string, in UpdateServiceOfferingInput
 	}
 	if in.State != "" {
 		o.State = in.State
+	}
+	if in.DedicatedCPU != nil {
+		o.DedicatedCPU = *in.DedicatedCPU
 	}
 	s.store.SaveServiceOffering(o)
 	return o, nil
