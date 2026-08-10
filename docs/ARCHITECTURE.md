@@ -42,7 +42,7 @@ store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
 | **Tenant** | tenants | `GET/POST /tenants` (root) | `/tenants` | Namespace `virtfoundry-tenant-{slug}` |
 | **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy; **default VPC** (`10.0.0.0/16`) per tenant |
 | **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
-| **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC, VolumeSnapshot |
+| **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC; VolumeSnapshot (needs CSI snapshotter — not `local-path`) |
 | **Jobs** | async_jobs | internal (worker) | — | — |
 | **Console** | — | `GET /ws/console` | `/console` (new tab) | KubeVirt VNC subresource |
 
