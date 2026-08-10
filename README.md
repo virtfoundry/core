@@ -12,8 +12,8 @@ VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, s
 
 - **Multi-tenancy** — isolated namespaces per tenant
 - **Networking** — VPCs, private subnets, optional public IP pool, security groups (NetworkPolicy)
-- **Compute** — KubeVirt VMs, templates, offerings, snapshots, noVNC console
-- **Storage** — PVC volumes and volume snapshots
+- **Compute** — KubeVirt VMs, templates, offerings, VM snapshots, noVNC console
+- **Storage** — PVC volumes; volume snapshots (CSI `VolumeSnapshot` required — not `local-path`)
 - **IAM** — users, roles, API keys (`vfd_live_...`)
 - **Packaging** — official Helm chart
 

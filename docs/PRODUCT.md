@@ -10,9 +10,9 @@ Free to use, modify, and self-host.
 |------------|-------------|
 | Multi-tenancy | Tenant namespaces, root impersonation |
 | IAM | Users, roles, API keys (`vfd_live_...`) |
-| Compute | KubeVirt VMs, templates, offerings (shared + dedicated CPU), snapshots |
+| Compute | KubeVirt VMs, templates, offerings (shared + dedicated CPU), **VM** snapshots |
 | Network | VPCs, private subnets, public network profile, security groups |
-| Storage | Volumes, volume snapshots |
+| Storage | Volumes; **volume** snapshots (requires CSI `VolumeSnapshot` + snapshot-capable StorageClass — not `local-path`) |
 | Access | SSH keys, noVNC console, REST API |
 | Packaging | Helm chart, optional sideload scripts |
 
