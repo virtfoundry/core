@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/virtfoundry/core/internal/platform/cloudinit"
 	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/cloudinit"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	defaultVMImage          = "quay.io/kubevirt/cirros-container-disk-demo"
-	virtioContainerDisk     = "quay.io/kubevirt/virtio-container-disk:v1.8.4"
-	windowsMachineType      = "q35"
+	defaultVMImage      = "quay.io/kubevirt/cirros-container-disk-demo"
+	virtioContainerDisk = "quay.io/kubevirt/virtio-container-disk:v1.8.4"
+	windowsMachineType  = "q35"
 )
 
 // Cirros only drives the default VGA device; virtio-gpu yields a black VNC screen.
@@ -288,17 +288,27 @@ func (d *KubeVirtDriver) UpdateVMResources(ctx context.Context, name string, cpu
 		if state != "Stopped" && state != "Error" {
 			return fmt.Errorf("vm must be stopped to resize (current: %s)", state)
 		}
-		reqs := vm.Spec.Template.Spec.Domain.Resources.Requests
-		if reqs == nil {
-			reqs = k8sv1.ResourceList{}
+		dedicated := vmHasDedicatedCPU(vm.Spec.Template.Spec)
+		cores := guestCPUCount(vm.Spec.Template.Spec.Domain.CPU)
+		if cores <= 0 {
+			cores = 1
 		}
 		if cpu > 0 {
-			reqs[k8sv1.ResourceCPU] = resourceQuantityCPU(cpu)
+			cores = cpu
 		}
-		if memoryMi > 0 {
-			reqs[k8sv1.ResourceMemory] = resourceQuantityMi(memoryMi)
+		memMi := memoryMi
+		if memMi <= 0 {
+			if reqs := vm.Spec.Template.Spec.Domain.Resources.Requests; reqs != nil {
+				if memQty, ok := reqs[k8sv1.ResourceMemory]; ok {
+					memMi = memQty.Value() / (1024 * 1024)
+				}
+			}
 		}
-		vm.Spec.Template.Spec.Domain.Resources.Requests = reqs
+		if memMi <= 0 {
+			memMi = 512
+		}
+		vm.Spec.Template.Spec.Domain.CPU = guestCPUSpec(cores, dedicated)
+		vm.Spec.Template.Spec.Domain.Resources = vmResourceRequirements(memMi, cores, dedicated)
 		_, err = d.virtClient.VirtualMachine(d.namespace).Update(ctx, vm, metav1.UpdateOptions{})
 		if err == nil {
 			return nil
@@ -482,12 +492,18 @@ func (d *KubeVirtDriver) vmToInfo(ctx context.Context, vm *kubevirtv1.VirtualMac
 	image := ""
 
 	if vm.Spec.Template != nil {
-		reqs := vm.Spec.Template.Spec.Domain.Resources.Requests
-		if cpuQty, ok := reqs[k8sv1.ResourceCPU]; ok {
-			cpu = int(cpuQty.Value())
+		if n := guestCPUCount(vm.Spec.Template.Spec.Domain.CPU); n > 0 {
+			cpu = n
+		} else if reqs := vm.Spec.Template.Spec.Domain.Resources.Requests; reqs != nil {
+			// Legacy VMs that only set requests.cpu (pre-overcommit patch).
+			if cpuQty, ok := reqs[k8sv1.ResourceCPU]; ok {
+				cpu = int(cpuQty.Value())
+			}
 		}
-		if memQty, ok := reqs[k8sv1.ResourceMemory]; ok {
-			memMi = memQty.Value() / (1024 * 1024)
+		if reqs := vm.Spec.Template.Spec.Domain.Resources.Requests; reqs != nil {
+			if memQty, ok := reqs[k8sv1.ResourceMemory]; ok {
+				memMi = memQty.Value() / (1024 * 1024)
+			}
 		}
 		for _, vol := range vm.Spec.Template.Spec.Volumes {
 			if vol.ContainerDisk != nil && vol.ContainerDisk.Image != "" {
@@ -668,7 +684,7 @@ func (d *KubeVirtDriver) CreateVMSnapshot(ctx context.Context, vmName, snapName 
 			Namespace: ns,
 			Labels: map[string]string{
 				"app.kubernetes.io/managed-by": branding.ManagedByValue,
-				branding.LabelVM: vmName,
+				branding.LabelVM:               vmName,
 			},
 		},
 		Spec: snapshotv1.VirtualMachineSnapshotSpec{
@@ -789,13 +805,9 @@ func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image s
 	}
 	return kubevirtv1.VirtualMachineInstanceSpec{
 		Domain: kubevirtv1.DomainSpec{
-			Devices: devices,
-			Resources: kubevirtv1.ResourceRequirements{
-				Requests: k8sv1.ResourceList{
-					k8sv1.ResourceMemory: resourceQuantityMi(memMi),
-					k8sv1.ResourceCPU:    resourceQuantityCPU(cpu),
-				},
-			},
+			CPU:       guestCPUSpec(cpu, spec.DedicatedCPU),
+			Devices:   devices,
+			Resources: vmResourceRequirements(memMi, cpu, spec.DedicatedCPU),
 		},
 		Volumes: volumes,
 	}
@@ -823,7 +835,7 @@ func buildWindowsVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, cpu i
 		volumes = append(volumes, pvcVolume("installiso", spec.InstallISO))
 	}
 	disks = append(disks, kubevirtv1.Disk{
-		Name: "virtiodrivers",
+		Name:       "virtiodrivers",
 		DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{Bus: "sata"}},
 	})
 	volumes = append(volumes, kubevirtv1.Volume{
@@ -841,6 +853,7 @@ func buildWindowsVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, cpu i
 
 	return kubevirtv1.VirtualMachineInstanceSpec{
 		Domain: kubevirtv1.DomainSpec{
+			CPU:     guestCPUSpec(cpu, spec.DedicatedCPU),
 			Machine: &kubevirtv1.Machine{Type: windowsMachineType},
 			Firmware: &kubevirtv1.Firmware{
 				Bootloader: &kubevirtv1.Bootloader{
@@ -851,18 +864,68 @@ func buildWindowsVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, cpu i
 				Disks:      disks,
 				Interfaces: winIfaces,
 			},
-			Resources: kubevirtv1.ResourceRequirements{
-				Requests: k8sv1.ResourceList{
-					k8sv1.ResourceMemory: resourceQuantityMi(memMi),
-					k8sv1.ResourceCPU:    resourceQuantityCPU(cpu),
-				},
-			},
+			Resources: vmResourceRequirements(memMi, cpu, spec.DedicatedCPU),
 			Features: &kubevirtv1.Features{
 				Hyperv: &kubevirtv1.FeatureHyperv{},
 			},
 		},
 		Volumes: volumes,
 	}
+}
+
+// guestCPUSpec sets guest vCPU topology. DedicatedCPUPlacement is avoided so
+// homelab nodes without CPU Manager static policy still schedule.
+func guestCPUSpec(cores int, _ bool) *kubevirtv1.CPU {
+	if cores <= 0 {
+		cores = 1
+	}
+	return &kubevirtv1.CPU{Cores: uint32(cores)}
+}
+
+// vmResourceRequirements: shared VMs omit CPU request so KubeVirt applies
+// cpuAllocationRatio; dedicated VMs get Guaranteed QoS (request=limit=cores).
+func vmResourceRequirements(memMi int64, cores int, dedicated bool) kubevirtv1.ResourceRequirements {
+	if cores <= 0 {
+		cores = 1
+	}
+	reqs := k8sv1.ResourceList{
+		k8sv1.ResourceMemory: resourceQuantityMi(memMi),
+	}
+	if !dedicated {
+		return kubevirtv1.ResourceRequirements{Requests: reqs}
+	}
+	qty := resourceQuantityCPU(cores)
+	reqs[k8sv1.ResourceCPU] = qty
+	return kubevirtv1.ResourceRequirements{
+		Requests: reqs,
+		Limits:   k8sv1.ResourceList{k8sv1.ResourceCPU: qty},
+	}
+}
+
+func guestCPUCount(cpu *kubevirtv1.CPU) int {
+	if cpu == nil {
+		return 0
+	}
+	cores, sockets, threads := 1, 1, 1
+	if cpu.Cores > 0 {
+		cores = int(cpu.Cores)
+	}
+	if cpu.Sockets > 0 {
+		sockets = int(cpu.Sockets)
+	}
+	if cpu.Threads > 0 {
+		threads = int(cpu.Threads)
+	}
+	return cores * sockets * threads
+}
+
+func vmHasDedicatedCPU(spec kubevirtv1.VirtualMachineInstanceSpec) bool {
+	if lim := spec.Domain.Resources.Limits; lim != nil {
+		if _, ok := lim[k8sv1.ResourceCPU]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func pvcVolume(name, claim string) kubevirtv1.Volume {

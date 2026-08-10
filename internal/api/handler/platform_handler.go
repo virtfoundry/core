@@ -222,9 +222,9 @@ func (h *PlatformHandler) CreateSecurityGroup(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var req struct {
-		Name        string                      `json:"name"`
-		Description string                      `json:"description"`
-		VPCID       string                      `json:"vpc_id"`
+		Name        string                       `json:"name"`
+		Description string                       `json:"description"`
+		VPCID       string                       `json:"vpc_id"`
 		Rules       []platform.SecurityGroupRule `json:"rules"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -247,8 +247,8 @@ func (h *PlatformHandler) UpdateSecurityGroup(w http.ResponseWriter, r *http.Req
 	}
 	id := mux.Vars(r)["id"]
 	var req struct {
-		Name        string                      `json:"name"`
-		Description string                      `json:"description"`
+		Name        string                       `json:"name"`
+		Description string                       `json:"description"`
 		Rules       []platform.SecurityGroupRule `json:"rules"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -648,10 +648,11 @@ func (h *PlatformHandler) ListServiceOfferings(w http.ResponseWriter, r *http.Re
 
 func (h *PlatformHandler) CreateServiceOffering(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name        string `json:"name"`
-		DisplayName string `json:"display_name"`
-		CPU         int    `json:"cpu"`
-		MemoryMi    int64  `json:"memory_mi"`
+		Name         string `json:"name"`
+		DisplayName  string `json:"display_name"`
+		CPU          int    `json:"cpu"`
+		MemoryMi     int64  `json:"memory_mi"`
+		DedicatedCPU bool   `json:"dedicated_cpu"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -659,6 +660,7 @@ func (h *PlatformHandler) CreateServiceOffering(w http.ResponseWriter, r *http.R
 	}
 	off, err := h.svc.CreateServiceOffering(service.CreateServiceOfferingInput{
 		Name: req.Name, DisplayName: req.DisplayName, CPU: req.CPU, MemoryMi: req.MemoryMi,
+		DedicatedCPU: req.DedicatedCPU,
 	})
 	if err != nil {
 		respondError(w, err)
@@ -670,10 +672,11 @@ func (h *PlatformHandler) CreateServiceOffering(w http.ResponseWriter, r *http.R
 func (h *PlatformHandler) UpdateServiceOffering(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var req struct {
-		DisplayName string `json:"display_name"`
-		CPU         int    `json:"cpu"`
-		MemoryMi    int64  `json:"memory_mi"`
-		State       string `json:"state"`
+		DisplayName  string `json:"display_name"`
+		CPU          int    `json:"cpu"`
+		MemoryMi     int64  `json:"memory_mi"`
+		State        string `json:"state"`
+		DedicatedCPU *bool  `json:"dedicated_cpu"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -681,6 +684,7 @@ func (h *PlatformHandler) UpdateServiceOffering(w http.ResponseWriter, r *http.R
 	}
 	off, err := h.svc.UpdateServiceOffering(id, service.UpdateServiceOfferingInput{
 		DisplayName: req.DisplayName, CPU: req.CPU, MemoryMi: req.MemoryMi, State: req.State,
+		DedicatedCPU: req.DedicatedCPU,
 	})
 	if err != nil {
 		respondError(w, err)
@@ -805,6 +809,7 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		SSHKeyID          string   `json:"ssh_key_id"`
 		DataVolumeID      string   `json:"data_volume_id"`
 		ExposeSSH         bool     `json:"expose_ssh"`
+		DedicatedCPU      bool     `json:"dedicated_cpu"`
 		Async             bool     `json:"async"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -816,8 +821,9 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		CPU: req.CPU, MemoryMi: req.MemoryMi, Start: true,
 		ServiceOfferingID: req.ServiceOfferingID, TemplateID: req.TemplateID,
 		NetworkIDs: req.NetworkIDs, PublicIP: req.PublicIP, SecurityGroupIDs: req.SecurityGroupIDs,
-		SSHKeyID: req.SSHKeyID,
+		SSHKeyID:     req.SSHKeyID,
 		DataVolumeID: req.DataVolumeID, ExposeSSH: req.ExposeSSH,
+		DedicatedCPU: req.DedicatedCPU,
 	}
 	if req.Async {
 		payload, _ := json.Marshal(in)
@@ -839,7 +845,9 @@ func (h *PlatformHandler) StartVM(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err)
 		return
 	}
-	var req struct{ Name string `json:"name"` }
+	var req struct {
+		Name string `json:"name"`
+	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	vm, err := h.svc.StartVM(r.Context(), tid, req.Name)
 	if err != nil {
@@ -855,7 +863,9 @@ func (h *PlatformHandler) StopVM(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err)
 		return
 	}
-	var req struct{ Name string `json:"name"` }
+	var req struct {
+		Name string `json:"name"`
+	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	vm, err := h.svc.StopVM(r.Context(), tid, req.Name)
 	if err != nil {
@@ -871,7 +881,9 @@ func (h *PlatformHandler) DeleteVM(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err)
 		return
 	}
-	var req struct{ Name string `json:"name"` }
+	var req struct {
+		Name string `json:"name"`
+	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	if err := h.svc.DeleteVM(r.Context(), tid, req.Name); err != nil {
 		respondError(w, err)

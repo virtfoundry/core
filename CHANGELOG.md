@@ -4,6 +4,18 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [Unreleased]
+
+### Added
+
+- Deploy flag `dedicated_cpu` for Guaranteed QoS (`requests.cpu = limits.cpu = cores`) when overcommit is not desired
+- Service offering field `dedicated_cpu` plus seeded `small-dedicated` / `medium-dedicated` / `large-dedicated`
+- UI deploy checkbox and Offerings admin toggle for dedicated CPU
+
+### Fixed
+
+- VM deploy CPU scheduling: set guest `domain.cpu.cores` and omit CPU request by default so KubeVirt `cpuAllocationRatio` can overcommit (fixes `Insufficient cpu` when VMs are idle)
+
 ## [1.4.1] - 2026-08-05
 
 ### Fixed

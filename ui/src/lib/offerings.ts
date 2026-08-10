@@ -12,9 +12,13 @@ export function offeringsForTemplate(offerings: ServiceOffering[], tmpl?: VMTemp
 }
 
 export function offeringLabel(o: ServiceOffering) {
-  if (o.display_name) return o.display_name;
-  const mem = o.memory_mi >= 1024 ? `${(o.memory_mi / 1024).toFixed(0)} GiB` : `${o.memory_mi} MiB`;
-  return `${o.name} (${o.cpu} vCPU, ${mem})`;
+  const base = o.display_name
+    ? o.display_name
+    : (() => {
+        const mem = o.memory_mi >= 1024 ? `${(o.memory_mi / 1024).toFixed(0)} GiB` : `${o.memory_mi} MiB`;
+        return `${o.name} (${o.cpu} vCPU, ${mem})`;
+      })();
+  return o.dedicated_cpu ? `${base} · dedicated` : base;
 }
 
 export function findOfferingBySpec(offerings: ServiceOffering[], cpu: number, memoryMi: number) {

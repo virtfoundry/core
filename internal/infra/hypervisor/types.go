@@ -13,7 +13,10 @@ type VMDeploySpec struct {
 	BootPVC    string // windows: blank PVC for OS install
 	DataPVC    string // optional second disk (e.g. IOPS tests)
 	InstallISO string // windows: PVC/DataVolume with Windows ISO
-	Start             bool
+	Start      bool
+	// DedicatedCPU pins Guaranteed QoS (request=limit=cores). Default false lets
+	// KubeVirt cpuAllocationRatio overcommit the virt-launcher CPU request.
+	DedicatedCPU      bool
 	Networks          []VMNetworkSpec
 	CloudInitSSHKeys  []string
 	CloudInitPassword string
@@ -79,11 +82,11 @@ type NodeInfo struct {
 
 // ClusterInfo represents the KubeVirt cluster.
 type ClusterInfo struct {
-	Name       string
-	Hypervisor string
-	State      string
-	NodeCount  int
-	CPUCount   int64
+	Name        string
+	Hypervisor  string
+	State       string
+	NodeCount   int
+	CPUCount    int64
 	MemoryTotal int64
 }
 

@@ -86,10 +86,11 @@ Tenant ────────────────────────�
 2. `PlatformService.DeployVM` reads offering/template from catalog (optional)
 3. Ensures tenant namespace via `k8s.Manager`
 4. Builds NICs from `network_ids` → Multus NAD refs
-5. Creates `VirtualMachine` via `KubeVirtDriver` (virtio video except Cirros)
-6. Persists `vms` + `vm_nics` in store
-7. Broadcasts `vm.created` on WebSocket hub
-8. Async mode: enqueues `deploy_vm` job for worker
+5. Creates `VirtualMachine` via `KubeVirtDriver` with guest `domain.cpu.cores` from the offering; shared VMs omit CPU request so KubeVirt `cpuAllocationRatio` can overcommit; `dedicated_cpu` (flag or dedicated offering) sets Guaranteed QoS (`request=limit`)
+6. Cloud-init / Multus static IP when public network is attached
+7. Persists `vms` + `vm_nics` in store
+8. Broadcasts `vm.created` on WebSocket hub
+9. Async mode: enqueues `deploy_vm` job for worker
 
 ### Worker (`cmd/worker`)
 

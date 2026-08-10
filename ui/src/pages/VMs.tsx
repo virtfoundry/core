@@ -50,6 +50,7 @@ export function VMs() {
     name: '',
     template_id: '',
     offering: '',
+    dedicated_cpu: false,
     network_mode: 'private' as 'private' | 'public',
     network_ids: [] as string[],
     security_group_ids: [] as string[],
@@ -113,7 +114,8 @@ export function VMs() {
     if (available.length === 0) return;
     if (!available.some((o) => o.id === form.offering)) {
       const preferred = findOfferingByName(available, isWindowsTemplate(selectedTemplate) ? 'windows-large' : 'small');
-      setForm((f) => ({ ...f, offering: preferred?.id || available[0].id }));
+      const pick = preferred || available[0];
+      setForm((f) => ({ ...f, offering: pick.id, dedicated_cpu: !!pick.dedicated_cpu }));
     }
   }, [deployModal, offerings, selectedTemplate, form.offering]);
 
@@ -167,7 +169,7 @@ export function VMs() {
       invalidate();
       setDeployModal(false);
       setForm({
-        name: '', template_id: '', offering: '',
+        name: '', template_id: '', offering: '', dedicated_cpu: false,
         network_mode: 'private', network_ids: [], security_group_ids: [],
         ssh_key_id: '', data_volume_id: '',
       });
@@ -200,6 +202,7 @@ export function VMs() {
       service_offering_id: offering.id,
       cpu: offering.cpu,
       memory_mi: offering.memory_mi,
+      dedicated_cpu: form.dedicated_cpu || !!offering.dedicated_cpu,
       ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
       ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
       ...(linux && form.ssh_key_id ? { ssh_key_id: form.ssh_key_id } : {}),
@@ -380,9 +383,32 @@ export function VMs() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Offering</label>
-              <select value={form.offering} onChange={(e) => setForm({ ...form, offering: e.target.value })} className={formSelectClass}>
+              <select
+                value={form.offering}
+                onChange={(e) => {
+                  const offering = offerings.find((o) => o.id === e.target.value);
+                  setForm({
+                    ...form,
+                    offering: e.target.value,
+                    dedicated_cpu: !!offering?.dedicated_cpu,
+                  });
+                }}
+                className={formSelectClass}
+              >
                 {templateOfferings.map((o) => <option key={o.id} value={o.id}>{offeringLabel(o)}</option>)}
               </select>
+              <label className="mt-3 flex items-start gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.dedicated_cpu}
+                  onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
+                />
+                <span>
+                  <span className="font-medium">{t('vms.dedicatedCpu')}</span>
+                  <p className="text-xs text-on-surface-variant mt-0.5">{t('vms.dedicatedCpuHint')}</p>
+                </span>
+              </label>
             </div>
           </div>
           <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">

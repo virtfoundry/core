@@ -271,6 +271,7 @@ export async function deployVM(data: {
   service_offering_id?: string;
   cpu?: number;
   memory_mi?: number;
+  dedicated_cpu?: boolean;
   network_ids?: string[];
   public_ip?: boolean;
   security_group_ids?: string[];
@@ -455,6 +456,7 @@ export interface ServiceOffering {
   display_name: string;
   cpu: number;
   memory_mi: number;
+  dedicated_cpu?: boolean;
   state: string;
   storage_tags?: string;
 }
@@ -496,6 +498,7 @@ export async function createServiceOffering(data: {
   display_name?: string;
   cpu: number;
   memory_mi: number;
+  dedicated_cpu?: boolean;
 }) {
   return platformFetch<{ service_offering: ServiceOffering }>('/service-offerings', {
     method: 'POST',
@@ -508,6 +511,7 @@ export async function updateServiceOffering(id: string, data: {
   cpu?: number;
   memory_mi?: number;
   state?: string;
+  dedicated_cpu?: boolean;
 }) {
   return platformFetch<{ service_offering: ServiceOffering }>(`/service-offerings/${encodeURIComponent(id)}`, {
     method: 'PATCH',

@@ -27,11 +27,11 @@ type Service struct {
 	kvBase *hypervisor.KubeVirtDriver
 	hub    shared.EventBroadcaster
 
-	vmStateMu       sync.Mutex
-	vmStates        map[vmStateKey]string
-	allowPodNetwork bool
-	defaultNetwork  string
-	storageClass    string
+	vmStateMu         sync.Mutex
+	vmStates          map[vmStateKey]string
+	allowPodNetwork   bool
+	defaultNetwork    string
+	storageClass      string
 	windowsBootSizeGi int
 	windowsISOSizeGi  int
 }
@@ -79,6 +79,7 @@ type DeployVMInput struct {
 	DataVolumeID      string
 	BootDiskSizeGi    int
 	ExposeSSH         bool
+	DedicatedCPU      bool // Guaranteed CPU (request=limit); default shares via KubeVirt ratio
 }
 
 // UpdateVMInput patches VM metadata and resources.
@@ -104,11 +105,15 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	}
 
 	cpu, memMi, image := in.CPU, in.MemoryMi, in.Image
+	dedicated := in.DedicatedCPU
 	var tmplDisplay, osType, cloudInitExtra string
 	var deployTmpl *platform.VMTemplate
 	if in.ServiceOfferingID != "" {
 		if off, ok := s.store.GetServiceOffering(in.ServiceOfferingID); ok {
 			cpu, memMi = off.CPU, off.MemoryMi
+			if off.DedicatedCPU {
+				dedicated = true
+			}
 		}
 	}
 	if in.TemplateID != "" {
@@ -153,8 +158,9 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	spec := hypervisor.VMDeploySpec{
 		Name: name, Namespace: ns,
 		CPU: cpu, MemoryMi: memMi, Image: image, OSType: osType, Start: true,
-		Networks: netSpecs,
-		Labels:   sgLabels(in.SecurityGroupIDs),
+		DedicatedCPU:   dedicated,
+		Networks:       netSpecs,
+		Labels:         sgLabels(in.SecurityGroupIDs),
 		CloudInitExtra: cloudInitExtra,
 	}
 	if in.SSHKeyID != "" {

@@ -11,10 +11,10 @@ const (
 )
 
 const (
-	SystemRoleRoot          = "platform.root"
-	SystemRoleTenantAdmin   = "tenant.admin"
+	SystemRoleRoot           = "platform.root"
+	SystemRoleTenantAdmin    = "tenant.admin"
 	SystemRoleTenantOperator = "tenant.operator"
-	SystemRoleTenantViewer  = "tenant.viewer"
+	SystemRoleTenantViewer   = "tenant.viewer"
 )
 
 type User struct {
@@ -111,7 +111,7 @@ type Network struct {
 const (
 	NetworkTypeIsolated = "isolated"
 	NetworkTypeShared   = "shared"
-	SharedNetworkID       = "00000000-0000-4000-8000-000000000001"
+	SharedNetworkID     = "00000000-0000-4000-8000-000000000001"
 )
 
 type AuditEvent struct {
@@ -212,6 +212,7 @@ type ServiceOffering struct {
 	DisplayName  string    `json:"display_name"`
 	CPU          int       `json:"cpu"`
 	MemoryMi     int64     `json:"memory_mi"`
+	DedicatedCPU bool      `json:"dedicated_cpu"`
 	StorageTags  string    `json:"storage_tags,omitempty"`
 	State        string    `json:"state"`
 	ExternalUUID string    `json:"external_uuid,omitempty"`
@@ -225,7 +226,7 @@ type VMTemplate struct {
 	Name              string    `json:"name"`
 	DisplayName       string    `json:"display_name"`
 	Description       string    `json:"description,omitempty"`
-	Image             string    `json:"image"` // container disk URL or ISO HTTP URL
+	Image             string    `json:"image"`                 // container disk URL or ISO HTTP URL
 	SourceType        string    `json:"source_type,omitempty"` // container, iso
 	OSType            string    `json:"os_type,omitempty"`
 	CloudInitUserData string    `json:"cloud_init_user_data,omitempty"`
@@ -263,10 +264,10 @@ type SSHKeyPair struct {
 }
 
 type TenantQuota struct {
-	MaxVMs       int `json:"max_vms"`
-	MaxVolumes   int `json:"max_volumes"`
-	MaxSnapshots int `json:"max_snapshots"`
-	MaxVPCs      int `json:"max_vpcs"`
-	CPULimit     int `json:"cpu_limit"`
+	MaxVMs        int `json:"max_vms"`
+	MaxVolumes    int `json:"max_volumes"`
+	MaxSnapshots  int `json:"max_snapshots"`
+	MaxVPCs       int `json:"max_vpcs"`
+	CPULimit      int `json:"cpu_limit"`
 	MemoryGiLimit int `json:"memory_gi_limit"`
 }
