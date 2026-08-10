@@ -33,7 +33,7 @@ func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, 
 }
 
 func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
-	// Bridge CNI without IPAM: veth joins virtfoundry-pub0; guest IP from cloud-init (pool), not the pod.
+	// Bridge CNI without IPAM: veth joins vf-pub0; guest IP from cloud-init (pool), not the pod.
 	bridge := spec.Bridge
 	if bridge == "" {
 		bridge = branding.BridgeName
