@@ -10,7 +10,7 @@
 
 VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, subnets, security groups, VMs, snapshots, IAM, and a web UI — built on KubeVirt and Multus.
 
-Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](docs/WHY.md).
+Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](https://virtfoundry.github.io/helm-charts/docs/guide/why/) ([source](docs/WHY.md)).
 
 **Website / docs (canonical front door):** [virtfoundry.github.io/helm-charts/docs](https://virtfoundry.github.io/helm-charts/docs/) — Quickstart, topologies, and project docs. Custom domain (`virtfoundry.dev`) is optional later; until then this URL is the official entry point.
 
