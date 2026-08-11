@@ -22,8 +22,10 @@ func (s *Service) BootstrapSharedNetwork(ctx context.Context, cfg config.PublicN
 		cfg.NADName = "virtfoundry-public"
 	}
 	if cfg.BridgeName == "" {
-		// Linux IFNAMSIZ: max 15 chars ("virtfoundry-pub0" is 16 and fails).
-		cfg.BridgeName = "vf-pub0"
+		cfg.BridgeName = branding.PublicBridgeName
+	}
+	if err := branding.ValidateLinuxBridgeName(cfg.BridgeName); err != nil {
+		return err
 	}
 
 	labels := platformk8s.NADLabels{

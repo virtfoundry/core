@@ -29,14 +29,20 @@ func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, 
 	if bridgeName == "" {
 		bridgeName = branding.BridgeName
 	}
+	if err := branding.ValidateLinuxBridgeName(bridgeName); err != nil {
+		return err
+	}
 	return m.createBridgeNAD(ctx, namespace, name, cidr, bridgeName, "", "", "", extra)
 }
 
 func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
-	// Bridge CNI without IPAM: veth joins vf-pub0; guest IP from cloud-init (pool), not the pod.
+	// Bridge CNI without IPAM: veth joins public bridge; guest IP from cloud-init (pool), not the pod.
 	bridge := spec.Bridge
 	if bridge == "" {
-		bridge = branding.BridgeName
+		bridge = branding.PublicBridgeName
+	}
+	if err := branding.ValidateLinuxBridgeName(bridge); err != nil {
+		return err
 	}
 	config := fmt.Sprintf(`{
   "cniVersion": "0.3.1",
@@ -49,6 +55,9 @@ func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec Shared
 }
 
 func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, bridge, gateway, rangeStart, rangeEnd string, extra NADLabels) error {
+	if err := branding.ValidateLinuxBridgeName(bridge); err != nil {
+		return err
+	}
 	ipam := fmt.Sprintf(`{
     "type": "host-local",
     "subnet": %q`, cidr)
