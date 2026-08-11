@@ -185,7 +185,7 @@ export async function listTenants() {
 }
 
 export async function createTenant(data: { name: string; slug: string; admin_password: string }) {
-  return platformFetch<{ tenant: Tenant }>('/tenants', {
+  return platformFetch<{ tenant: Tenant; admin_user?: PlatformUser }>('/tenants', {
     method: 'POST',
     body: JSON.stringify(data),
   });

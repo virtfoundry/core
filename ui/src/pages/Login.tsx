@@ -37,8 +37,9 @@ export function Login() {
     try {
       await authService.login({ username, password });
       navigate('/');
-    } catch {
-      setError(t('login.invalidCredentials'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      setError(msg && msg !== 'Rejected' ? msg : t('login.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -195,6 +196,10 @@ export function Login() {
                   {loading ? t('login.submitting') : t('login.submit')}
                 </button>
               </form>
+
+              <p className="mt-4 text-center text-xs text-on-surface-variant">
+                {t('login.tenantAdminHint').replace('{slug}', 'acme')}
+              </p>
 
               <p className="mt-8 text-center text-sm text-on-surface-variant">{appVersionLabel()}</p>
             </div>
