@@ -8,6 +8,8 @@
 
 VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, subnets, security groups, VMs, snapshots, IAM, and a web UI — built on KubeVirt and Multus.
 
+Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](docs/WHY.md).
+
 ## Key features
 
 - **Multi-tenancy** — isolated namespaces per tenant
@@ -59,9 +61,18 @@ cd ui && npm install && npm run dev
 
 | Doc | Description |
 |-----|-------------|
+| [docs/WHY.md](docs/WHY.md) | Positioning vs Proxmox / KubeVirt / Harvester |
+| [ROADMAP.md](ROADMAP.md) | Near-term product themes |
+| [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
+| [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |
+| [ADOPTERS.md](ADOPTERS.md) | Who runs VirtFoundry |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and API overview |
 | [docs/VM-TEMPLATES.md](docs/VM-TEMPLATES.md) | VM template catalog, ISO import, container disks |
 | [docs/PRODUCT.md](docs/PRODUCT.md) | Product model (core vs enterprise) |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
