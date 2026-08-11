@@ -22,7 +22,7 @@ Goal: project looks intentional to strangers in under 5 minutes.
 | 0.7 | `ADOPTERS.md` (template + first entry) | | ✅ |
 | 0.8 | [Why VirtFoundry](WHY.md) (vs Proxmox / KubeVirt / Harvester) | | ✅ |
 | 0.9 | README badges + links to Why / Roadmap / Security | | ✅ |
-| 0.10 | Quickstart path under 30 min documented (kind or homelab) | | ⬜ |
+| 0.10 | Quickstart path under 30 min documented (kind or homelab) | | ✅ ([guide](https://virtfoundry.github.io/helm-charts/docs/guide/quickstart/)) |
 | 0.11 | SemVer releases + CHANGELOG kept current | — | ✅ (keep discipline) |
 | 0.12 | Enable GitHub Discussions on `core` | | ✅ |
 | 0.13 | 5+ issues labeled `good first issue` | | ✅ (#27–#31) |
@@ -80,7 +80,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 1. ~~Land Phase 0 docs~~  
 2. ~~Open GitHub milestones + Project + checklist issues~~  
 3. ~~Enable Discussions (#25) + seed good first issues (#26)~~  
-4. Document **quickstart under 30 min** (#24)  
+4. ~~Document **quickstart under 30 min** (#24)~~  
 5. Record or script a **demo** (#32)  
 6. Ask 2 friends/homelabs to try install and file issues  
 

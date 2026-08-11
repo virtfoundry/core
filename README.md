@@ -21,19 +21,21 @@ Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](do
 
 ## Quick start
 
-**Prerequisites:** KubeVirt, Multus, and CDI on the cluster. See the [installation guide](https://virtfoundry.github.io/helm-charts/docs/guide/installation/).
+**Under 30 minutes** (cluster already has KubeVirt, Multus, CDI): follow the [Quickstart](https://virtfoundry.github.io/helm-charts/docs/guide/quickstart/).
+
+Full prerequisites and platform setup: [installation guide](https://virtfoundry.github.io/helm-charts/docs/guide/installation/).
 
 ```bash
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
 helm install virtfoundry virtfoundry/virtfoundry \
-  --version 1.1.1 \
+  --version 1.4.1 \
   -n virtfoundry-system --create-namespace \
   --set secrets.rootPassword='change-me' \
   --set secrets.jwtSecret='change-me'
 ```
 
-Login: `root` / your root password.
+Login: `root` / your root password. For volume snapshots, set `platform.storage.snapshotClass` (e.g. `longhorn`) — see [Configuration — Snapshots](https://virtfoundry.github.io/helm-charts/docs/guide/configuration/#snapshots-vm-vs-volume).
 
 ## Repositories
 
