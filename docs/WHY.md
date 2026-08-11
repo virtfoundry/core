@@ -58,6 +58,8 @@ Harvester is a full HCI appliance experience. VirtFoundry assumes **you bring th
 
 ## Try it
 
+Published on the docs site: **[Why VirtFoundry](https://virtfoundry.github.io/helm-charts/docs/guide/why/)** (keep in sync with this file).
+
 - [Quickstart (under 30 min)](https://virtfoundry.github.io/helm-charts/docs/guide/quickstart/)  
 - [Installation guide](https://virtfoundry.github.io/helm-charts/docs/guide/installation/)  
 - [Minimum vs production topologies](https://virtfoundry.github.io/helm-charts/docs/guide/topologies/)  
