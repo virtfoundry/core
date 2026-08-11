@@ -1,5 +1,8 @@
 # VM Templates
 
+> **Published guide:** [Images and templates](https://virtfoundry.github.io/helm-charts/docs/guide/features/templates/) on the VirtFoundry docs site.
+> Prefer that page for end users; this file is kept for in-repo links and contributor context.
+
 VirtFoundry VM templates define the OS image used when deploying a virtual machine. Templates can be **container disks** (cloud-init capable Linux images) or **ISO imports** (typically Windows).
 
 ## Platform vs tenant templates
@@ -119,3 +122,5 @@ VMs cannot be deployed from an ISO template until `import_state` is `ready`.
 On the **VMs** page, pick a template from the dropdown (fedora from tenant catalog, ubuntu/cirros from platform). Link to `/templates` is provided to register more images.
 
 Service offerings (CPU/memory) are listed separately via `/api/v1/service-offerings`.
+
+Full feature guide: [Images and templates](https://virtfoundry.github.io/helm-charts/docs/guide/features/templates/).
