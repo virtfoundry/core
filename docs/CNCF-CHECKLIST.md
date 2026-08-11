@@ -24,8 +24,8 @@ Goal: project looks intentional to strangers in under 5 minutes.
 | 0.9 | README badges + links to Why / Roadmap / Security | | ✅ |
 | 0.10 | Quickstart path under 30 min documented (kind or homelab) | | ⬜ |
 | 0.11 | SemVer releases + CHANGELOG kept current | — | ✅ (keep discipline) |
-| 0.12 | Enable GitHub Discussions on `core` | | ⬜ |
-| 0.13 | 5+ issues labeled `good first issue` | | ⬜ |
+| 0.12 | Enable GitHub Discussions on `core` | | ✅ |
+| 0.13 | 5+ issues labeled `good first issue` | | ✅ (#27–#31) |
 
 **Exit criteria:** cold visitor understands what it is, how to install, how to contribute, and how VirtFoundry differs from Proxmox.
 
@@ -77,13 +77,12 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 ## This week (execution order)
 
-1. ~~Land Phase 0 docs~~ — branches `docs/cncf-traction-phase0` (core / helm-charts / terraform-provider) ready to PR  
-2. Open GitHub **milestones** Phase 0 / 1 / 2 + label `good first issue` (needs `gh` once approved)  
-3. Record or script a **demo** (even rough loom) — Phase 1.1  
-4. Publish **Why VirtFoundry** link everywhere (README done locally; social + docs site next)  
-5. Ask 2 friends/homelabs to try install and file issues  
-6. Document **quickstart under 30 min** (kind or homelab path) — Phase 0.10  
-7. Enable **GitHub Discussions** on `core` — Phase 0.12  
+1. ~~Land Phase 0 docs~~  
+2. ~~Open GitHub milestones + Project + checklist issues~~  
+3. ~~Enable Discussions (#25) + seed good first issues (#26)~~  
+4. Document **quickstart under 30 min** (#24)  
+5. Record or script a **demo** (#32)  
+6. Ask 2 friends/homelabs to try install and file issues  
 
 ## Related docs
 

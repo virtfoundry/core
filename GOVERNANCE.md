@@ -38,4 +38,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions are Apache-2.0. **No CLA**
 ## Contact
 
 - Issues: https://github.com/virtfoundry/core/issues  
-- Discussions: https://github.com/virtfoundry/core/discussions (when enabled)  
+- Discussions: https://github.com/virtfoundry/core/discussions  
+- Project board: https://github.com/orgs/virtfoundry/projects/1  

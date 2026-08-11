@@ -74,6 +74,8 @@ cd ui && npm install && npm run dev
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
+Questions and ideas: [GitHub Discussions](https://github.com/virtfoundry/core/discussions). Traction board: [VirtFoundry Traction](https://github.com/orgs/virtfoundry/projects/1).
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
