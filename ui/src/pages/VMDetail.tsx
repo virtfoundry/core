@@ -35,6 +35,14 @@ function fmtMem(mi: number) {
   return `${mi} MiB`;
 }
 
+/** Public pool IP for tenants; prefer named public NIC, then vm.ip if not cluster overlay. */
+function publicPoolIP(vm: PlatformVM): string {
+  const publicNic = vm.nics?.find((n) => n.name === 'public' && n.ip);
+  if (publicNic?.ip) return publicNic.ip;
+  if (vm.ip && !vm.ip.startsWith('10.233.')) return vm.ip;
+  return '';
+}
+
 type Tab = 'overview' | 'networking' | 'storage' | 'logs' | 'snapshots';
 
 export function VMDetail() {
@@ -42,6 +50,7 @@ export function VMDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { t, formatDate } = useI18n();
+  const isRoot = authService.isRoot();
   const [tab, setTab] = useState<Tab>('overview');
   const [snapshotModal, setSnapshotModal] = useState(false);
   const [snapshotName, setSnapshotName] = useState('');
@@ -367,25 +376,39 @@ export function VMDetail() {
       )}
 
       {tab === 'networking' && (
-        <SurfaceCard padding="none">
-          <PageTable>
-            <PageTableHead>
-              <PageTableTh>NIC</PageTableTh>
-              <PageTableTh>Tipo</PageTableTh>
-              <PageTableTh>IP</PageTableTh>
-              <PageTableTh>MAC</PageTableTh>
-            </PageTableHead>
-            <PageTableBody>
-              {(vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip, type: 'default' }]).map((nic) => (
-                <PageTableRow key={nic.name}>
-                  <PageTableTd>{nic.name}</PageTableTd>
-                  <PageTableTd>{nic.type || '—'}</PageTableTd>
-                  <PageTableTd className="font-data-mono">{nic.ip || '—'}</PageTableTd>
-                  <PageTableTd className="font-data-mono text-xs">{nic.mac || '—'}</PageTableTd>
-                </PageTableRow>
-              ))}
-            </PageTableBody>
-          </PageTable>
+        <SurfaceCard padding={isRoot ? 'none' : undefined}>
+          {isRoot ? (
+            <PageTable>
+              <PageTableHead>
+                <PageTableTh>NIC</PageTableTh>
+                <PageTableTh>{t('vmDetail.nicType')}</PageTableTh>
+                <PageTableTh>IP</PageTableTh>
+                <PageTableTh>MAC</PageTableTh>
+              </PageTableHead>
+              <PageTableBody>
+                {(vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip, type: 'default' }]).map((nic) => (
+                  <PageTableRow key={nic.name}>
+                    <PageTableTd>{nic.name}</PageTableTd>
+                    <PageTableTd>{nic.type || '—'}</PageTableTd>
+                    <PageTableTd className="font-data-mono">{nic.ip || '—'}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs">{nic.mac || '—'}</PageTableTd>
+                  </PageTableRow>
+                ))}
+              </PageTableBody>
+            </PageTable>
+          ) : (
+            <div>
+              <h2 className="font-headline text-headline-md font-semibold text-on-surface mb-2">
+                {t('vmDetail.publicIp')}
+              </h2>
+              <p className="font-data-mono text-on-surface text-lg">
+                {publicPoolIP(vm) || '—'}
+              </p>
+              <p className="text-sm text-on-surface-variant mt-2">
+                {t('vmDetail.publicIpHint')}
+              </p>
+            </div>
+          )}
         </SurfaceCard>
       )}
 
