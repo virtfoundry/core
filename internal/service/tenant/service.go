@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/virtfoundry/core/internal/auth"
-	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -79,6 +81,23 @@ func (s *Service) ListTenants() []*platform.Tenant {
 
 func (s *Service) GetTenant(id string) (*platform.Tenant, bool) {
 	return s.store.GetTenant(id)
+}
+
+func (s *Service) DeleteTenant(ctx context.Context, id string) error {
+	t, ok := s.store.GetTenant(id)
+	if !ok {
+		return iaerrors.NewNotFoundError("tenant", id)
+	}
+	if t.Slug == branding.DefaultTenantSlug {
+		return iaerrors.NewForbiddenError("cannot delete the default tenant")
+	}
+
+	if err := s.k8s.DeleteTenantNamespace(ctx, t.Namespace); err != nil {
+		return err
+	}
+	s.store.PurgeTenantData(id)
+	s.store.DeleteTenant(id)
+	return nil
 }
 
 func (s *Service) Namespace(tenantID string) (string, error) {

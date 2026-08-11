@@ -105,6 +105,15 @@ func (h *PlatformHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"tenant": tenant, "admin_user": publicUser(user)})
 }
 
+func (h *PlatformHandler) DeleteTenant(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if err := h.svc.DeleteTenant(r.Context(), id); err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"deleted": true, "id": id})
+}
+
 func (h *PlatformHandler) ListVPCs(w http.ResponseWriter, r *http.Request) {
 	tid, err := h.tenantID(r)
 	if err != nil {

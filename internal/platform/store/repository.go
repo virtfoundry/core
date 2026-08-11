@@ -34,6 +34,8 @@ type Repository interface {
 	GetTenant(id string) (*platform.Tenant, bool)
 	GetTenantBySlug(slug string) (*platform.Tenant, bool)
 	ListTenants() []*platform.Tenant
+	DeleteTenant(id string)
+	PurgeTenantData(tenantID string)
 
 	SaveVPC(v *platform.VPC)
 	GetVPC(id string) (*platform.VPC, bool)

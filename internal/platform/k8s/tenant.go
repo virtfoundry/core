@@ -75,3 +75,14 @@ func isAlreadyExists(err error) bool {
 func isNotFound(err error) bool {
 	return errors.IsNotFound(err)
 }
+
+func (m *Manager) DeleteTenantNamespace(ctx context.Context, namespace string) error {
+	if namespace == "" {
+		return nil
+	}
+	err := m.Clientset.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
+	if err != nil && !isNotFound(err) {
+		return fmt.Errorf("delete namespace %s: %w", namespace, err)
+	}
+	return nil
+}

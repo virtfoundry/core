@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users, Copy, Check } from 'lucide-react';
-import { listTenants, createTenant } from '../lib/platform-api';
+import { Plus, Users, Copy, Check, Trash2 } from 'lucide-react';
+import { listTenants, createTenant, deleteTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
@@ -14,6 +15,8 @@ import {
   formInputClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
+
+const DEFAULT_TENANT_SLUG = 'default';
 
 function suggestSlug(name: string): string {
   return name
@@ -36,10 +39,11 @@ export function Tenants() {
     username: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; slug: string } | null>(null);
   const queryClient = useQueryClient();
   const isRoot = useAppSelector(selectIsRoot);
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.tenants,
     queryFn: listTenants,
     enabled: isRoot,
@@ -59,6 +63,14 @@ export function Tenants() {
         username,
       });
       setCopied(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteTenant(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tenants });
+      setDeleteTarget(null);
     },
   });
 
@@ -107,21 +119,40 @@ export function Tenants() {
           ) : filtered.length === 0 ? (
             <EmptyState icon={<Users size={48} />} title={t('tenants.empty')} />
           ) : (
-            filtered.map((tenant) => (
-              <ResourceGridCard key={tenant.id}>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tenant.name}</h3>
-                  <StatusBadge status={tenant.state || 'active'} pulse={false} />
-                </div>
-                <p className="text-sm text-on-surface-variant mb-3">{tenant.slug}</p>
-                <div className="text-sm space-y-1">
-                  <p>
-                    <span className="text-on-surface-variant">{t('tenants.adminUser')}:</span>{' '}
-                    <code className="text-on-surface">{tenant.slug}-admin</code>
-                  </p>
-                </div>
-              </ResourceGridCard>
-            ))
+            filtered.map((tenant) => {
+              const canDelete = tenant.slug !== DEFAULT_TENANT_SLUG;
+              return (
+                <ResourceGridCard key={tenant.id}>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tenant.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={tenant.state || 'active'} pulse={false} />
+                      {canDelete && (
+                        <button
+                          type="button"
+                          className="p-1.5 rounded-lg text-error hover:bg-error/10"
+                          title={t('tenants.delete')}
+                          aria-label={t('tenants.delete')}
+                          onClick={() => setDeleteTarget({ id: tenant.id, name: tenant.name, slug: tenant.slug })}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-on-surface-variant mb-3">{tenant.slug}</p>
+                  <div className="text-sm space-y-1">
+                    <p>
+                      <span className="text-on-surface-variant">{t('tenants.adminUser')}:</span>{' '}
+                      <code className="text-on-surface">{tenant.slug}-admin</code>
+                    </p>
+                    {!canDelete && (
+                      <p className="text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</p>
+                    )}
+                  </div>
+                </ResourceGridCard>
+              );
+            })
           )}
         </div>
       </RefreshingPanel>
@@ -235,6 +266,22 @@ export function Tenants() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => {
+          setDeleteTarget(null);
+          deleteMutation.reset();
+        }}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+        title={t('tenants.deleteTitle')}
+        message={t('tenants.deleteMessage')}
+        resourceName={deleteTarget ? `${deleteTarget.name} (${deleteTarget.slug})` : undefined}
+        loading={deleteMutation.isPending}
+        error={deleteMutation.isError ? (deleteMutation.error as Error).message : undefined}
+      />
     </div>
   );
 }

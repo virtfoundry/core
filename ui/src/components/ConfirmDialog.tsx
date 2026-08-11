@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  error?: string;
 }
 
 export function ConfirmDialog({
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   loading = false,
+  error,
 }: ConfirmDialogProps) {
   const { t } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -69,6 +71,7 @@ export function ConfirmDialog({
                     {resourceName}
                   </p>
                 )}
+                {error && <p className="mt-2 text-sm text-error">{error}</p>}
               </div>
             </div>
           </div>

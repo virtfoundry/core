@@ -202,6 +202,7 @@ func main() {
 	rootOnly.Use(middleware.RequireRoot)
 	rootOnly.HandleFunc("/tenants", platformHandler.ListTenants).Methods("GET")
 	rootOnly.HandleFunc("/tenants", platformHandler.CreateTenant).Methods("POST")
+	rootOnly.HandleFunc("/tenants/{id}", platformHandler.DeleteTenant).Methods("DELETE")
 	rootOnly.HandleFunc("/service-offerings", platformHandler.CreateServiceOffering).Methods("POST")
 	rootOnly.HandleFunc("/service-offerings/{id}", platformHandler.UpdateServiceOffering).Methods("PATCH")
 	rootOnly.HandleFunc("/service-offerings/{id}", platformHandler.DeleteServiceOffering).Methods("DELETE")
