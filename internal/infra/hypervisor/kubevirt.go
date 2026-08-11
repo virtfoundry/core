@@ -529,8 +529,9 @@ func (d *KubeVirtDriver) vmToInfo(ctx context.Context, vm *kubevirtv1.VirtualMac
 		info.State = mapVMIState(vmi)
 		info.NodeName = vmi.Status.NodeName
 		for _, iface := range vmi.Status.Interfaces {
+			// VirtFoundry names the masquerade/pod NIC "pod"; tenant Multus nets keep their slug (e.g. default, public).
 			nicType := "multus"
-			if iface.Name == "default" {
+			if iface.Name == "pod" {
 				nicType = "pod"
 			}
 			info.NICs = append(info.NICs, VMNicInfo{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -579,12 +580,12 @@ func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, t
 					priorNics[nic.Name] = nic
 				}
 			}
-			if storedPublicIP == "" && strings.HasPrefix(existing.IP, "10.0.50.") {
+			if storedPublicIP == "" && existing.IP != "" && !strings.HasPrefix(existing.IP, "10.233.") {
 				storedPublicIP = existing.IP
 			}
 		}
 	}
-	if storedPublicIP == "" && strings.HasPrefix(vm.IP, "10.0.50.") {
+	if storedPublicIP == "" && vm.IP != "" && !strings.HasPrefix(vm.IP, "10.233.") {
 		storedPublicIP = vm.IP
 	}
 
@@ -632,13 +633,40 @@ func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, t
 			}
 		}
 	}
+	if storedPublicIP == "" && vm.IP != "" && !strings.HasPrefix(vm.IP, "10.233.") {
+		storedPublicIP = vm.IP
+	}
+	// KubeVirt often omits guest IP on Multus public iface; keep pool allocation on the NIC row.
+	for i := range vm.NICs {
+		if vm.NICs[i].Name == "public" && vm.NICs[i].IP == "" && storedPublicIP != "" {
+			vm.NICs[i].IP = storedPublicIP
+		}
+	}
 	if storedPublicIP != "" && (vm.IP == "" || strings.HasPrefix(vm.IP, "10.233.")) {
 		vm.IP = storedPublicIP
 	}
+	sortVMNics(vm.NICs)
 	if vm.DisplayName == "" {
 		vm.DisplayName = vm.Name
 	}
 	vm.UpdatedAt = store.Now()
+}
+
+// sortVMNics: public → tenant/other Multus → pod (cluster underlay last).
+func sortVMNics(nics []platform.VMNic) {
+	rank := func(name string) int {
+		switch name {
+		case "public":
+			return 0
+		case "pod":
+			return 2
+		default:
+			return 1
+		}
+	}
+	sort.SliceStable(nics, func(i, j int) bool {
+		return rank(nics[i].Name) < rank(nics[j].Name)
+	})
 }
 
 func vmStateSignature(vm *platform.PlatformVM) string {

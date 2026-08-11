@@ -43,6 +43,21 @@ function publicPoolIP(vm: PlatformVM): string {
   return '';
 }
 
+/** Root NIC table: fill public IP from pool; order public → other → pod. */
+function nicsForRootTable(vm: PlatformVM) {
+  const pool = publicPoolIP(vm);
+  const nics = (vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip, type: 'default' }]).map((nic) => {
+    let type = nic.type || '—';
+    if (nic.name === 'pod') type = 'pod';
+    else if (nic.name === 'public') type = 'multus';
+    else if (type === 'pod' && nic.name !== 'pod') type = 'multus';
+    const ip = nic.name === 'public' && !nic.ip ? pool : nic.ip;
+    return { ...nic, type, ip };
+  });
+  const rank = (name: string) => (name === 'public' ? 0 : name === 'pod' ? 2 : 1);
+  return [...nics].sort((a, b) => rank(a.name) - rank(b.name));
+}
+
 type Tab = 'overview' | 'networking' | 'storage' | 'logs' | 'snapshots';
 
 export function VMDetail() {
@@ -386,7 +401,7 @@ export function VMDetail() {
                 <PageTableTh>MAC</PageTableTh>
               </PageTableHead>
               <PageTableBody>
-                {(vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip, type: 'default' }]).map((nic) => (
+                {nicsForRootTable(vm).map((nic) => (
                   <PageTableRow key={nic.name}>
                     <PageTableTd>{nic.name}</PageTableTd>
                     <PageTableTd>{nic.type || '—'}</PageTableTd>
