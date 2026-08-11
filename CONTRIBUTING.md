@@ -68,3 +68,7 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Be respectf
 ## Security
 
 Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
+
+## Questions
+
+Use [GitHub Discussions](https://github.com/virtfoundry/core/discussions) for questions and ideas (prefer Issues for bugs and concrete features).
