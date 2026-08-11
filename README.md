@@ -33,7 +33,7 @@ Full prerequisites and platform setup: [installation guide](https://virtfoundry.
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
 helm install virtfoundry virtfoundry/virtfoundry \
-  --version 1.4.1 \
+  --version 1.5.0 \
   -n virtfoundry-system --create-namespace \
   --set secrets.rootPassword='change-me' \
   --set secrets.jwtSecret='change-me'
