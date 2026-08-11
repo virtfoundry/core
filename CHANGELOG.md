@@ -4,17 +4,27 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
-## [Unreleased]
+## [1.5.0] - 2026-08-11
 
 ### Added
 
+- Root-only `DELETE /tenants/{id}`: purge tenant data and delete the Kubernetes namespace (default tenant protected)
+- Tenants UI: delete action with confirmation (hidden for `default`)
 - Deploy flag `dedicated_cpu` for Guaranteed QoS (`requests.cpu = limits.cpu = cores`) when overcommit is not desired
 - Service offering field `dedicated_cpu` plus seeded `small-dedicated` / `medium-dedicated` / `large-dedicated`
 - UI deploy checkbox and Offerings admin toggle for dedicated CPU
+- Published Features guide (tenancy, IAM, offerings, templates, VMs, access, storage, networking, security groups, API)
 
 ### Fixed
 
 - VM deploy CPU scheduling: set guest `domain.cpu.cores` and omit CPU request by default so KubeVirt `cpuAllocationRatio` can overcommit (fixes `Insufficient cpu` when VMs are idle)
+- Tenant create UX: show admin username (`{slug}-admin`) after create; clearer login guidance
+- Default public bridge name `vf-pub0` (Linux IFNAMSIZ ≤15 chars)
+- CI image builds: disable Buildx provenance/SBOM attestations (containerd 2.x CreateContainerError on attestation OCI indexes)
+
+### Changed
+
+- CI required checks documented; go test coverage broadened on PRs
 
 ## [1.4.1] - 2026-08-05
 
@@ -131,6 +141,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[1.5.0]: https://github.com/virtfoundry/core/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/virtfoundry/core/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/virtfoundry/core/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/virtfoundry/core/compare/v1.2.0...v1.3.0
