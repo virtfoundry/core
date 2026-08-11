@@ -41,6 +41,7 @@ Cluster deploy and testing: [helm-charts](https://github.com/virtfoundry/helm-ch
 2. Implement + local tests (`go test ./...`, UI build if touched)
 3. Deploy and validate on a **Kubernetes cluster** before opening a PR when behavior changes
 4. Open PR → maintainer reviews and tests on a cluster → **merge only after approval**
+5. After merge: **delete the feature branch** (remote + local). Org repos keep GitHub “Automatically delete head branches” enabled
 
 Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` when both are needed.
 
