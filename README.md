@@ -12,6 +12,8 @@ VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, s
 
 Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](docs/WHY.md).
 
+**Website / docs (canonical front door):** [virtfoundry.github.io/helm-charts/docs](https://virtfoundry.github.io/helm-charts/docs/) — Quickstart, topologies, and project docs. Custom domain (`virtfoundry.dev`) is optional later; until then this URL is the official entry point.
+
 ## Key features
 
 - **Multi-tenancy** — isolated namespaces per tenant
@@ -65,6 +67,7 @@ cd ui && npm install && npm run dev
 
 | Doc | Description |
 |-----|-------------|
+| [docs/CI.md](docs/CI.md) | Required PR checks (Go, UI, Helm, Terraform) |
 | [docs/WHY.md](docs/WHY.md) | Positioning vs Proxmox / KubeVirt / Harvester |
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |

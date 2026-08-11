@@ -49,9 +49,9 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` 
 
 1. Fork `virtfoundry/virtfoundry` and create a feature branch
 2. Keep changes focused; match existing code style
-3. Run `go test ./...` and UI build when touching those areas
+3. Run `go test ./...` and UI build when touching those areas (see [docs/CI.md](docs/CI.md))
 4. Update wiki pages when behavior or deploy steps change
-5. Open a PR with a clear summary and test plan
+5. Open a PR with a clear summary and test plan — required CI checks must be green before merge
 
 ## Repositories
 

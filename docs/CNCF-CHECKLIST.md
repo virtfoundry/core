@@ -43,8 +43,8 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 | 1.4 | 2–3 adopters listed (homelab OK; company optional) | ⬜ |
 | 1.5 | Slack or Discord + link from README | ⬜ |
 | 1.6 | Talk/meetup (KubeVirt / CNCF BR / local) | ⬜ |
-| 1.7 | CI green on PR (Go test + UI build + helm lint) | ⬜ verify |
-| 1.8 | `virtfoundry.dev` or GitHub Pages as single front door | ⬜ (docs site exists) |
+| 1.7 | CI green on PR (Go test + UI build + helm lint) | ✅ ([docs/CI.md](CI.md) + rulesets) |
+| 1.8 | `virtfoundry.dev` or GitHub Pages as single front door | ✅ (Pages canonical; see website.md) |
 | 1.9 | TAG Runtime / KubeVirt community intro (async) | ⬜ |
 
 **Exit criteria:** someone outside the maintainer can install from docs and open a useful PR.
