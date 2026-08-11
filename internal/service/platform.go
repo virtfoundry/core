@@ -170,6 +170,10 @@ func (s *PlatformService) GetTenant(id string) (*platform.Tenant, bool) {
 	return s.tenant.GetTenant(id)
 }
 
+func (s *PlatformService) DeleteTenant(ctx context.Context, id string) error {
+	return s.tenant.DeleteTenant(ctx, id)
+}
+
 // --- network ---
 
 func (s *PlatformService) CreateVPC(ctx context.Context, tenantID, name, cidr string) (*platform.VPC, error) {

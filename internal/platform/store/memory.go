@@ -137,6 +137,92 @@ func (m *Memory) ListTenants() []*platform.Tenant {
 	return out
 }
 
+func (m *Memory) DeleteTenant(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.tenants, id)
+}
+
+func (m *Memory) PurgeTenantData(tenantID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for id, u := range m.users {
+		if u.TenantID == tenantID && u.Role != platform.RoleRoot {
+			delete(m.usersByName, u.Username)
+			delete(m.users, id)
+		}
+	}
+	for id, k := range m.apiKeys {
+		if k.TenantID == tenantID {
+			delete(m.apiKeys, id)
+		}
+	}
+	for id, r := range m.roles {
+		if r.TenantID == tenantID && !r.IsSystem {
+			delete(m.rolePerms, id)
+			delete(m.roles, id)
+		}
+	}
+	for id, vm := range m.vms {
+		if vm.TenantID == tenantID {
+			delete(m.vms, id)
+		}
+	}
+	for id, v := range m.volumes {
+		if v.TenantID == tenantID {
+			delete(m.volumes, id)
+		}
+	}
+	for id, s := range m.snapshots {
+		if s.TenantID == tenantID {
+			delete(m.snapshots, id)
+		}
+	}
+	for id, s := range m.vmSnapshots {
+		if s.TenantID == tenantID {
+			delete(m.vmSnapshots, id)
+		}
+	}
+	networkIDs := map[string]struct{}{}
+	for id, n := range m.networks {
+		if n.TenantID == tenantID {
+			networkIDs[id] = struct{}{}
+			delete(m.networks, id)
+		}
+	}
+	for id, ip := range m.ipAddresses {
+		if _, ok := networkIDs[ip.NetworkID]; ok {
+			delete(m.ipAddresses, id)
+		}
+	}
+	for id, v := range m.vpcs {
+		if v.TenantID == tenantID {
+			delete(m.vpcs, id)
+		}
+	}
+	for id, sg := range m.securityGroups {
+		if sg.TenantID == tenantID {
+			delete(m.securityGroups, id)
+		}
+	}
+	for id, k := range m.sshKeyPairs {
+		if k.TenantID == tenantID {
+			delete(m.sshKeyPairs, id)
+		}
+	}
+	for id, j := range m.jobs {
+		if j.TenantID == tenantID {
+			delete(m.jobs, id)
+		}
+	}
+	for id, t := range m.vmTemplates {
+		if t.TenantID == tenantID {
+			delete(m.vmTemplates, id)
+		}
+	}
+}
+
 func (m *Memory) SaveVPC(v *platform.VPC) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

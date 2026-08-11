@@ -191,6 +191,12 @@ export async function createTenant(data: { name: string; slug: string; admin_pas
   });
 }
 
+export async function deleteTenant(id: string) {
+  return platformFetch<{ deleted: boolean; id: string }>(`/tenants/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function listVPCs() {
   const res = await platformFetch<{ vpcs: VPC[] | null }>('/vpcs');
   return { vpcs: res.vpcs ?? [] };

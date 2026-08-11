@@ -270,6 +270,31 @@ func (m *MySQL) ListTenants() []*platform.Tenant {
 	return out
 }
 
+func (m *MySQL) DeleteTenant(id string) {
+	_, _ = m.db.Exec(`DELETE FROM tenants WHERE id=?`, id)
+}
+
+func (m *MySQL) PurgeTenantData(tenantID string) {
+	// Order respects FK-ish dependencies without relying on DB cascades.
+	_, _ = m.db.Exec(`DELETE FROM vm_nics WHERE vm_id IN (SELECT id FROM vms WHERE tenant_id=?)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM vm_snapshots WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM snapshots WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM volumes WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM vms WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM async_jobs WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM api_keys WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM users WHERE tenant_id=? AND role <> 'root'`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE tenant_id=? AND is_system=0)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM roles WHERE tenant_id=? AND is_system=0`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM ssh_key_pairs WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM ip_addresses WHERE network_id IN (SELECT id FROM networks WHERE tenant_id=?)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM security_groups WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM networks WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM vpcs WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM vm_templates WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM audit_events WHERE target_tenant_id=?`, tenantID)
+}
+
 func (m *MySQL) SaveVPC(v *platform.VPC) {
 	_, _ = m.db.Exec(`INSERT INTO vpcs (id, tenant_id, name, cidr, namespace, state, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
