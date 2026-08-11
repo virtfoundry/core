@@ -37,7 +37,15 @@ export interface PlatformVM {
   host_name?: string;
   service_offering_id?: string;
   tenant_id?: string;
-  nics?: Array<{ name: string; ip?: string; mac?: string; type?: string }>;
+  nics?: Array<{
+    name: string;
+    ip?: string;
+    mac?: string;
+    type?: string;
+    network_id?: string;
+    nad_namespace?: string;
+    nad_name?: string;
+  }>;
   created_at?: string;
   updated_at?: string;
 }

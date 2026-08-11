@@ -645,11 +645,56 @@ func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, t
 	if storedPublicIP != "" && (vm.IP == "" || strings.HasPrefix(vm.IP, "10.233.")) {
 		vm.IP = storedPublicIP
 	}
+	s.attachNetworkMeta(vm.TenantID, vm.NICs)
 	sortVMNics(vm.NICs)
 	if vm.DisplayName == "" {
 		vm.DisplayName = vm.Name
 	}
 	vm.UpdatedAt = store.Now()
+}
+
+// attachNetworkMeta re-links Multus NICs to platform networks (id/NAD/CIDR context)
+// when KubeVirt status only returns name/ip/mac.
+func (s *Service) attachNetworkMeta(tenantID string, nics []platform.VMNic) {
+	nets := s.store.ListNetworks(tenantID)
+	byID := make(map[string]*platform.Network, len(nets))
+	bySlug := make(map[string]*platform.Network, len(nets))
+	byNAD := make(map[string]*platform.Network, len(nets))
+	for _, net := range nets {
+		byID[net.ID] = net
+		slug := shared.SanitizeSlug(net.Name)
+		if slug != "" {
+			bySlug[slug] = net
+		}
+		if net.NADName != "" {
+			byNAD[net.NADNamespace+"/"+net.NADName] = net
+		}
+	}
+	for i := range nics {
+		if nics[i].Name == "pod" {
+			continue
+		}
+		var net *platform.Network
+		if nics[i].NetworkID != "" {
+			net = byID[nics[i].NetworkID]
+		}
+		if net == nil && nics[i].NADName != "" {
+			net = byNAD[nics[i].NADNamespace+"/"+nics[i].NADName]
+		}
+		if net == nil {
+			net = bySlug[nics[i].Name]
+		}
+		if net == nil {
+			continue
+		}
+		nics[i].NetworkID = net.ID
+		if nics[i].NADNamespace == "" {
+			nics[i].NADNamespace = net.NADNamespace
+		}
+		if nics[i].NADName == "" {
+			nics[i].NADName = net.NADName
+		}
+	}
 }
 
 // sortVMNics: public → tenant/other Multus → pod (cluster underlay last).

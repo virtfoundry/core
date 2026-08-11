@@ -9,11 +9,13 @@ import {
   getVM, updateVM, startVM, stopVM, deleteVM, createVMSnapshot,
   listVMSnapshots, fetchVMLogs, listServiceOfferings,
   listVMVolumes, listVolumes, attachVolumeToVM, detachVolumeFromVM,
-  type PlatformVM,
+  listNetworks, listVPCs,
+  type PlatformVM, type Network, type VPC,
 } from '../lib/platform-api';
 import {
   offeringsForTemplate, offeringLabel, findOfferingBySpec, findOfferingByName,
 } from '../lib/offerings';
+import { isPublicNetwork } from '../lib/networks';
 import { Modal } from '../components/Modal';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
@@ -43,16 +45,68 @@ function publicPoolIP(vm: PlatformVM): string {
   return '';
 }
 
-/** Root NIC table: fill public IP from pool; order public → other → pod. */
-function nicsForRootTable(vm: PlatformVM) {
+type RootNicRow = {
+  name: string;
+  type: string;
+  ip?: string;
+  mac?: string;
+  network_id?: string;
+  nad_namespace?: string;
+  nad_name?: string;
+  roleKey: 'vmDetail.nicRolePublic' | 'vmDetail.nicRoleSubnet' | 'vmDetail.nicRolePod' | 'vmDetail.nicRoleOther';
+  network?: Network;
+  vpc?: VPC;
+};
+
+/** Root NIC table: fill public IP from pool; order public → other → pod; join network/VPC. */
+function nicsForRootTable(vm: PlatformVM, networks: Network[], vpcs: VPC[]): RootNicRow[] {
   const pool = publicPoolIP(vm);
+  const byID = new Map(networks.map((n) => [n.id, n]));
+  const byName = new Map(networks.map((n) => [n.name, n]));
+  const byNAD = new Map(
+    networks
+      .filter((n) => n.nad_name)
+      .map((n) => [`${n.nad_namespace || ''}/${n.nad_name}`, n]),
+  );
+  const vpcByID = new Map(vpcs.map((v) => [v.id, v]));
+
   const nics = (vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip, type: 'default' }]).map((nic) => {
     let type = nic.type || '—';
     if (nic.name === 'pod') type = 'pod';
     else if (nic.name === 'public') type = 'multus';
     else if (type === 'pod' && nic.name !== 'pod') type = 'multus';
     const ip = nic.name === 'public' && !nic.ip ? pool : nic.ip;
-    return { ...nic, type, ip };
+
+    let network =
+      (nic.network_id && byID.get(nic.network_id)) ||
+      (nic.nad_name && byNAD.get(`${nic.nad_namespace || ''}/${nic.nad_name}`)) ||
+      byName.get(nic.name);
+
+    let roleKey: RootNicRow['roleKey'] = 'vmDetail.nicRoleOther';
+    if (nic.name === 'pod' || type === 'pod') {
+      roleKey = 'vmDetail.nicRolePod';
+      network = undefined;
+    } else if (!network) {
+      roleKey = nic.name === 'public' ? 'vmDetail.nicRolePublic' : 'vmDetail.nicRoleOther';
+    } else if (isPublicNetwork(network)) {
+      roleKey = 'vmDetail.nicRolePublic';
+    } else {
+      roleKey = 'vmDetail.nicRoleSubnet';
+    }
+
+    const vpc = network?.vpc_id ? vpcByID.get(network.vpc_id) : undefined;
+    return {
+      name: nic.name,
+      type,
+      ip,
+      mac: nic.mac,
+      network_id: nic.network_id || network?.id,
+      nad_namespace: nic.nad_namespace || network?.nad_namespace,
+      nad_name: nic.nad_name || network?.nad_name,
+      roleKey,
+      network,
+      vpc,
+    };
   });
   const rank = (name: string) => (name === 'public' ? 0 : name === 'pod' ? 2 : 1);
   return [...nics].sort((a, b) => rank(a.name) - rank(b.name));
@@ -127,9 +181,22 @@ export function VMDetail() {
     enabled: !needsTenant && tab === 'storage',
   });
 
+  const { data: networksData } = useQuery({
+    queryKey: queryKeys.networks,
+    queryFn: listNetworks,
+    enabled: !needsTenant && isRoot && tab === 'networking',
+  });
+  const { data: vpcsData } = useQuery({
+    queryKey: queryKeys.vpcs,
+    queryFn: listVPCs,
+    enabled: !needsTenant && isRoot && tab === 'networking',
+  });
+
   const vm = data?.vm;
   const velasUrl = data?.velas_url;
   const vmSnaps = (snapData?.vm_snapshots || []).filter((s) => s.vm_name === name);
+  const networks = networksData?.networks || [];
+  const vpcs = vpcsData?.vpcs || [];
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.vm(name) });
@@ -393,24 +460,54 @@ export function VMDetail() {
       {tab === 'networking' && (
         <SurfaceCard padding={isRoot ? 'none' : undefined}>
           {isRoot ? (
-            <PageTable>
-              <PageTableHead>
-                <PageTableTh>NIC</PageTableTh>
-                <PageTableTh>{t('vmDetail.nicType')}</PageTableTh>
-                <PageTableTh>IP</PageTableTh>
-                <PageTableTh>MAC</PageTableTh>
-              </PageTableHead>
-              <PageTableBody>
-                {nicsForRootTable(vm).map((nic) => (
-                  <PageTableRow key={nic.name}>
-                    <PageTableTd>{nic.name}</PageTableTd>
-                    <PageTableTd>{nic.type || '—'}</PageTableTd>
-                    <PageTableTd className="font-data-mono">{nic.ip || '—'}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs">{nic.mac || '—'}</PageTableTd>
-                  </PageTableRow>
-                ))}
-              </PageTableBody>
-            </PageTable>
+            <div className="overflow-x-auto">
+              <PageTable>
+                <PageTableHead>
+                  <PageTableTh>NIC</PageTableTh>
+                  <PageTableTh>{t('vmDetail.nicRole')}</PageTableTh>
+                  <PageTableTh>IP</PageTableTh>
+                  <PageTableTh>{t('vmDetail.gateway')}</PageTableTh>
+                  <PageTableTh>{t('vmDetail.vpc')}</PageTableTh>
+                  <PageTableTh>{t('vmDetail.subnet')}</PageTableTh>
+                  <PageTableTh>{t('vmDetail.cidr')}</PageTableTh>
+                  <PageTableTh>{t('vmDetail.nad')}</PageTableTh>
+                  <PageTableTh>MAC</PageTableTh>
+                </PageTableHead>
+                <PageTableBody>
+                  {nicsForRootTable(vm, networks, vpcs).map((nic) => {
+                    const nad =
+                      nic.nad_namespace && nic.nad_name
+                        ? `${nic.nad_namespace}/${nic.nad_name}`
+                        : nic.nad_name || '';
+                    return (
+                      <PageTableRow key={nic.name}>
+                        <PageTableTd className="font-medium text-on-surface">{nic.name}</PageTableTd>
+                        <PageTableTd>
+                          <span className="text-on-surface">{t(nic.roleKey)}</span>
+                          <span className="block text-xs text-on-surface-variant font-data-mono">{nic.type}</span>
+                        </PageTableTd>
+                        <PageTableTd className="font-data-mono">{nic.ip || '—'}</PageTableTd>
+                        <PageTableTd className="font-data-mono">{nic.network?.gateway || '—'}</PageTableTd>
+                        <PageTableTd>
+                          {nic.vpc ? (
+                            <>
+                              <span className="text-on-surface">{nic.vpc.name}</span>
+                              <span className="block text-xs text-on-surface-variant font-data-mono">{nic.vpc.cidr}</span>
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </PageTableTd>
+                        <PageTableTd>{nic.network?.name || '—'}</PageTableTd>
+                        <PageTableTd className="font-data-mono">{nic.network?.cidr || '—'}</PageTableTd>
+                        <PageTableTd className="font-data-mono text-xs">{nad || '—'}</PageTableTd>
+                        <PageTableTd className="font-data-mono text-xs">{nic.mac || '—'}</PageTableTd>
+                      </PageTableRow>
+                    );
+                  })}
+                </PageTableBody>
+              </PageTable>
+            </div>
           ) : (
             <div>
               <h2 className="font-headline text-headline-md font-semibold text-on-surface mb-2">
