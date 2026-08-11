@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.28%2B-326CE5?logo=kubernetes)](https://kubernetes.io)
 [![KubeVirt](https://img.shields.io/badge/KubeVirt-Native-red)](https://kubevirt.io)
+[![Discussions](https://img.shields.io/badge/Discussions-join-brightgreen?logo=github)](https://github.com/virtfoundry/core/discussions)
+[![Project](https://img.shields.io/badge/Project-Traction-blueviolet?logo=github)](https://github.com/orgs/virtfoundry/projects/1)
 
 VirtFoundry turns Kubernetes clusters into a multi-tenant private cloud: VPCs, subnets, security groups, VMs, snapshots, IAM, and a web UI — built on KubeVirt and Multus.
 

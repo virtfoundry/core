@@ -39,7 +39,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 |---|------|--------|
 | 1.1 | 10-min demo video (VM + volume + snapshot + UI) | ⬜ |
 | 1.2 | Blog/post: “Leaving Proxmox for K8s-native private cloud” | ⬜ |
-| 1.3 | Comparison page kept honest (what Proxmox still wins) | ⬜ (seed in WHY.md) |
+| 1.3 | Comparison page kept honest (what Proxmox still wins) | ✅ (WHY.md “When Proxmox still wins”) |
 | 1.4 | 2–3 adopters listed (homelab OK; company optional) | ⬜ |
 | 1.5 | Slack or Discord + link from README | ⬜ |
 | 1.6 | Talk/meetup (KubeVirt / CNCF BR / local) | ⬜ |
