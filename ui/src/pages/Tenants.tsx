@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Copy, Check } from 'lucide-react';
 import { listTenants, createTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { RefreshButton } from '../components/RefreshButton';
@@ -15,11 +15,27 @@ import {
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
+function suggestSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function Tenants() {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
+  const [slugTouched, setSlugTouched] = useState(false);
   const [form, setForm] = useState({ name: '', slug: '', admin_password: '' });
+  const [createdAdmin, setCreatedAdmin] = useState<{
+    tenantName: string;
+    slug: string;
+    username: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
   const isRoot = useAppSelector(selectIsRoot);
 
@@ -31,10 +47,18 @@ export function Tenants() {
 
   const createMutation = useMutation({
     mutationFn: createTenant,
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tenants });
       setCreateModal(false);
+      setSlugTouched(false);
       setForm({ name: '', slug: '', admin_password: '' });
+      const username = res.admin_user?.username || `${res.tenant.slug}-admin`;
+      setCreatedAdmin({
+        tenantName: res.tenant.name,
+        slug: res.tenant.slug,
+        username,
+      });
+      setCopied(false);
     },
   });
 
@@ -51,6 +75,13 @@ export function Tenants() {
     tenant.name.toLowerCase().includes(search.toLowerCase()) ||
     tenant.slug.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleCopyUsername = async () => {
+    if (!createdAdmin) return;
+    await navigator.clipboard.writeText(createdAdmin.username);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -84,7 +115,10 @@ export function Tenants() {
                 </div>
                 <p className="text-sm text-on-surface-variant mb-3">{tenant.slug}</p>
                 <div className="text-sm space-y-1">
-                  <p><span className="text-on-surface-variant">{t('common.region')}:</span> {tenant.slug}</p>
+                  <p>
+                    <span className="text-on-surface-variant">{t('tenants.adminUser')}:</span>{' '}
+                    <code className="text-on-surface">{tenant.slug}-admin</code>
+                  </p>
                 </div>
               </ResourceGridCard>
             ))
@@ -92,7 +126,14 @@ export function Tenants() {
         </div>
       </RefreshingPanel>
 
-      <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('tenants.modalTitle')}>
+      <Modal
+        isOpen={createModal}
+        onClose={() => {
+          setCreateModal(false);
+          setSlugTouched(false);
+        }}
+        title={t('tenants.modalTitle')}
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -105,7 +146,14 @@ export function Tenants() {
             <input
               required
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const name = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  name,
+                  slug: slugTouched ? prev.slug : suggestSlug(name),
+                }));
+              }}
               className={formInputClass}
               placeholder="Acme Corp"
             />
@@ -116,10 +164,16 @@ export function Tenants() {
               required
               pattern="[-a-z0-9]+"
               value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase() })}
+              onChange={(e) => {
+                setSlugTouched(true);
+                setForm({ ...form, slug: e.target.value.toLowerCase() });
+              }}
               className={formInputClass}
               placeholder="acme"
             />
+            <p className="mt-1 text-xs text-on-surface-variant">
+              {t('tenants.adminHint').replace('{username}', form.slug ? `${form.slug}-admin` : '…-admin')}
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t('tenants.adminPassword')}</label>
@@ -135,12 +189,51 @@ export function Tenants() {
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setCreateModal(false)} className="btn-secondary">{t('common.cancel')}</button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreateModal(false);
+                setSlugTouched(false);
+              }}
+              className="btn-secondary"
+            >
+              {t('common.cancel')}
+            </button>
             <button type="submit" disabled={createMutation.isPending} className="btn-primary">
               {createMutation.isPending ? t('common.creating') : t('common.create')}
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={!!createdAdmin}
+        onClose={() => setCreatedAdmin(null)}
+        title={t('tenants.createdTitle')}
+      >
+        {createdAdmin && (
+          <div className="space-y-4">
+            <p className="text-sm text-on-surface-variant">
+              {t('tenants.createdBody').replace('{name}', createdAdmin.tenantName)}
+            </p>
+            <div className="rounded-lg border border-card-border bg-surface-container-low p-4 space-y-2">
+              <p className="text-sm">
+                <span className="text-on-surface-variant">{t('login.username')}:</span>{' '}
+                <code className="font-semibold text-on-surface">{createdAdmin.username}</code>
+              </p>
+              <p className="text-xs text-on-surface-variant">{t('tenants.createdPasswordNote')}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={handleCopyUsername} className="btn-secondary flex items-center gap-2">
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? t('common.copied') : t('tenants.copyUsername')}
+              </button>
+              <button type="button" onClick={() => setCreatedAdmin(null)} className="btn-primary">
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
