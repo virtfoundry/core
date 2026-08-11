@@ -27,3 +27,27 @@ go test ./...
 ```
 
 Do **not** merge with failing required checks. Docs-only PRs still run the full matrix so `main` stays green for newcomers.
+
+## Enforce on GitHub
+
+Enable a repository ruleset named `protect-main` on each repo’s `main` branch requiring the job names above (`go`/`ui`/`build`, `lint`, `test`). Example for core (Settings → Rules → New ruleset, or API):
+
+```json
+{
+  "name": "protect-main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },
+  "rules": [{
+    "type": "required_status_checks",
+    "parameters": {
+      "strict_required_status_checks_policy": true,
+      "required_status_checks": [
+        { "context": "go" },
+        { "context": "ui" },
+        { "context": "build" }
+      ]
+    }
+  }]
+}
+```
