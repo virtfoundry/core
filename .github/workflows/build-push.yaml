@@ -11,6 +11,8 @@ env:
   REGISTRY: ghcr.io
   API_IMAGE: ghcr.io/virtfoundry/core
   UI_IMAGE: ghcr.io/virtfoundry/ui
+  ARGO_HOMELAB_REPO: Matheus-Thurler/argo-homelab
+  ARGO_VALUES_PATH: platform/virtfoundry/values-homelab.yaml
 
 permissions:
   contents: read
@@ -60,6 +62,7 @@ jobs:
             type=raw,value=latest,enable={{ is_default_branch }}
 
       - name: Build and push API
+        id: build-api
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,6 +77,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push UI
+        id: build-ui
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -85,3 +89,64 @@ jobs:
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Pin digests in argo-homelab so Argo CD sees a Git change and rolls pods.
+      # Requires repo secret ARGO_HOMELAB_TOKEN (contents:write on Matheus-Thurler/argo-homelab).
+      - name: Pin image digests in argo-homelab
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          ARGO_HOMELAB_TOKEN: ${{ secrets.ARGO_HOMELAB_TOKEN }}
+          API_DIGEST: ${{ steps.build-api.outputs.digest }}
+          UI_DIGEST: ${{ steps.build-ui.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ARGO_HOMELAB_TOKEN:-}" ]; then
+            echo "::error::Missing secret ARGO_HOMELAB_TOKEN (PAT with contents:write on ${ARGO_HOMELAB_REPO}). Argo will not pick up new image digests."
+            exit 1
+          fi
+          if [ -z "${API_DIGEST:-}" ] || [ -z "${UI_DIGEST:-}" ]; then
+            echo "::error::Missing image digests from build-push (api='${API_DIGEST:-}' ui='${UI_DIGEST:-}')"
+            exit 1
+          fi
+
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          WORKDIR="${RUNNER_TEMP}/argo-homelab"
+          git clone --depth 1 "https://x-access-token:${ARGO_HOMELAB_TOKEN}@github.com/${ARGO_HOMELAB_REPO}.git" "$WORKDIR"
+          cd "$WORKDIR"
+          git config user.name "virtfoundry-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          VALUES="$ARGO_VALUES_PATH"
+          python3 - <<'PY'
+          import os, pathlib, re
+          path = pathlib.Path(os.environ["ARGO_VALUES_PATH"])
+          text = path.read_text()
+          api = os.environ["API_IMAGE"] + "@" + os.environ["API_DIGEST"]
+          ui = os.environ["UI_IMAGE"] + "@" + os.environ["UI_DIGEST"]
+          # Replace images.api / worker / ui lines under images: block.
+          def sub_image(key: str, value: str, src: str) -> str:
+              return re.sub(
+                  rf"(?m)^(\s*{key}:\s*).+$",
+                  rf"\1{value}",
+                  src,
+                  count=1,
+              )
+          out = text
+          out = sub_image("api", api, out)
+          out = sub_image("worker", api, out)
+          out = sub_image("ui", ui, out)
+          out = re.sub(r"(?m)^(\s*pullPolicy:\s*).+$", r"\1IfNotPresent", out, count=1)
+          if out == text:
+              raise SystemExit("values file unchanged — check images.api/worker/ui keys exist")
+          path.write_text(out)
+          print(f"pinned api/worker -> {api}")
+          print(f"pinned ui -> {ui}")
+          PY
+
+          git add "$VALUES"
+          if git diff --cached --quiet; then
+            echo "No digest change; skipping commit"
+            exit 0
+          fi
+          git commit -m "chore(virtfoundry): pin images to ${SHORT_SHA}"
+          git push origin HEAD:main
