@@ -200,7 +200,7 @@ export function Tenants() {
                 setForm({ ...form, slug: e.target.value.toLowerCase() });
               }}
               className={formInputClass}
-              placeholder="acme"
+              placeholder="my-company"
             />
             <p className="mt-1 text-xs text-on-surface-variant">
               {t('tenants.adminHint').replace('{username}', form.slug ? `${form.slug}-admin` : '…-admin')}
