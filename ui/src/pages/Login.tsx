@@ -198,7 +198,7 @@ export function Login() {
               </form>
 
               <p className="mt-4 text-center text-xs text-on-surface-variant">
-                {t('login.tenantAdminHint').replace('{slug}', 'acme')}
+                {t('login.tenantAdminHint').replace('{slug}', 'tenant')}
               </p>
 
               <p className="mt-8 text-center text-sm text-on-surface-variant">{appVersionLabel()}</p>
