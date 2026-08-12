@@ -27,7 +27,7 @@ type CreateVMTemplateInput struct {
 
 func defaultTenantTemplates() []platform.VMTemplate {
 	return []platform.VMTemplate{
-		{Name: "fedora-39", DisplayName: "Fedora 39", Image: "quay.io/kubevirt/fedora-container-disk-demo", OSType: "linux", SourceType: "container"},
+		{Name: "fedora-40", DisplayName: "Fedora 40", Image: "quay.io/containerdisks/fedora:40", OSType: "linux", SourceType: "container"},
 	}
 }
 
