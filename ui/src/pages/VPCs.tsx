@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Globe } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { listVPCs, createVPC, updateVPC, deleteVPC, fetchVPCCIDRPlan } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -14,7 +14,8 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import type { VPC } from '../lib/platform-api';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice, formInputClass, InfoBanner,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice, formInputClass, InfoBanner,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -105,30 +106,44 @@ export function VPCs() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={<Globe size={48} />} title={t('vpcs.empty')} />
-        ) : (
-          filtered.map((vpc) => (
-            <ResourceGridCard key={vpc.id}>
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <h3 className="font-headline text-headline-md font-semibold text-on-surface">{vpc.name}</h3>
-                <StatusBadge status={vpc.state || 'active'} pulse={false} />
-              </div>
-              <p className="text-sm text-on-surface-variant mb-2">{t('vpcs.privateNet')}</p>
-              <p className="font-data-mono text-primary-fixed-dim mb-4">{vpc.cidr}</p>
-              <ResourceActions
-                editLabel={t('common.edit')}
-                deleteLabel={t('common.delete')}
-                onEdit={() => setEditVpc(vpc)}
-                onDelete={() => setDeleteTarget({ id: vpc.id, name: vpc.name })}
-              />
-            </ResourceGridCard>
-          ))
-        )}
-      </div>
+      <SurfaceCard padding="none" className="overflow-hidden">
+        <PageTable>
+          <PageTableHead>
+            <PageTableTh>{t('common.name')}</PageTableTh>
+            <PageTableTh>{t('common.state')}</PageTableTh>
+            <PageTableTh>{t('vpcs.privateNet')}</PageTableTh>
+            <PageTableTh>CIDR</PageTableTh>
+            <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+          </PageTableHead>
+          <PageTableBody>
+            {isLoading ? (
+              <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('vpcs.empty')}</td></tr>
+            ) : (
+              filtered.map((vpc) => (
+                <PageTableRow key={vpc.id}>
+                  <PageTableTd className="font-medium">{vpc.name}</PageTableTd>
+                  <PageTableTd>
+                    <StatusBadge status={vpc.state || 'active'} pulse={false} />
+                  </PageTableTd>
+                  <PageTableTd className="text-on-surface-variant text-sm">{t('vpcs.privateNet')}</PageTableTd>
+                  <PageTableTd className="font-data-mono text-primary-fixed-dim">{vpc.cidr}</PageTableTd>
+                  <PageTableTd>
+                    <ResourceActions
+                      variant="inline"
+                      editLabel={t('common.edit')}
+                      deleteLabel={t('common.delete')}
+                      onEdit={() => setEditVpc(vpc)}
+                      onDelete={() => setDeleteTarget({ id: vpc.id, name: vpc.name })}
+                    />
+                  </PageTableTd>
+                </PageTableRow>
+              ))
+            )}
+          </PageTableBody>
+        </PageTable>
+      </SurfaceCard>
       </RefreshingPanel>
 
       <ConfirmDialog

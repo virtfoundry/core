@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Disc, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import {
   listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
@@ -15,7 +15,8 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, formTextareaClass,
 } from '../components/shell';
 
@@ -129,73 +130,74 @@ export function Templates() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Disc size={48} />} title={t('templates.empty')} />
-          ) : (
-            filtered.map((tmpl) => (
-              <ResourceGridCard key={tmpl.id}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Disc size={20} className="text-primary-fixed-dim" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tmpl.display_name}</h3>
-                      {!tmpl.tenant_id && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
-                          {t('templates.platformBadge')}
-                        </span>
-                      )}
-                      {isTemplateImporting(tmpl.import_state) && (
-                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning-muted text-warning border border-warning/20">
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('templates.displayName')}</PageTableTh>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('templates.imageUrl')}</PageTableTh>
+              <PageTableTh>OS</PageTableTh>
+              <PageTableTh>{t('templates.sourceType')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('templates.empty')}</td></tr>
+              ) : (
+                filtered.map((tmpl) => (
+                  <PageTableRow key={tmpl.id}>
+                    <PageTableTd>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{tmpl.display_name}</span>
+                        {!tmpl.tenant_id && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
+                            {t('templates.platformBadge')}
+                          </span>
+                        )}
+                      </div>
+                    </PageTableTd>
+                    <PageTableTd className="text-on-surface-variant text-xs font-data-mono">{tmpl.name}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant max-w-xs truncate" title={tmpl.image}>
+                      {tmpl.image}
+                    </PageTableTd>
+                    <PageTableTd>{tmpl.os_type || 'linux'}</PageTableTd>
+                    <PageTableTd>{tmpl.source_type || 'container'}</PageTableTd>
+                    <PageTableTd>
+                      {isTemplateImporting(tmpl.import_state) ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-warning">
                           <Loader2 size={12} className="animate-spin" />
                           {tmpl.import_state}
                         </span>
-                      )}
-                      {tmpl.import_state === 'failed' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-error-container/20 text-error border border-error/30">
-                          {tmpl.import_state}
+                      ) : tmpl.import_state === 'failed' ? (
+                        <span className="text-xs text-error">{tmpl.import_state}</span>
+                      ) : (
+                        <span className="text-xs text-on-surface-variant">
+                          {tmpl.cloud_init_user_data && tmpl.source_type !== 'iso' ? t('templates.cloudInit') : '—'}
                         </span>
                       )}
-                    </div>
-                    <p className="text-sm text-on-surface-variant">{tmpl.name}</p>
-                  </div>
-                </div>
-                <p className="text-xs font-data-mono text-on-surface-variant truncate mb-2" title={tmpl.image}>{tmpl.image}</p>
-                <div className="flex gap-2 text-xs text-on-surface-variant mb-3 flex-wrap">
-                  <span>{tmpl.os_type || 'linux'}</span>
-                  <span>·</span>
-                  <span>{tmpl.source_type || 'container'}</span>
-                  {tmpl.import_state && tmpl.import_state !== 'ready' && !isTemplateImporting(tmpl.import_state) && tmpl.import_state !== 'failed' && (
-                    <>
-                      <span>·</span>
-                      <span className="text-warning">{t('templates.importState')}: {tmpl.import_state}</span>
-                    </>
-                  )}
-                  {tmpl.cloud_init_user_data && tmpl.source_type !== 'iso' && (
-                    <>
-                      <span>·</span>
-                      <span>{t('templates.cloudInit')}</span>
-                    </>
-                  )}
-                </div>
-                {tmpl.tenant_id ? (
-                  <ResourceActions
-                    editLabel={t('common.edit')}
-                    deleteLabel={t('common.delete')}
-                    onEdit={() => setEditTmpl({ ...tmpl })}
-                    onDelete={() => setDeleteTarget({ id: tmpl.id, name: tmpl.display_name })}
-                  />
-                ) : (
-                  <p className="text-xs text-on-surface-variant/70">{t('templates.platformReadOnly')}</p>
-                )}
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+                    </PageTableTd>
+                    <PageTableTd>
+                      {tmpl.tenant_id ? (
+                        <ResourceActions
+                          variant="inline"
+                          editLabel={t('common.edit')}
+                          deleteLabel={t('common.delete')}
+                          onEdit={() => setEditTmpl({ ...tmpl })}
+                          onDelete={() => setDeleteTarget({ id: tmpl.id, name: tmpl.display_name })}
+                        />
+                      ) : (
+                        <span className="text-xs text-on-surface-variant/70">{t('templates.platformReadOnly')}</span>
+                      )}
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <ConfirmDialog

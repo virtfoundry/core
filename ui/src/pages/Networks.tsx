@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Network as NetworkIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   listNetworks, createNetwork, updateNetwork, deleteNetwork, listVPCs, fetchNetworkCIDRPlan,
 } from '../lib/platform-api';
@@ -18,70 +18,13 @@ import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
 import type { Network, VPC } from '../lib/platform-api';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
 type DeleteTarget = { id: string; name: string };
-
-function NetworkCard({
-  net,
-  vpcs,
-  onEdit,
-  onDelete,
-  t,
-}: {
-  net: Network;
-  vpcs: VPC[];
-  onEdit: (net: Network) => void;
-  onDelete: (target: DeleteTarget) => void;
-  t: (key: import('../lib/i18n').TranslationKey) => string;
-}) {
-  const vpc = vpcs.find((v) => v.id === net.vpc_id);
-
-  return (
-    <ResourceGridCard>
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-            <NetworkIcon size={20} className="text-primary-fixed-dim" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-headline text-headline-md font-semibold text-on-surface">{net.name}</h3>
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-surface-container-high text-on-surface-variant">
-                {t('networks.typeIsolated')}
-              </span>
-              {net.name === 'default' && (
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-container/20 text-primary-fixed-dim">
-                  {t('networks.defaultBadge')}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-on-surface-variant">
-              {vpc ? t('networks.vpcLabel').replace('{name}', vpc.name) : t('networks.vpc')}
-            </p>
-          </div>
-        </div>
-        <StatusBadge status={net.state || 'active'} pulse={false} />
-      </div>
-      {net.name === 'default' && (
-        <p className="text-xs text-on-surface-variant mb-3">{t('networks.defaultHint')}</p>
-      )}
-      <div className="text-sm mb-4">
-        <p className="text-on-surface-variant">{t('networks.cidr')}</p>
-        <p className="font-data-mono text-primary-fixed-dim">{net.cidr}</p>
-      </div>
-      <ResourceActions
-        editLabel={t('common.edit')}
-        deleteLabel={t('common.delete')}
-        onEdit={() => onEdit(net)}
-        onDelete={() => onDelete({ id: net.id, name: net.name })}
-      />
-    </ResourceGridCard>
-  );
-}
 
 export function Networks() {
   const { t } = useI18n();
@@ -198,24 +141,66 @@ export function Networks() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<NetworkIcon size={48} />} title={t('networks.empty')} hint={t('networks.emptyHint')} />
-          ) : (
-            filtered.map((net) => (
-              <NetworkCard
-                key={net.id}
-                net={net}
-                vpcs={vpcs}
-                onEdit={setEditNet}
-                onDelete={setDeleteTarget}
-                t={t}
-              />
-            ))
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('networks.vpc')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('networks.cidr')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-12 text-on-surface-variant">
+                    <p>{t('networks.empty')}</p>
+                    <p className="text-sm mt-2 opacity-70">{t('networks.emptyHint')}</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((net) => {
+                  const vpc = vpcs.find((v) => v.id === net.vpc_id);
+                  return (
+                    <PageTableRow key={net.id}>
+                      <PageTableTd>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{net.name}</span>
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-surface-container-high text-on-surface-variant">
+                            {t('networks.typeIsolated')}
+                          </span>
+                          {net.name === 'default' && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-container/20 text-primary-fixed-dim">
+                              {t('networks.defaultBadge')}
+                            </span>
+                          )}
+                        </div>
+                      </PageTableTd>
+                      <PageTableTd className="text-sm text-on-surface-variant">
+                        {vpc ? vpc.name : '—'}
+                      </PageTableTd>
+                      <PageTableTd>
+                        <StatusBadge status={net.state || 'active'} pulse={false} />
+                      </PageTableTd>
+                      <PageTableTd className="font-data-mono text-primary-fixed-dim">{net.cidr}</PageTableTd>
+                      <PageTableTd>
+                        <ResourceActions
+                          variant="inline"
+                          editLabel={t('common.edit')}
+                          deleteLabel={t('common.delete')}
+                          onEdit={() => setEditNet(net)}
+                          onDelete={() => setDeleteTarget({ id: net.id, name: net.name })}
+                        />
+                      </PageTableTd>
+                    </PageTableRow>
+                  );
+                })
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <ConfirmDialog

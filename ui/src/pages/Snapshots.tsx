@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Camera, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { listSnapshots, createSnapshot, listVolumes } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { RefreshButton } from '../components/RefreshButton';
@@ -10,7 +10,8 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
@@ -70,28 +71,34 @@ export function Snapshots() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('snapshots.searchPlaceholder')} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Camera size={48} />} title={t('snapshots.empty')} />
-          ) : (
-            filtered.map((snap) => (
-              <ResourceGridCard key={snap.id}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Camera size={20} className="text-primary-fixed-dim" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-headline text-headline-md font-semibold text-on-surface">{snap.name}</h3>
-                    <p className="text-sm text-on-surface-variant">{t('common.volume')}: {snap.volume_id.slice(0, 8)}...</p>
-                  </div>
-                </div>
-                <StatusBadge status={snap.state === 'ready' ? 'active' : 'starting'} pulse={false} />
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('common.volume')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={3} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={3} className="text-center py-12 text-on-surface-variant">{t('snapshots.empty')}</td></tr>
+              ) : (
+                filtered.map((snap) => (
+                  <PageTableRow key={snap.id}>
+                    <PageTableTd className="font-medium">{snap.name}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">
+                      {snap.volume_id.slice(0, 8)}…
+                    </PageTableTd>
+                    <PageTableTd>
+                      <StatusBadge status={snap.state === 'ready' ? 'active' : 'starting'} pulse={false} />
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('snapshots.modalTitle')}>

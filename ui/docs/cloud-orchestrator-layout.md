@@ -73,4 +73,4 @@ Toggle dark mode with the header theme button. Compare Dashboard + VMs in both t
 
 1. Networking topology card (mockup centerpiece)
 2. Optional Material Symbols for icon parity
-3. Remove or migrate orphan `DataTable` / `StatsCard` if reused later
+3. List pages use `PageTable*` + `SurfaceCard` (see Volumes / Offerings)

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Key, Upload, Copy, Check } from 'lucide-react';
+import { Plus, Upload, Copy, Check, Trash2 } from 'lucide-react';
 import {
   listSSHKeys, createSSHKey, registerSSHKey, deleteSSHKey,
 } from '../lib/platform-api';
@@ -15,7 +15,8 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass, InfoBanner,
 } from '../components/shell';
 
@@ -132,44 +133,52 @@ export function SSHKeys() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <>
-              <EmptyState icon={<Key size={48} />} title={t('ssh.empty')} />
-              <p className="col-span-full text-center -mt-6">
-                <Link to="/vms" className="text-primary-fixed-dim hover:underline text-sm">
-                  → Deploy VM com chave SSH
-                </Link>
-              </p>
-            </>
-          ) : (
-            filtered.map((key: SSHKeyPair) => (
-              <ResourceGridCard key={key.id}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Key size={20} className="text-primary-fixed-dim" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-headline text-headline-md font-semibold text-on-surface truncate">{key.name}</h3>
-                    <p className="text-xs text-on-surface-variant font-data-mono truncate">{key.fingerprint}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-on-surface-variant font-data-mono break-all line-clamp-2 mb-3" title={key.public_key}>
-                  {key.public_key}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget({ id: key.id, name: key.name })}
-                  className="btn-ghost-muted flex items-center gap-1 text-error hover:text-error w-full justify-end mt-3 pt-3 border-t border-outline-variant"
-                >
-                  {t('common.delete')}
-                </button>
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>Fingerprint</PageTableTh>
+              <PageTableTh>Public key</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center py-12 text-on-surface-variant">
+                    <p>{t('ssh.empty')}</p>
+                    <p className="mt-2">
+                      <Link to="/vms" className="text-primary-fixed-dim hover:underline text-sm">
+                        → Deploy VM com chave SSH
+                      </Link>
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((key: SSHKeyPair) => (
+                  <PageTableRow key={key.id}>
+                    <PageTableTd className="font-medium">{key.name}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{key.fingerprint}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant max-w-md truncate" title={key.public_key}>
+                      {key.public_key}
+                    </PageTableTd>
+                    <PageTableTd className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ id: key.id, name: key.name })}
+                        className="btn-icon-danger"
+                        title={t('common.delete')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal

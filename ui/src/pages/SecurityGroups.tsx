@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Shield } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   listSecurityGroups, createSecurityGroup, updateSecurityGroup, deleteSecurityGroup,
 } from '../lib/platform-api';
@@ -16,7 +16,8 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass,
 } from '../components/shell';
 
@@ -92,48 +93,58 @@ export function SecurityGroups() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Shield size={48} />} title={t('sg.empty')} />
-          ) : (
-            filtered.map((sg) => (
-              <ResourceGridCard key={sg.id}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Shield size={20} className="text-primary-fixed-dim" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-headline text-headline-md font-semibold text-on-surface">{sg.name}</h3>
-                      {sg.name === 'default' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed-dim">
-                          {t('sg.defaultBadge')}
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('templates.description')}</PageTableTh>
+              <PageTableTh>{t('sg.rulesCount')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('sg.empty')}</td></tr>
+              ) : (
+                filtered.map((sg) => (
+                  <PageTableRow key={sg.id}>
+                    <PageTableTd>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{sg.name}</span>
+                        {sg.name === 'default' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed-dim">
+                            {t('sg.defaultBadge')}
+                          </span>
+                        )}
+                      </div>
+                    </PageTableTd>
+                    <PageTableTd className="text-sm text-on-surface-variant max-w-md truncate">
+                      {sg.description || t('sg.noDescription')}
+                    </PageTableTd>
+                    <PageTableTd>
+                      <span className="text-sm">{sg.rules?.length || 0}</span>
+                      {sg.rules?.[0] && (
+                        <span className="ml-2 text-xs font-data-mono text-on-surface-variant">
+                          {sg.rules[0].direction} {sg.rules[0].protocol}
                         </span>
                       )}
-                    </div>
-                    <p className="text-sm text-on-surface-variant">{sg.description || t('sg.noDescription')}</p>
-                  </div>
-                </div>
-                <div className="text-sm text-on-surface-variant mb-3">
-                  <p>{t('sg.rulesCount')}: {sg.rules?.length || 0}</p>
-                  {sg.rules?.slice(0, 2).map((r, i) => (
-                    <p key={i} className="text-xs font-data-mono truncate">
-                      {r.direction} {r.protocol} {r.port_from}{r.port_to ? `-${r.port_to}` : ''} {r.cidr}
-                    </p>
-                  ))}
-                </div>
-                <ResourceActions
-                  editLabel={t('common.edit')}
-                  deleteLabel={t('common.delete')}
-                  onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
-                  onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
-                />
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+                    </PageTableTd>
+                    <PageTableTd>
+                      <ResourceActions
+                        variant="inline"
+                        editLabel={t('common.edit')}
+                        deleteLabel={t('common.delete')}
+                        onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
+                        onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
+                      />
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <ConfirmDialog
