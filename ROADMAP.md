@@ -11,6 +11,7 @@ Status: **M** = must for traction · **S** = stretch
 | **Docs & narrative** | Why VirtFoundry (vs Proxmox), quickstart, topologies | M |
 | **Install UX** | One clear happy path (Longhorn + Gateway); fail loudly without CSI snapshots | M |
 | **Stability** | Volume snapshots + VM snapshots documented; E2E on homelab | M |
+| **Networking** | AWS-style L4 LB (VIP + listener + target group); public + private targets when reachable — [plan](docs/LOAD-BALANCER-PLAN.md) · [#63](https://github.com/virtfoundry/core/issues/63) | M |
 | **Community** | Discussions, good first issues, ADOPTERS template | M |
 | **GitOps** | Document Argo/Helm install as recommended production path | S |
 
