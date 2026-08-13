@@ -91,6 +91,7 @@ type Repository interface {
 	GetServiceOffering(id string) (*platform.ServiceOffering, bool)
 	GetServiceOfferingByName(name string) (*platform.ServiceOffering, bool)
 	ListServiceOfferings(activeOnly bool) []*platform.ServiceOffering
+	DeleteServiceOffering(id string)
 
 	SaveVMTemplate(t *platform.VMTemplate)
 	GetVMTemplate(id string) (*platform.VMTemplate, bool)

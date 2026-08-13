@@ -82,11 +82,9 @@ func (s *Service) UpdateServiceOffering(id string, in UpdateServiceOfferingInput
 }
 
 func (s *Service) DeleteServiceOffering(id string) error {
-	o, ok := s.store.GetServiceOffering(id)
-	if !ok {
+	if _, ok := s.store.GetServiceOffering(id); !ok {
 		return fmt.Errorf("service offering not found")
 	}
-	o.State = "Inactive"
-	s.store.SaveServiceOffering(o)
+	s.store.DeleteServiceOffering(id)
 	return nil
 }

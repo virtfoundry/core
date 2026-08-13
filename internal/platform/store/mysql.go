@@ -884,6 +884,10 @@ func (m *MySQL) ListServiceOfferings(activeOnly bool) []*platform.ServiceOfferin
 	return out
 }
 
+func (m *MySQL) DeleteServiceOffering(id string) {
+	_, _ = m.db.Exec(`DELETE FROM service_offerings WHERE id=?`, id)
+}
+
 func (m *MySQL) SaveVMTemplate(t *platform.VMTemplate) {
 	_, _ = m.db.Exec(`INSERT INTO vm_templates (id, tenant_id, name, display_name, description, image, source_type, os_type, cloud_init_user_data, iso_volume_id, iso_size_gi, boot_disk_size_gi, storage_class, import_state, hypervisor, state, external_uuid, import_source, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
