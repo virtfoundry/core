@@ -1,11 +1,8 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import {
-  listTargetGroups, createTargetGroup, deleteTargetGroup, getTargetGroup,
-  registerTarget, deregisterTarget, listVMs,
-} from '../lib/platform-api';
-import type { TargetGroup } from '../lib/platform-api';
+import { listTargetGroups, createTargetGroup, deleteTargetGroup } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
@@ -15,48 +12,36 @@ import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice, InfoBanner,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
 
 export function TargetGroups() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
-  const [detail, setDetail] = useState<TargetGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState({ name: '', port: 80 });
-  const [vmId, setVmId] = useState('');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.targetGroups,
     queryFn: listTargetGroups,
     enabled: !needsTenant,
-  });
-
-  const detailQuery = useQuery({
-    queryKey: [...queryKeys.targetGroups, detail?.id],
-    queryFn: () => getTargetGroup(detail!.id),
-    enabled: !!detail,
-  });
-
-  const vms = useQuery({
-    queryKey: queryKeys.vms,
-    queryFn: listVMs,
-    enabled: !!detail && !needsTenant,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.targetGroups });
 
   const createMutation = useMutation({
     mutationFn: () => createTargetGroup({ name: form.name, port: Number(form.port), protocol: 'tcp' }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       invalidate();
       setCreateModal(false);
       setForm({ name: '', port: 80 });
+      navigate(`/target-groups/${res.target_group.id}`);
     },
   });
 
@@ -65,21 +50,7 @@ export function TargetGroups() {
     onSuccess: () => {
       invalidate();
       setDeleteTarget(null);
-      setDetail(null);
     },
-  });
-
-  const addTarget = useMutation({
-    mutationFn: () => registerTarget(detail!.id, { vm_id: vmId }),
-    onSuccess: () => {
-      void detailQuery.refetch();
-      setVmId('');
-    },
-  });
-
-  const removeTarget = useMutation({
-    mutationFn: (tid: string) => deregisterTarget(detail!.id, tid),
-    onSuccess: () => void detailQuery.refetch(),
   });
 
   const rows = data?.target_groups || [];
@@ -92,46 +63,53 @@ export function TargetGroups() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Target Groups"
+        title={t('tg.title')}
+        subtitle={`${rows.length} ${t('tg.subtitle')}`}
         actions={(
           <>
-            <RefreshButton onClick={() => void refetch()} refreshing={isRefetching} updatedAt={dataUpdatedAt} />
-            <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={() => setCreateModal(true)}>
-              <Plus className="h-4 w-4" /> Create
+            <RefreshButton onRefresh={() => void refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" className="btn-primary" onClick={() => setCreateModal(true)}>
+              <Plus size={18} /> {t('tg.create')}
             </button>
           </>
         )}
       />
-      <RefreshingPanel fetching={isFetching && !isLoading}>
-        <SurfaceCard>
-          <div className="mb-4">
-            <SearchField value={search} onChange={setSearch} placeholder={t('common.search')} />
-          </div>
+
+      <InfoBanner>{t('tg.emptyHint')}</InfoBanner>
+
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
+
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <SurfaceCard padding="none" className="overflow-hidden">
           <PageTable>
             <PageTableHead>
-              <tr>
-                <PageTableTh>Name</PageTableTh>
-                <PageTableTh>Protocol</PageTableTh>
-                <PageTableTh>Port</PageTableTh>
-                <PageTableTh className="w-28" />
-              </tr>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('lb.protocol')}</PageTableTh>
+              <PageTableTh>{t('tg.instancePort')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <PageTableRow><PageTableTd colSpan={4}>{t('common.loading')}</PageTableTd></PageTableRow>
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
               ) : filtered.length === 0 ? (
-                <PageTableRow><PageTableTd colSpan={4}>{t('common.empty')}</PageTableTd></PageTableRow>
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('tg.empty')}</td></tr>
               ) : filtered.map((tg) => (
                 <PageTableRow key={tg.id}>
                   <PageTableTd>
-                    <button type="button" className="text-left font-medium hover:underline" onClick={() => setDetail(tg)}>
+                    <Link to={`/target-groups/${tg.id}`} className="font-medium hover:underline text-on-surface">
                       {tg.name}
-                    </button>
+                    </Link>
                   </PageTableTd>
-                  <PageTableTd>{tg.protocol}</PageTableTd>
-                  <PageTableTd className="font-mono">{tg.port}</PageTableTd>
+                  <PageTableTd className="uppercase font-data-mono text-sm">{tg.protocol}</PageTableTd>
+                  <PageTableTd className="font-data-mono">{tg.port}</PageTableTd>
                   <PageTableTd>
-                    <ResourceActions onDelete={() => setDeleteTarget({ id: tg.id, name: tg.name })} />
+                    <ResourceActions
+                      variant="inline"
+                      editLabel={t('tg.openDetail')}
+                      deleteLabel={t('common.delete')}
+                      onEdit={() => navigate(`/target-groups/${tg.id}`)}
+                      onDelete={() => setDeleteTarget({ id: tg.id, name: tg.name })}
+                    />
                   </PageTableTd>
                 </PageTableRow>
               ))}
@@ -140,7 +118,7 @@ export function TargetGroups() {
         </SurfaceCard>
       </RefreshingPanel>
 
-      <Modal open={createModal} onClose={() => setCreateModal(false)} title="Create target group">
+      <Modal open={createModal} onClose={() => !createMutation.isPending && setCreateModal(false)} title={t('tg.modalCreate')}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -149,69 +127,47 @@ export function TargetGroups() {
           }}
         >
           <label className="block space-y-1">
-            <span className="text-sm">Name</span>
-            <input className={formInputClass} required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <span className="text-sm">{t('common.name')}</span>
+            <input
+              className={formInputClass}
+              required
+              disabled={createMutation.isPending}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm">Instance port</span>
+            <span className="text-sm">{t('tg.instancePort')}</span>
             <input
               className={formInputClass}
               type="number"
               min={1}
               max={65535}
               required
+              disabled={createMutation.isPending}
               value={form.port}
               onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
             />
           </label>
-          {createMutation.error && <p className="text-sm text-red-600">{(createMutation.error as Error).message}</p>}
-          <button type="submit" className="btn-primary" disabled={createMutation.isPending}>Create</button>
-        </form>
-      </Modal>
-
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name || 'Target group'}>
-        {detail && (
-          <div className="space-y-4">
-            <p className="text-sm font-mono">TCP :{detail.port}</p>
-            <div>
-              <h3 className="mb-2 font-medium">Targets</h3>
-              <ul className="mb-3 space-y-1 text-sm">
-                {(detailQuery.data?.targets || []).map((tgt) => (
-                  <li key={tgt.id} className="flex items-center justify-between gap-2">
-                    <span className="font-mono">{tgt.vm_name || tgt.vm_id} → {tgt.ip}:{tgt.port || detail.port}</span>
-                    <button type="button" className="text-red-600" onClick={() => removeTarget.mutate(tgt.id)}>Remove</button>
-                  </li>
-                ))}
-              </ul>
-              <form
-                className="flex flex-wrap items-end gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addTarget.mutate();
-                }}
-              >
-                <label className="space-y-1 min-w-[12rem] flex-1">
-                  <span className="text-xs">VM</span>
-                  <select className={formInputClass} required value={vmId} onChange={(e) => setVmId(e.target.value)}>
-                    <option value="">Select…</option>
-                    {(vms.data?.vms || []).map((vm) => (
-                      <option key={vm.id} value={vm.id}>{vm.name} {vm.ip ? `(${vm.ip})` : ''}</option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" className="btn-primary" disabled={addTarget.isPending || !vmId}>Register</button>
-              </form>
-              {addTarget.error && <p className="text-sm text-red-600">{(addTarget.error as Error).message}</p>}
-            </div>
+          {createMutation.error && (
+            <p className="text-sm text-error">{(createMutation.error as Error).message}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" disabled={createMutation.isPending} onClick={() => setCreateModal(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
+              {t('common.create')}
+            </button>
           </div>
-        )}
+        </form>
       </Modal>
 
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        title="Delete target group"
+        title={t('tg.deleteTitle')}
         message={t('common.confirmDeleteMessage')}
         resourceName={deleteTarget?.name}
         confirmLabel={t('common.delete')}

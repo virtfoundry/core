@@ -1,34 +1,30 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import {
-  listLoadBalancers, createLoadBalancer, deleteLoadBalancer, getLoadBalancer,
-  createLBListener, deleteLBListener, listTargetGroups,
-} from '../lib/platform-api';
-import type { LoadBalancer } from '../lib/platform-api';
+import { listLoadBalancers, createLoadBalancer, deleteLoadBalancer } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { ResourceActions } from '../components/ResourceActions';
+import { StatusBadge } from '../components/StatusBadge';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice, InfoBanner,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass,
 } from '../components/shell';
 
 export function LoadBalancers() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
-  const [detail, setDetail] = useState<LoadBalancer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState({ name: '', description: '' });
-  const [listenerForm, setListenerForm] = useState({ port: 80, target_group_id: '' });
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
@@ -38,26 +34,15 @@ export function LoadBalancers() {
     enabled: !needsTenant,
   });
 
-  const detailQuery = useQuery({
-    queryKey: [...queryKeys.loadBalancers, detail?.id],
-    queryFn: () => getLoadBalancer(detail!.id),
-    enabled: !!detail,
-  });
-
-  const tgs = useQuery({
-    queryKey: queryKeys.targetGroups,
-    queryFn: listTargetGroups,
-    enabled: !!detail && !needsTenant,
-  });
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.loadBalancers });
 
   const createMutation = useMutation({
     mutationFn: createLoadBalancer,
-    onSuccess: () => {
+    onSuccess: (res) => {
       invalidate();
       setCreateModal(false);
       setForm({ name: '', description: '' });
+      navigate(`/load-balancers/${res.load_balancer.id}`);
     },
   });
 
@@ -66,25 +51,7 @@ export function LoadBalancers() {
     onSuccess: () => {
       invalidate();
       setDeleteTarget(null);
-      setDetail(null);
     },
-  });
-
-  const addListener = useMutation({
-    mutationFn: () => createLBListener(detail!.id, {
-      port: Number(listenerForm.port),
-      target_group_id: listenerForm.target_group_id,
-      protocol: 'tcp',
-    }),
-    onSuccess: () => {
-      void detailQuery.refetch();
-      setListenerForm({ port: 80, target_group_id: '' });
-    },
-  });
-
-  const removeListener = useMutation({
-    mutationFn: (lid: string) => deleteLBListener(detail!.id, lid),
-    onSuccess: () => void detailQuery.refetch(),
   });
 
   const rows = data?.load_balancers || [];
@@ -97,46 +64,56 @@ export function LoadBalancers() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Load Balancers"
+        title={t('lb.title')}
+        subtitle={`${rows.length} ${t('lb.subtitle')}`}
         actions={(
           <>
-            <RefreshButton onClick={() => void refetch()} refreshing={isRefetching} updatedAt={dataUpdatedAt} />
-            <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={() => setCreateModal(true)}>
-              <Plus className="h-4 w-4" /> Create
+            <RefreshButton onRefresh={() => void refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
+            <button type="button" className="btn-primary" onClick={() => setCreateModal(true)}>
+              <Plus size={18} /> {t('lb.create')}
             </button>
           </>
         )}
       />
-      <RefreshingPanel fetching={isFetching && !isLoading}>
-        <SurfaceCard>
-          <div className="mb-4">
-            <SearchField value={search} onChange={setSearch} placeholder={t('common.search')} />
-          </div>
+
+      <InfoBanner>{t('lb.emptyHint')}</InfoBanner>
+
+      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
+
+      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        <SurfaceCard padding="none" className="overflow-hidden">
           <PageTable>
             <PageTableHead>
-              <tr>
-                <PageTableTh>Name</PageTableTh>
-                <PageTableTh>VIP</PageTableTh>
-                <PageTableTh>State</PageTableTh>
-                <PageTableTh className="w-28" />
-              </tr>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('lb.vip')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <PageTableRow><PageTableTd colSpan={4}>{t('common.loading')}</PageTableTd></PageTableRow>
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
               ) : filtered.length === 0 ? (
-                <PageTableRow><PageTableTd colSpan={4}>{t('common.empty')}</PageTableTd></PageTableRow>
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('lb.empty')}</td></tr>
               ) : filtered.map((lb) => (
                 <PageTableRow key={lb.id}>
                   <PageTableTd>
-                    <button type="button" className="text-left font-medium hover:underline" onClick={() => setDetail(lb)}>
+                    <Link to={`/load-balancers/${lb.id}`} className="font-medium hover:underline text-on-surface">
                       {lb.name}
-                    </button>
+                    </Link>
+                    {lb.description ? (
+                      <p className="text-xs text-on-surface-variant mt-0.5 truncate max-w-xs">{lb.description}</p>
+                    ) : null}
                   </PageTableTd>
-                  <PageTableTd className="font-mono text-sm">{lb.vip || '—'}</PageTableTd>
-                  <PageTableTd>{lb.state}</PageTableTd>
+                  <PageTableTd className="font-data-mono text-sm">{lb.vip || '—'}</PageTableTd>
+                  <PageTableTd><StatusBadge status={lb.state} /></PageTableTd>
                   <PageTableTd>
-                    <ResourceActions onDelete={() => setDeleteTarget({ id: lb.id, name: lb.name })} />
+                    <ResourceActions
+                      variant="inline"
+                      editLabel={t('lb.openDetail')}
+                      deleteLabel={t('common.delete')}
+                      onEdit={() => navigate(`/load-balancers/${lb.id}`)}
+                      onDelete={() => setDeleteTarget({ id: lb.id, name: lb.name })}
+                    />
                   </PageTableTd>
                 </PageTableRow>
               ))}
@@ -145,7 +122,7 @@ export function LoadBalancers() {
         </SurfaceCard>
       </RefreshingPanel>
 
-      <Modal open={createModal} onClose={() => setCreateModal(false)} title="Create load balancer">
+      <Modal open={createModal} onClose={() => !createMutation.isPending && setCreateModal(false)} title={t('lb.modalCreate')}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -154,88 +131,47 @@ export function LoadBalancers() {
           }}
         >
           <label className="block space-y-1">
-            <span className="text-sm">Name</span>
-            <input className={formInputClass} required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <span className="text-sm">{t('common.name')}</span>
+            <input
+              className={formInputClass}
+              required
+              disabled={createMutation.isPending}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm">Description</span>
-            <textarea className={formTextareaClass} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <span className="text-sm">{t('lb.description')}</span>
+            <textarea
+              className={formTextareaClass}
+              disabled={createMutation.isPending}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
           </label>
-          {createMutation.error && <p className="text-sm text-red-600">{(createMutation.error as Error).message}</p>}
-          <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
-            {createMutation.isPending ? 'Creating…' : 'Create'}
-          </button>
-        </form>
-      </Modal>
-
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.name || 'Load balancer'}>
-        {detail && (
-          <div className="space-y-4">
-            <p className="font-mono text-sm">VIP: {detailQuery.data?.load_balancer.vip || detail.vip || '—'}</p>
-            <p className="text-sm">State: {detailQuery.data?.load_balancer.state || detail.state}</p>
-            <div>
-              <h3 className="mb-2 font-medium">Listeners</h3>
-              <ul className="mb-3 space-y-1 text-sm">
-                {(detailQuery.data?.listeners || []).map((l) => (
-                  <li key={l.id} className="flex items-center justify-between gap-2">
-                    <span className="font-mono">TCP :{l.port} → TG {l.target_group_id.slice(0, 8)}</span>
-                    <button type="button" className="text-red-600" onClick={() => removeListener.mutate(l.id)}>Remove</button>
-                  </li>
-                ))}
-              </ul>
-              <form
-                className="flex flex-wrap items-end gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addListener.mutate();
-                }}
-              >
-                <label className="space-y-1">
-                  <span className="text-xs">Port</span>
-                  <input
-                    className={formInputClass}
-                    type="number"
-                    min={1}
-                    max={65534}
-                    value={listenerForm.port}
-                    onChange={(e) => setListenerForm({ ...listenerForm, port: Number(e.target.value) })}
-                  />
-                </label>
-                <label className="space-y-1 min-w-[12rem] flex-1">
-                  <span className="text-xs">Target group</span>
-                  <select
-                    className={formInputClass}
-                    required
-                    value={listenerForm.target_group_id}
-                    onChange={(e) => setListenerForm({ ...listenerForm, target_group_id: e.target.value })}
-                  >
-                    <option value="">Select…</option>
-                    {(tgs.data?.target_groups || []).map((tg) => (
-                      <option key={tg.id} value={tg.id}>{tg.name} (:{tg.port})</option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" className="btn-primary" disabled={addListener.isPending || !listenerForm.target_group_id}>
-                  Add
-                </button>
-              </form>
-              {(tgs.data?.target_groups || []).length === 0 && (
-                <p className="mt-2 text-sm opacity-70">
-                  Create a <Link className="underline" to="/target-groups">target group</Link> first.
-                </p>
-              )}
-              {addListener.error && <p className="text-sm text-red-600">{(addListener.error as Error).message}</p>}
-            </div>
+          {createMutation.isPending && (
+            <p className="text-sm text-on-surface-variant">{t('lb.creatingVip')}</p>
+          )}
+          {createMutation.error && (
+            <p className="text-sm text-error">{(createMutation.error as Error).message}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" disabled={createMutation.isPending} onClick={() => setCreateModal(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
+              {createMutation.isPending ? t('common.loading') : t('common.create')}
+            </button>
           </div>
-        )}
+        </form>
       </Modal>
 
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        title="Delete load balancer"
-        message="VIP will be released."
+        title={t('lb.deleteTitle')}
+        message={t('lb.deleteMessage')}
         resourceName={deleteTarget?.name}
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
