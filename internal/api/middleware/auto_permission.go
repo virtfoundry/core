@@ -22,6 +22,8 @@ var resourcePermMap = map[string]string{
 	"vm-snapshots":     "vms",
 	"ssh-keys":         "ssh_keys",
 	"service-offerings": "vms",
+	"load-balancers":   "load_balancers",
+	"target-groups":    "load_balancers",
 	"auth":             "users",
 }
 

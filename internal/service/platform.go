@@ -241,6 +241,62 @@ func (s *PlatformService) DeleteNetwork(ctx context.Context, tenantID, networkID
 	return s.network.DeleteNetwork(ctx, tenantID, networkID)
 }
 
+func (s *PlatformService) CreateLoadBalancer(ctx context.Context, tenantID, name, description string) (*platform.LoadBalancer, error) {
+	return s.network.CreateLoadBalancer(ctx, tenantID, name, description)
+}
+
+func (s *PlatformService) ListLoadBalancers(tenantID string) []*platform.LoadBalancer {
+	return s.network.ListLoadBalancers(tenantID)
+}
+
+func (s *PlatformService) GetLoadBalancer(tenantID, id string) (*platform.LoadBalancer, error) {
+	return s.network.GetLoadBalancer(tenantID, id)
+}
+
+func (s *PlatformService) DeleteLoadBalancer(ctx context.Context, tenantID, id string) error {
+	return s.network.DeleteLoadBalancer(ctx, tenantID, id)
+}
+
+func (s *PlatformService) CreateLBListener(ctx context.Context, tenantID, lbID, protocol string, port int, tgID string) (*platform.LBListener, error) {
+	return s.network.CreateLBListener(ctx, tenantID, lbID, protocol, port, tgID)
+}
+
+func (s *PlatformService) ListLBListeners(tenantID, lbID string) ([]*platform.LBListener, error) {
+	return s.network.ListLBListeners(tenantID, lbID)
+}
+
+func (s *PlatformService) DeleteLBListener(ctx context.Context, tenantID, lbID, listenerID string) error {
+	return s.network.DeleteLBListener(ctx, tenantID, lbID, listenerID)
+}
+
+func (s *PlatformService) CreateTargetGroup(tenantID, name, protocol string, port int) (*platform.TargetGroup, error) {
+	return s.network.CreateTargetGroup(tenantID, name, protocol, port)
+}
+
+func (s *PlatformService) ListTargetGroups(tenantID string) []*platform.TargetGroup {
+	return s.network.ListTargetGroups(tenantID)
+}
+
+func (s *PlatformService) GetTargetGroup(tenantID, id string) (*platform.TargetGroup, error) {
+	return s.network.GetTargetGroup(tenantID, id)
+}
+
+func (s *PlatformService) DeleteTargetGroup(ctx context.Context, tenantID, id string) error {
+	return s.network.DeleteTargetGroup(ctx, tenantID, id)
+}
+
+func (s *PlatformService) RegisterTarget(ctx context.Context, tenantID, tgID, vmID string, port int) (*platform.Target, error) {
+	return s.network.RegisterTarget(ctx, tenantID, tgID, vmID, port)
+}
+
+func (s *PlatformService) ListTargets(tenantID, tgID string) ([]*platform.Target, error) {
+	return s.network.ListTargets(tenantID, tgID)
+}
+
+func (s *PlatformService) DeregisterTarget(ctx context.Context, tenantID, tgID, targetID string) error {
+	return s.network.DeregisterTarget(ctx, tenantID, tgID, targetID)
+}
+
 // --- storage ---
 
 func (s *PlatformService) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int) (*platform.Volume, error) {

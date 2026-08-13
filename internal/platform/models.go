@@ -271,3 +271,49 @@ type TenantQuota struct {
 	CPULimit      int `json:"cpu_limit"`
 	MemoryGiLimit int `json:"memory_gi_limit"`
 }
+
+// LoadBalancer is an AWS NLB-like front-end with a MetalLB VIP.
+type LoadBalancer struct {
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	VIP         string    `json:"vip,omitempty"`
+	Namespace   string    `json:"namespace"`
+	ServiceName string    `json:"service_name"`
+	State       string    `json:"state"` // Creating | Active | Error
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// LBListener forwards a front-end port on a LoadBalancer to a TargetGroup.
+type LBListener struct {
+	ID             string    `json:"id"`
+	LoadBalancerID string    `json:"load_balancer_id"`
+	Protocol       string    `json:"protocol"` // tcp
+	Port           int       `json:"port"`
+	TargetGroupID  string    `json:"target_group_id"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// TargetGroup is a pool of VM targets (AWS-style).
+type TargetGroup struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Protocol  string    `json:"protocol"` // tcp
+	Port      int       `json:"port"`     // default instance port
+	State     string    `json:"state"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Target registers a VM (or IP) in a TargetGroup.
+type Target struct {
+	ID            string    `json:"id"`
+	TargetGroupID string    `json:"target_group_id"`
+	VMID          string    `json:"vm_id"`
+	VMName        string    `json:"vm_name,omitempty"`
+	IP            string    `json:"ip"`
+	Port          int       `json:"port"` // 0 = use target group port
+	State         string    `json:"state"`
+	CreatedAt     time.Time `json:"created_at"`
+}

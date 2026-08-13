@@ -12,6 +12,8 @@ export const queryKeys = {
   vpcs: ['platform-vpcs'] as const,
   networks: ['platform-networks'] as const,
   securityGroups: ['platform-sgs'] as const,
+  loadBalancers: ['platform-lbs'] as const,
+  targetGroups: ['platform-tgs'] as const,
   sshKeys: ['platform-ssh-keys'] as const,
   offerings: ['platform-offerings'] as const,
   allOfferings: ['platform-offerings', 'all'] as const,
