@@ -23,4 +23,4 @@
 ### Production hardening
 - [ ] Post-deploy migration job in cluster
 - [ ] Ingress TLS
-- [ ] Public/private networks + load balancer
+- [ ] AWS-style load balancer (LB + listener + target group; public/private targets) — [plan](docs/LOAD-BALANCER-PLAN.md) · [#63](https://github.com/virtfoundry/core/issues/63)

@@ -88,6 +88,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 - [WHY.md](WHY.md) — positioning  
 - [ROADMAP.md](../ROADMAP.md) — product themes  
+- [LOAD-BALANCER-PLAN.md](LOAD-BALANCER-PLAN.md) — AWS-style LB (tracked on Traction Phase 0 · [#63](https://github.com/virtfoundry/core/issues/63); product work, not a Phase 0 CNCF exit item)  
 - [GOVERNANCE.md](../GOVERNANCE.md) — how decisions are made  
 - [Installation](https://virtfoundry.github.io/helm-charts/docs/guide/installation/)  
 - [Topologies](https://virtfoundry.github.io/helm-charts/docs/guide/topologies/)  
