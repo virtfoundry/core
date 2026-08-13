@@ -48,7 +48,7 @@ export function Offerings() {
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [editOffering, setEditOffering] = useState<ServiceOffering | null>(null);
-  const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState(emptyForm());
   const queryClient = useQueryClient();
   const isRoot = useAppSelector(selectIsRoot);
@@ -82,11 +82,11 @@ export function Offerings() {
     },
   });
 
-  const deactivateMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: deleteServiceOffering,
     onSuccess: () => {
       invalidate();
-      setDeactivateTarget(null);
+      setDeleteTarget(null);
     },
   });
 
@@ -181,8 +181,8 @@ export function Offerings() {
                 </div>
                 <ResourceActions
                   onEdit={() => openEdit(o)}
-                  onDelete={o.state === 'Active' ? () => setDeactivateTarget({ id: o.id, name: o.name }) : undefined}
-                  deleteLabel={t('offerings.deactivate')}
+                  onDelete={() => setDeleteTarget({ id: o.id, name: o.name })}
+                  deleteLabel={t('common.delete')}
                 />
               </ResourceGridCard>
             ))
@@ -336,14 +336,14 @@ export function Offerings() {
       </Modal>
 
       <ConfirmDialog
-        open={!!deactivateTarget}
-        onClose={() => setDeactivateTarget(null)}
-        onConfirm={() => deactivateTarget && deactivateMutation.mutate(deactivateTarget.id)}
-        title={t('offerings.deactivateTitle')}
-        message={t('offerings.deactivateMessage')}
-        resourceName={deactivateTarget?.name}
-        confirmLabel={t('offerings.deactivate')}
-        loading={deactivateMutation.isPending}
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        title={t('offerings.deleteTitle')}
+        message={t('common.confirmDeleteMessage')}
+        resourceName={deleteTarget?.name}
+        confirmLabel={t('common.delete')}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

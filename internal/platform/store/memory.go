@@ -628,6 +628,12 @@ func (m *Memory) ListServiceOfferings(activeOnly bool) []*platform.ServiceOfferi
 	return out
 }
 
+func (m *Memory) DeleteServiceOffering(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.serviceOfferings, id)
+}
+
 func (m *Memory) SaveVMTemplate(t *platform.VMTemplate) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
