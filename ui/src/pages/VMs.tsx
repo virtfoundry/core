@@ -22,7 +22,7 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
-import { PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, formInputClass, formSelectClass, formTextareaClass } from '../components/shell';
+import { PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, formInputClass, formSelectClass, formTextareaClass, PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
 function optionCardClass(selected: boolean) {
@@ -247,44 +247,41 @@ export function VMs() {
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
       <SurfaceCard padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead className="bg-surface-container-high border-b border-card-border">
-            <tr>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('common.name')}</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('vms.col.displayName')}</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">{t('common.state')}</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">IP</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Zone</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Host</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Offering</th>
-              <th className="text-left px-4 py-3 font-label text-on-surface-variant">Template</th>
-              <th className="text-right px-4 py-3 font-label text-on-surface-variant">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-card-border">
+        <PageTable>
+          <PageTableHead>
+            <PageTableTh>{t('common.name')}</PageTableTh>
+            <PageTableTh>{t('vms.col.displayName')}</PageTableTh>
+            <PageTableTh>{t('common.state')}</PageTableTh>
+            <PageTableTh>IP</PageTableTh>
+            <PageTableTh>Zone</PageTableTh>
+            <PageTableTh>Host</PageTableTh>
+            <PageTableTh>Offering</PageTableTh>
+            <PageTableTh>Template</PageTableTh>
+            <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+          </PageTableHead>
+          <PageTableBody>
             {isLoading ? (
               <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
             ) : filteredVMs.length === 0 ? (
               <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('vms.empty')}</td></tr>
             ) : (
               filteredVMs.map((vm: PlatformVM) => (
-                <tr key={vm.id || vm.name} className="table-row-hover">
-                  <td className="px-4 py-3">
+                <PageTableRow key={vm.id || vm.name}>
+                  <PageTableTd>
                     <Link to={`/vms/${vm.name}`} className="font-medium text-primary hover:text-primary-fixed-dim hover:underline">
                       {vm.name}
                     </Link>
-                  </td>
-                  <td className="px-4 py-3">{vm.display_name || vm.name}</td>
-                  <td className="px-4 py-3">
+                  </PageTableTd>
+                  <PageTableTd>{vm.display_name || vm.name}</PageTableTd>
+                  <PageTableTd>
                     <StatusBadge status={vm.state || 'inactive'} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">{vm.ip || '—'}</td>
-                  <td className="px-4 py-3">{vm.zone || '—'}</td>
-                  <td className="px-4 py-3 text-xs">{vm.host_name || '—'}</td>
-                  <td className="px-4 py-3">{vm.cpu} vCPU / {fmtMem(vm.memory_mi)}</td>
-                  <td className="px-4 py-3">{vm.template || '—'}</td>
-                  <td className="px-4 py-3">
+                  </PageTableTd>
+                  <PageTableTd className="font-mono text-xs">{vm.ip || '—'}</PageTableTd>
+                  <PageTableTd>{vm.zone || '—'}</PageTableTd>
+                  <PageTableTd className="text-xs">{vm.host_name || '—'}</PageTableTd>
+                  <PageTableTd>{vm.cpu} vCPU / {fmtMem(vm.memory_mi)}</PageTableTd>
+                  <PageTableTd>{vm.template || '—'}</PageTableTd>
+                  <PageTableTd>
                     <div className="flex justify-end gap-1">
                       {vm.state?.toLowerCase() === 'running' ? (
                         <button onClick={() => stopMutation.mutate(vm.name)} className="btn-icon-warning" title={t('vms.stop')}>
@@ -315,13 +312,12 @@ export function VMs() {
                         <Trash2 size={16} />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </PageTableTd>
+                </PageTableRow>
               ))
             )}
-          </tbody>
-        </table>
-        </div>
+          </PageTableBody>
+        </PageTable>
       </SurfaceCard>
       </RefreshingPanel>
 

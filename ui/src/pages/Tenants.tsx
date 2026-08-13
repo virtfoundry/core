@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users, Copy, Check, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Copy, Check } from 'lucide-react';
 import { listTenants, createTenant, deleteTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -11,7 +11,8 @@ import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard,
+  PageHeader, SearchField, SurfaceCard,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
@@ -113,48 +114,56 @@ export function Tenants() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('tenants.searchPlaceholder')} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Users size={48} />} title={t('tenants.empty')} />
-          ) : (
-            filtered.map((tenant) => {
-              const canDelete = tenant.slug !== DEFAULT_TENANT_SLUG;
-              return (
-                <ResourceGridCard key={tenant.id}>
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <h3 className="font-headline text-headline-md font-semibold text-on-surface">{tenant.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={tenant.state || 'active'} pulse={false} />
-                      {canDelete && (
-                        <button
-                          type="button"
-                          className="p-1.5 rounded-lg text-error hover:bg-error/10"
-                          title={t('tenants.delete')}
-                          aria-label={t('tenants.delete')}
-                          onClick={() => setDeleteTarget({ id: tenant.id, name: tenant.name, slug: tenant.slug })}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-on-surface-variant mb-3">{tenant.slug}</p>
-                  <div className="text-sm space-y-1">
-                    <p>
-                      <span className="text-on-surface-variant">{t('tenants.adminUser')}:</span>{' '}
-                      <code className="text-on-surface">{tenant.slug}-admin</code>
-                    </p>
-                    {!canDelete && (
-                      <p className="text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</p>
-                    )}
-                  </div>
-                </ResourceGridCard>
-              );
-            })
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>Slug</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('tenants.adminUser')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('tenants.empty')}</td></tr>
+              ) : (
+                filtered.map((tenant) => {
+                  const canDelete = tenant.slug !== DEFAULT_TENANT_SLUG;
+                  return (
+                    <PageTableRow key={tenant.id}>
+                      <PageTableTd className="font-medium">{tenant.name}</PageTableTd>
+                      <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{tenant.slug}</PageTableTd>
+                      <PageTableTd>
+                        <StatusBadge status={tenant.state || 'active'} pulse={false} />
+                      </PageTableTd>
+                      <PageTableTd>
+                        <code className="text-sm">{tenant.slug}-admin</code>
+                        {!canDelete && (
+                          <span className="ml-2 text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</span>
+                        )}
+                      </PageTableTd>
+                      <PageTableTd className="text-right">
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="btn-icon-danger"
+                            title={t('tenants.delete')}
+                            aria-label={t('tenants.delete')}
+                            onClick={() => setDeleteTarget({ id: tenant.id, name: tenant.name, slug: tenant.slug })}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </PageTableTd>
+                    </PageTableRow>
+                  );
+                })
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal

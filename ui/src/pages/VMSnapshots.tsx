@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Camera, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   listVMSnapshots, createVMSnapshot, deleteVMSnapshot, restoreVMSnapshot, listVMs,
 } from '../lib/platform-api';
@@ -12,7 +12,8 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard, TenantRequiredNotice,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
@@ -99,45 +100,54 @@ export function VMSnapshots() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('vmSnapshots.searchPlaceholder')} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Camera size={48} />} title={t('vmSnapshots.empty')} />
-          ) : (
-            filtered.map((snap) => (
-              <ResourceGridCard key={snap.id}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Camera size={20} className="text-primary-fixed-dim" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-headline text-headline-md font-semibold text-on-surface">{snap.name}</h3>
-                    <p className="text-sm text-on-surface-variant font-data-mono">VM: {snap.vm_name}</p>
-                  </div>
-                </div>
-                <StatusBadge status={phaseStatus(snap.phase)} pulse={false} />
-                <div className="flex gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => restoreMutation.mutate({ name: snap.name, vm_name: snap.vm_name })}
-                    disabled={restoreMutation.isPending || snap.phase !== 'ready'}
-                    className="btn-action-row"
-                  >
-                    <RotateCcw size={14} /> {t('vmSnapshots.restore')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteMutation.mutate({ name: snap.name })}
-                    className="btn-action-danger"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>VM</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('vmSnapshots.empty')}</td></tr>
+              ) : (
+                filtered.map((snap) => (
+                  <PageTableRow key={snap.id}>
+                    <PageTableTd className="font-medium">{snap.name}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-sm">{snap.vm_name}</PageTableTd>
+                    <PageTableTd>
+                      <StatusBadge status={phaseStatus(snap.phase)} pulse={false} />
+                    </PageTableTd>
+                    <PageTableTd>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => restoreMutation.mutate({ name: snap.name, vm_name: snap.vm_name })}
+                          disabled={restoreMutation.isPending || snap.phase !== 'ready'}
+                          className="btn-icon-neutral"
+                          title={t('vmSnapshots.restore')}
+                        >
+                          <RotateCcw size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteMutation.mutate({ name: snap.name })}
+                          className="btn-icon-danger"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('vmSnapshots.modalTitle')}>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Cpu } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   listAllServiceOfferings, createServiceOffering, updateServiceOffering, deleteServiceOffering,
 } from '../lib/platform-api';
@@ -15,7 +15,8 @@ import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, EmptyState, ResourceGridCard,
+  PageHeader, SearchField, SurfaceCard,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
@@ -158,36 +159,47 @@ export function Offerings() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('offerings.searchPlaceholder')} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {isLoading ? (
-            <div className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={<Cpu size={48} />} title={t('offerings.empty')} />
-          ) : (
-            filtered.map((o) => (
-              <ResourceGridCard key={o.id}>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="font-headline text-headline-md font-semibold text-on-surface">{offeringLabel(o)}</h3>
-                  <StatusBadge status={o.state?.toLowerCase() || 'active'} pulse={false} />
-                </div>
-                <p className="text-sm text-on-surface-variant mb-3 font-data-mono">{o.name}</p>
-                <div className="text-sm space-y-1 mb-4">
-                  <p><span className="text-on-surface-variant">{t('offerings.cpu')}:</span> {o.cpu} vCPU</p>
-                  <p><span className="text-on-surface-variant">{t('offerings.memory')}:</span> {fmtMemGi(o.memory_mi)}</p>
-                  <p>
-                    <span className="text-on-surface-variant">{t('offerings.dedicatedCpu')}:</span>{' '}
-                    {o.dedicated_cpu ? t('common.yes') : t('common.no')}
-                  </p>
-                </div>
-                <ResourceActions
-                  onEdit={() => openEdit(o)}
-                  onDelete={() => setDeleteTarget({ id: o.id, name: o.name })}
-                  deleteLabel={t('common.delete')}
-                />
-              </ResourceGridCard>
-            ))
-          )}
-        </div>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <PageTable>
+            <PageTableHead>
+              <PageTableTh>{t('offerings.displayName')}</PageTableTh>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('offerings.cpu')}</PageTableTh>
+              <PageTableTh>{t('offerings.memory')}</PageTableTh>
+              <PageTableTh>{t('offerings.dedicatedCpu')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('offerings.empty')}</td></tr>
+              ) : (
+                filtered.map((o) => (
+                  <PageTableRow key={o.id}>
+                    <PageTableTd className="font-medium">{offeringLabel(o)}</PageTableTd>
+                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{o.name}</PageTableTd>
+                    <PageTableTd>
+                      <StatusBadge status={o.state?.toLowerCase() || 'active'} pulse={false} />
+                    </PageTableTd>
+                    <PageTableTd>{o.cpu} vCPU</PageTableTd>
+                    <PageTableTd>{fmtMemGi(o.memory_mi)}</PageTableTd>
+                    <PageTableTd>{o.dedicated_cpu ? t('common.yes') : t('common.no')}</PageTableTd>
+                    <PageTableTd>
+                      <ResourceActions
+                        variant="inline"
+                        onEdit={() => openEdit(o)}
+                        onDelete={() => setDeleteTarget({ id: o.id, name: o.name })}
+                        deleteLabel={t('common.delete')}
+                      />
+                    </PageTableTd>
+                  </PageTableRow>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+        </SurfaceCard>
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('offerings.modalCreate')}>
