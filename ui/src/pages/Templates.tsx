@@ -215,7 +215,7 @@ export function Templates() {
         onClose={() => setCreateModal(false)}
         title={t('templates.modalCreate')}
         form={form}
-        onChange={setForm}
+        onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
         onSubmit={(e) => {
           e.preventDefault();
           createMutation.mutate(form);
