@@ -38,4 +38,6 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
-- **1.0.0** — IAM; clean cluster install (`virtfoundry-system` namespace)
+- **0.5.0** — current pre-1.0 line (IAM, Helm install, public network, Kind lab)
+- **1.0.0** — not declared yet; freeze of public API and Helm chart contract
+- Git tags `v1.0.0`–`v1.5.0` are historical; they do not mean SemVer 1.0

@@ -4,6 +4,10 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [0.5.0] - 2026-08-16
+
+Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`–`v1.5.0` remain for history; they are not a SemVer 1.0 contract. UI/Helm advertise `0.5.0`.
+
 ## [1.5.0] - 2026-08-11
 
 ### Added
@@ -141,6 +145,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[0.5.0]: https://github.com/virtfoundry/core/compare/v1.5.0...v0.5.0
 [1.5.0]: https://github.com/virtfoundry/core/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/virtfoundry/core/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/virtfoundry/core/compare/v1.3.0...v1.4.0
