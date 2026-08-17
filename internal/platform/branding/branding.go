@@ -22,6 +22,8 @@ const (
 	LabelOS           = Domain + "/os"
 	LabelLogSource    = Domain + "/log-source"
 	LabelVMSSH        = Domain + "/vm-ssh"
+	LabelLoadBalancer = Domain + "/load-balancer"
+	LabelTargetGroup  = Domain + "/target-group"
 
 	AppManagedByKey = "app.kubernetes.io/managed-by"
 

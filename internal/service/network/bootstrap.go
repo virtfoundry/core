@@ -54,5 +54,5 @@ func (s *Service) BootstrapSharedNetwork(ctx context.Context, cfg config.PublicN
 		CreatedAt:    store.Now(),
 	}
 	s.store.SaveNetwork(net)
-	return s.store.SeedIPPool(net.ID, cfg.IPPoolStart, cfg.IPPoolEnd)
+	return s.store.SeedIPPoolExcluding(net.ID, cfg.IPPoolStart, cfg.IPPoolEnd, cfg.ReservedRanges)
 }

@@ -34,16 +34,24 @@ type NetworkingConfig struct {
 }
 
 type PublicNetworkConfig struct {
-	Enabled      bool     `mapstructure:"enabled"`
-	Mode         string   `mapstructure:"mode"`
-	CIDR         string   `mapstructure:"cidr"`
-	Gateway      string   `mapstructure:"gateway"`
-	DNS          []string `mapstructure:"dns"`
-	IPPoolStart  string   `mapstructure:"ip_pool_start"`
-	IPPoolEnd    string   `mapstructure:"ip_pool_end"`
-	BridgeName   string   `mapstructure:"bridge_name"`
-	NADName      string   `mapstructure:"nad_name"`
-	NADNamespace string   `mapstructure:"nad_namespace"`
+	Enabled         bool              `mapstructure:"enabled"`
+	Mode            string            `mapstructure:"mode"`
+	CIDR            string            `mapstructure:"cidr"`
+	Gateway         string            `mapstructure:"gateway"`
+	DNS             []string          `mapstructure:"dns"`
+	IPPoolStart     string            `mapstructure:"ip_pool_start"`
+	IPPoolEnd       string            `mapstructure:"ip_pool_end"`
+	ReservedRanges  []ReservedIPRange `mapstructure:"reserved_ranges"`
+	BridgeName      string            `mapstructure:"bridge_name"`
+	NADName         string            `mapstructure:"nad_name"`
+	NADNamespace    string            `mapstructure:"nad_namespace"`
+}
+
+// ReservedIPRange is excluded from the guest public IP pool (e.g. MetalLB VIP range).
+type ReservedIPRange struct {
+	Start  string `mapstructure:"start"`
+	End    string `mapstructure:"end"`
+	Reason string `mapstructure:"reason"`
 }
 
 type IsolatedNetworkConfig struct {

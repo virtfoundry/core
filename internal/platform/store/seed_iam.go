@@ -38,7 +38,9 @@ func SeedIAM(r Repository) error {
 		{SystemRoleIDTenantViewer, platform.SystemRoleTenantViewer, "Read-only tenant access", auth.TenantViewerPermissions},
 	}
 	for _, sr := range systemRoles {
-		if _, ok := s.GetRoleByName("", sr.name); ok {
+		if existing, ok := s.GetRoleByName("", sr.name); ok {
+			// Refresh permissions so new IAM caps land on existing installs.
+			s.SetRolePermissions(existing.ID, sr.perms)
 			continue
 		}
 		s.SaveRole(&platform.RoleRecord{

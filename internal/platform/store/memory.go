@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/virtfoundry/core/internal/config"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/google/uuid"
 )
@@ -31,6 +32,10 @@ type Memory struct {
 	roles            map[string]*platform.RoleRecord
 	rolePerms        map[string][]string
 	apiKeys          map[string]*platform.APIKey
+	loadBalancers    map[string]*platform.LoadBalancer
+	lbListeners      map[string]*platform.LBListener
+	targetGroups     map[string]*platform.TargetGroup
+	targets          map[string]*platform.Target
 }
 
 func NewMemory() *Memory {
@@ -54,6 +59,10 @@ func NewMemory() *Memory {
 		roles:            make(map[string]*platform.RoleRecord),
 		rolePerms:        make(map[string][]string),
 		apiKeys:          make(map[string]*platform.APIKey),
+		loadBalancers:    make(map[string]*platform.LoadBalancer),
+		lbListeners:      make(map[string]*platform.LBListener),
+		targetGroups:     make(map[string]*platform.TargetGroup),
+		targets:          make(map[string]*platform.Target),
 	}
 }
 
@@ -204,6 +213,26 @@ func (m *Memory) PurgeTenantData(tenantID string) {
 	for id, sg := range m.securityGroups {
 		if sg.TenantID == tenantID {
 			delete(m.securityGroups, id)
+		}
+	}
+	for id, lb := range m.loadBalancers {
+		if lb.TenantID == tenantID {
+			for lid, l := range m.lbListeners {
+				if l.LoadBalancerID == id {
+					delete(m.lbListeners, lid)
+				}
+			}
+			delete(m.loadBalancers, id)
+		}
+	}
+	for id, tg := range m.targetGroups {
+		if tg.TenantID == tenantID {
+			for tid, t := range m.targets {
+				if t.TargetGroupID == id {
+					delete(m.targets, tid)
+				}
+			}
+			delete(m.targetGroups, id)
 		}
 	}
 	for id, k := range m.sshKeyPairs {
@@ -378,7 +407,13 @@ func (m *Memory) ReleaseIPAddressByAddress(networkID, address string) {
 func (m *Memory) SeedIPPool(networkID, start, end string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return seedIPRangeLocked(m, networkID, start, end)
+	return seedIPRangeLocked(m, networkID, start, end, nil)
+}
+
+func (m *Memory) SeedIPPoolExcluding(networkID, start, end string, reserved []config.ReservedIPRange) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return seedIPRangeLocked(m, networkID, start, end, reserved)
 }
 
 func (m *Memory) saveIPAddressQuiet(networkID, addr string) {

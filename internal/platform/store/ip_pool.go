@@ -3,6 +3,8 @@ package store
 import (
 	"fmt"
 	"net"
+
+	"github.com/virtfoundry/core/internal/config"
 )
 
 func nextIPString(ip string) (string, bool) {
@@ -40,7 +42,23 @@ func ipGreater(a, b string) bool {
 	return false
 }
 
-func seedIPRangeLocked(m *Memory, networkID, start, end string) error {
+func ipInReserved(addr string, reserved []config.ReservedIPRange) bool {
+	if net.ParseIP(addr) == nil {
+		return false
+	}
+	for _, r := range reserved {
+		if net.ParseIP(r.Start) == nil || net.ParseIP(r.End) == nil {
+			continue
+		}
+		// addr in [start, end]
+		if !ipGreater(addr, r.End) && !ipGreater(r.Start, addr) {
+			return true
+		}
+	}
+	return false
+}
+
+func seedIPRangeLocked(m *Memory, networkID, start, end string, reserved []config.ReservedIPRange) error {
 	if start == "" || end == "" {
 		return nil
 	}
@@ -48,7 +66,9 @@ func seedIPRangeLocked(m *Memory, networkID, start, end string) error {
 		return fmt.Errorf("invalid ip pool range")
 	}
 	for addr := start; ; {
-		m.saveIPAddressQuiet(networkID, addr)
+		if !ipInReserved(addr, reserved) {
+			m.saveIPAddressQuiet(networkID, addr)
+		}
 		if addr == end {
 			break
 		}
@@ -62,12 +82,18 @@ func seedIPRangeLocked(m *Memory, networkID, start, end string) error {
 }
 
 func (m *MySQL) SeedIPPool(networkID, start, end string) error {
+	return m.SeedIPPoolExcluding(networkID, start, end, nil)
+}
+
+func (m *MySQL) SeedIPPoolExcluding(networkID, start, end string, reserved []config.ReservedIPRange) error {
 	if start == "" || end == "" {
 		return nil
 	}
 	for addr := start; ; {
-		_, _ = m.db.Exec(`INSERT IGNORE INTO ip_addresses (id, network_id, address, status, created_at) VALUES (?, ?, ?, 'available', ?)`,
-			NewID(), networkID, addr, Now())
+		if !ipInReserved(addr, reserved) {
+			_, _ = m.db.Exec(`INSERT IGNORE INTO ip_addresses (id, network_id, address, status, created_at) VALUES (?, ?, ?, 'available', ?)`,
+				NewID(), networkID, addr, Now())
+		}
 		if addr == end {
 			break
 		}
