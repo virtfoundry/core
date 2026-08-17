@@ -21,7 +21,6 @@ export function VMConsole() {
   const { t } = useI18n();
   const [params] = useSearchParams();
   const name = params.get('name') ?? '';
-  const namespace = params.get('namespace') ?? undefined;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<RFB | null>(null);
@@ -64,7 +63,7 @@ export function VMConsole() {
     const frame = requestAnimationFrame(() => {
       if (cancelled || !containerRef.current) return;
 
-      const rfb = new RFB(containerRef.current, consoleWsUrl(name, namespace));
+      const rfb = new RFB(containerRef.current, consoleWsUrl(name));
       configureConsoleRfb(rfb);
       rfbRef.current = rfb;
 
@@ -120,7 +119,7 @@ export function VMConsole() {
       rfbRef.current?.disconnect();
       rfbRef.current = null;
     };
-  }, [name, namespace, t]);
+  }, [name, t]);
 
   if (!name) {
     return <Navigate to="/vms" replace />;

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Play, Power, Trash2, Monitor, Camera, Save, HardDrive, Unlink, Plus,
+  AlertCircle,
 } from 'lucide-react';
 import {
   getVM, updateVM, startVM, stopVM, deleteVM, createVMSnapshot,
@@ -162,9 +163,21 @@ export function VMDetail() {
   if (isLoading) return <div className="text-center py-12 text-on-surface-variant">{t('vmDetail.loading')}</div>;
   if (error || !vm) {
     return (
-      <div className="space-y-4">
-        <Link to="/vms" className="inline-flex items-center gap-2 text-primary-fixed-dim"><ArrowLeft size={18} /> {t('common.back')}</Link>
-        <p className="text-error">{(error as Error)?.message || t('vmDetail.notFound')}</p>
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-error/30 bg-error-container/30 text-error">
+            <AlertCircle size={24} />
+          </div>
+          <h1 className="font-headline text-title-lg font-semibold text-on-surface">
+            {t('vmDetail.notFoundTitle')}
+          </h1>
+          <p className="mt-2 text-sm text-on-surface-variant">
+            {t('vmDetail.notFoundMessage')}
+          </p>
+          <Link to="/vms" className="btn-outline-sm mx-auto mt-5">
+            <ArrowLeft size={16} /> {t('nav.vms')}
+          </Link>
+        </div>
       </div>
     );
   }
