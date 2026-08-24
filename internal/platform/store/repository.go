@@ -1,6 +1,9 @@
 package store
 
-import "github.com/virtfoundry/core/internal/platform"
+import (
+	"github.com/virtfoundry/core/internal/config"
+	"github.com/virtfoundry/core/internal/platform"
+)
 
 // Repository persists platform state. Memory and MySQL both implement it.
 type Repository interface {
@@ -60,6 +63,7 @@ type Repository interface {
 	ReleaseIPAddressByVMNic(vmNicID string)
 	ReleaseIPAddressByAddress(networkID, address string)
 	SeedIPPool(networkID, start, end string) error
+	SeedIPPoolExcluding(networkID, start, end string, reserved []config.ReservedIPRange) error
 
 	SaveVolume(v *platform.Volume)
 	ListVolumes(tenantID string) []*platform.Volume
@@ -102,6 +106,26 @@ type Repository interface {
 	GetSSHKeyPair(id string) (*platform.SSHKeyPair, bool)
 	ListSSHKeyPairs(tenantID string) []*platform.SSHKeyPair
 	DeleteSSHKeyPair(id string)
+
+	SaveLoadBalancer(lb *platform.LoadBalancer)
+	GetLoadBalancer(id string) (*platform.LoadBalancer, bool)
+	ListLoadBalancers(tenantID string) []*platform.LoadBalancer
+	DeleteLoadBalancer(id string)
+
+	SaveLBListener(l *platform.LBListener)
+	GetLBListener(id string) (*platform.LBListener, bool)
+	ListLBListeners(loadBalancerID string) []*platform.LBListener
+	DeleteLBListener(id string)
+
+	SaveTargetGroup(tg *platform.TargetGroup)
+	GetTargetGroup(id string) (*platform.TargetGroup, bool)
+	ListTargetGroups(tenantID string) []*platform.TargetGroup
+	DeleteTargetGroup(id string)
+
+	SaveTarget(t *platform.Target)
+	GetTarget(id string) (*platform.Target, bool)
+	ListTargets(targetGroupID string) []*platform.Target
+	DeleteTarget(id string)
 
 	Close() error
 }

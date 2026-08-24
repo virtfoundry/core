@@ -11,6 +11,10 @@ import { Volumes } from './pages/Volumes';
 import { Networks } from './pages/Networks';
 import { PublicNetwork } from './pages/PublicNetwork';
 import { SecurityGroups } from './pages/SecurityGroups';
+import { LoadBalancers } from './pages/LoadBalancers';
+import { LoadBalancerDetail } from './pages/LoadBalancerDetail';
+import { TargetGroups } from './pages/TargetGroups';
+import { TargetGroupDetail } from './pages/TargetGroupDetail';
 import { Snapshots } from './pages/Snapshots';
 import { VMSnapshots } from './pages/VMSnapshots';
 import { Tenants } from './pages/Tenants';
@@ -98,6 +102,10 @@ export default function App() {
                   <Route path="networks/public" element={<PublicNetwork />} />
                   <Route path="networks" element={<Networks />} />
                   <Route path="security-groups" element={<SecurityGroups />} />
+                  <Route path="load-balancers" element={<LoadBalancers />} />
+                  <Route path="load-balancers/:id" element={<LoadBalancerDetail />} />
+                  <Route path="target-groups" element={<TargetGroups />} />
+                  <Route path="target-groups/:id" element={<TargetGroupDetail />} />
                   <Route path="snapshots" element={<Snapshots />} />
                   <Route path="vm-snapshots" element={<VMSnapshots />} />
                   <Route path="iam" element={<IAM />} />

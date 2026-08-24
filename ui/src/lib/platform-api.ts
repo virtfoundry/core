@@ -392,6 +392,115 @@ export async function deleteSecurityGroup(id: string) {
   return platformFetch<{ success: boolean }>(`/security-groups/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+export interface LoadBalancer {
+  id: string;
+  name: string;
+  description?: string;
+  vip?: string;
+  state: string;
+  created_at?: string;
+}
+
+export interface LBListener {
+  id: string;
+  load_balancer_id: string;
+  protocol: string;
+  port: number;
+  target_group_id: string;
+}
+
+export interface TargetGroup {
+  id: string;
+  name: string;
+  protocol: string;
+  port: number;
+  state: string;
+}
+
+export interface LBTarget {
+  id: string;
+  target_group_id: string;
+  vm_id: string;
+  vm_name?: string;
+  ip: string;
+  port: number;
+  state: string;
+}
+
+export async function listLoadBalancers() {
+  const res = await platformFetch<{ load_balancers: LoadBalancer[] | null }>('/load-balancers');
+  return { load_balancers: res.load_balancers ?? [] };
+}
+
+export async function createLoadBalancer(data: { name: string; description?: string }) {
+  return platformFetch<{ load_balancer: LoadBalancer }>('/load-balancers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getLoadBalancer(id: string) {
+  return platformFetch<{ load_balancer: LoadBalancer; listeners: LBListener[] }>(
+    `/load-balancers/${encodeURIComponent(id)}`,
+  );
+}
+
+export async function deleteLoadBalancer(id: string) {
+  return platformFetch<{ success: boolean }>(`/load-balancers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function createLBListener(lbId: string, data: {
+  protocol?: string; port: number; target_group_id: string;
+}) {
+  return platformFetch<{ listener: LBListener }>(`/load-balancers/${encodeURIComponent(lbId)}/listeners`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLBListener(lbId: string, listenerId: string) {
+  return platformFetch<{ success: boolean }>(
+    `/load-balancers/${encodeURIComponent(lbId)}/listeners/${encodeURIComponent(listenerId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export async function listTargetGroups() {
+  const res = await platformFetch<{ target_groups: TargetGroup[] | null }>('/target-groups');
+  return { target_groups: res.target_groups ?? [] };
+}
+
+export async function createTargetGroup(data: { name: string; protocol?: string; port: number }) {
+  return platformFetch<{ target_group: TargetGroup }>('/target-groups', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTargetGroup(id: string) {
+  return platformFetch<{ target_group: TargetGroup; targets: LBTarget[] }>(
+    `/target-groups/${encodeURIComponent(id)}`,
+  );
+}
+
+export async function deleteTargetGroup(id: string) {
+  return platformFetch<{ success: boolean }>(`/target-groups/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function registerTarget(tgId: string, data: { vm_id: string; port?: number }) {
+  return platformFetch<{ target: LBTarget }>(`/target-groups/${encodeURIComponent(tgId)}/targets`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deregisterTarget(tgId: string, targetId: string) {
+  return platformFetch<{ success: boolean }>(
+    `/target-groups/${encodeURIComponent(tgId)}/targets/${encodeURIComponent(targetId)}`,
+    { method: 'DELETE' },
+  );
+}
+
 export async function listSnapshots() {
   return platformFetch<{ snapshots: Snapshot[] }>('/snapshots');
 }

@@ -77,6 +77,8 @@ export const menuItems: MenuItem[] = [
       { path: '/networks', icon: NetworkIcon, labelKey: 'nav.networks' },
       { path: '/vpcs', icon: BoxesIcon, labelKey: 'nav.vpcs' },
       { path: '/security-groups', icon: ShieldIcon, labelKey: 'nav.securityGroups' },
+      { path: '/load-balancers', icon: NetworkIcon, labelKey: 'nav.loadBalancers' },
+      { path: '/target-groups', icon: GlobeIcon, labelKey: 'nav.targetGroups' },
     ],
   },
   {

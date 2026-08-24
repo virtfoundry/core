@@ -79,6 +79,9 @@ func (m *MySQL) Migrate() error {
 	if err := m.applyMigration006(); err != nil {
 		return err
 	}
+	if err := m.applyMigration007(); err != nil {
+		return err
+	}
 	_, _ = m.db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES ('001_initial')`)
 	return nil
 }
@@ -287,6 +290,10 @@ func (m *MySQL) PurgeTenantData(tenantID string) {
 	_, _ = m.db.Exec(`DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE tenant_id=? AND is_system=0)`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM roles WHERE tenant_id=? AND is_system=0`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM ssh_key_pairs WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM targets WHERE target_group_id IN (SELECT id FROM target_groups WHERE tenant_id=?)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM lb_listeners WHERE load_balancer_id IN (SELECT id FROM load_balancers WHERE tenant_id=?)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM load_balancers WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM target_groups WHERE tenant_id=?`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM ip_addresses WHERE network_id IN (SELECT id FROM networks WHERE tenant_id=?)`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM security_groups WHERE tenant_id=?`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM networks WHERE tenant_id=?`, tenantID)
