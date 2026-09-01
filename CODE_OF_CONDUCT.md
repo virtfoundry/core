@@ -21,7 +21,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Project maintainers may remove, edit, or reject contributions that violate this Code of Conduct. Repeated violations may result in a temporary or permanent ban.
+Project maintainers ([@Matheus-Thurler](https://github.com/Matheus-Thurler), [@RodrigoGoncalves-dev](https://github.com/RodrigoGoncalves-dev)) may remove, edit, or reject contributions that violate this Code of Conduct. Repeated violations may result in a temporary or permanent ban.
 
 ## Attribution
 
