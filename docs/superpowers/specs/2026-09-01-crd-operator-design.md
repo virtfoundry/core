@@ -4,7 +4,7 @@ Date: 2026-09-01
 Status: approved  
 Repos: `virtfoundry/operator` (new), `virtfoundry/core`, `virtfoundry/helm-charts`, `Matheus-Thurler/argo-homelab`
 
-This spec records locked decisions from the 2026-09-01 design session. Implementation starts only after this file is reviewed and an implementation plan is written.
+This spec records locked decisions from the 2026-09-01 design session. Implementation starts after this file is reviewed and an implementation plan is written. Local vertical slice (operator scaffold + Tenant) verified with `make test` and kind smoke.
 
 ---
 
