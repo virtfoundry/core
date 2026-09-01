@@ -29,6 +29,8 @@ type Service struct {
 
 	vmStateMu         sync.Mutex
 	vmStates          map[vmStateKey]string
+	vmListCacheMu     sync.RWMutex
+	vmListCache       map[string]vmListCacheEntry
 	allowPodNetwork   bool
 	defaultNetwork    string
 	storageClass      string
@@ -226,6 +228,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 			s.markVolumeAttached(vol, vm)
 		}
 	}
+	s.invalidateVMListCache(tenantID)
 	s.broadcastVM("vm.created", vm)
 	return vm, nil
 }
@@ -283,6 +286,7 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 	}
 	vm.UpdatedAt = store.Now()
 	s.store.SaveVM(vm)
+	s.invalidateVMListCache(tenantID)
 	merged, _ := s.GetVM(ctx, tenantID, name)
 	if merged != nil {
 		s.broadcastVM("vm.updated", merged)
@@ -293,6 +297,29 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 }
 
 func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.PlatformVM, error) {
+	if vms, ok := s.getVMListCache(tenantID); ok {
+		return vms, nil
+	}
+
+	stored := s.store.ListVMs(tenantID)
+	if storeVMsHaveObservedState(stored) {
+		vms := clonePlatformVMs(stored)
+		s.setVMListCache(tenantID, vms)
+		return vms, nil
+	}
+
+	vms, err := s.listVMsFromKubeVirt(ctx, tenantID)
+	if err != nil {
+		if len(stored) > 0 {
+			return clonePlatformVMs(stored), nil
+		}
+		return nil, err
+	}
+	s.setVMListCache(tenantID, vms)
+	return vms, nil
+}
+
+func (s *Service) listVMsFromKubeVirt(ctx context.Context, tenantID string) ([]*platform.PlatformVM, error) {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -300,7 +327,7 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 	kv := s.kvBase.WithNamespace(ns)
 	infos, err := kv.ListVMs(ctx)
 	if err != nil {
-		return s.store.ListVMs(tenantID), nil
+		return nil, err
 	}
 
 	tenant, _ := s.store.GetTenant(tenantID)
@@ -319,7 +346,6 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 			}
 		}
 		s.applyVMInfo(vm, info, tenant)
-		s.store.SaveVM(vm)
 		out = append(out, vm)
 	}
 	return out, nil
@@ -327,10 +353,11 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 
 func (s *Service) SyncAllVMStates(ctx context.Context) {
 	for _, tenant := range s.store.ListTenants() {
-		vms, err := s.ListVMs(ctx, tenant.ID)
+		vms, err := s.listVMsFromKubeVirt(ctx, tenant.ID)
 		if err != nil {
 			continue
 		}
+		s.setVMListCache(tenant.ID, vms)
 		for _, vm := range vms {
 			key := vmStateKey{tenantID: tenant.ID, name: vm.Name}
 			sig := vmStateSignature(vm)
@@ -357,6 +384,7 @@ func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platfo
 	if err := s.kvBase.WithNamespace(ns).StartVM(ctx, vmName); err != nil {
 		return nil, err
 	}
+	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)
 	if err != nil {
 		return nil, err
@@ -373,6 +401,7 @@ func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platfor
 	if err := s.kvBase.WithNamespace(ns).StopVM(ctx, vmName); err != nil {
 		return nil, err
 	}
+	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)
 	if err != nil {
 		return nil, err
@@ -404,6 +433,7 @@ func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {
 	s.vmStateMu.Lock()
 	delete(s.vmStates, key)
 	s.vmStateMu.Unlock()
+	s.invalidateVMListCache(tenantID)
 	s.broadcastVM("vm.deleted", map[string]string{"tenant_id": tenantID, "name": vmName})
 	return nil
 }
@@ -548,6 +578,7 @@ func (s *Service) ReconcileAll(ctx context.Context) {
 				s.broadcastVM("vm.updated", stored)
 			}
 		}
+		s.invalidateVMListCache(tenant.ID)
 	}
 }
 

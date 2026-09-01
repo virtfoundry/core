@@ -6,16 +6,33 @@ import (
 
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/pkg/logger"
+	"github.com/virtfoundry/core/internal/platform/store"
 	kvcorev1 "kubevirt.io/client-go/kubevirt/typed/core/v1"
 	"go.uber.org/zap"
 )
 
 type ConsoleHandler struct {
 	driver *hypervisor.KubeVirtDriver
+	store  store.Repository
 }
 
-func NewConsoleHandler(driver *hypervisor.KubeVirtDriver) *ConsoleHandler {
-	return &ConsoleHandler{driver: driver}
+func NewConsoleHandler(driver *hypervisor.KubeVirtDriver, st store.Repository) *ConsoleHandler {
+	return &ConsoleHandler{driver: driver, store: st}
+}
+
+func (h *ConsoleHandler) resolveNamespace(vmName, queryNS string) string {
+	if queryNS != "" {
+		return queryNS
+	}
+	if h.store != nil {
+		for _, t := range h.store.ListTenants() {
+			vm, ok := h.store.GetVMByName(t.ID, vmName)
+			if ok && vm.Namespace != "" {
+				return vm.Namespace
+			}
+		}
+	}
+	return h.driver.Namespace()
 }
 
 // VNCConsole proxies KubeVirt VNC subresource to browser WebSocket (noVNC-compatible).
@@ -29,14 +46,12 @@ func (h *ConsoleHandler) VNCConsole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driver := h.driver
-	if ns := r.URL.Query().Get("namespace"); ns != "" {
-		driver = h.driver.WithNamespace(ns)
-	}
+	ns := h.resolveNamespace(name, r.URL.Query().Get("namespace"))
+	driver := h.driver.WithNamespace(ns)
 
-	stream, err := driver.VirtClient().VirtualMachineInstance(driver.Namespace()).VNC(name, false)
+	stream, err := driver.VirtClient().VirtualMachineInstance(ns).VNC(name, false)
 	if err != nil {
-		logger.Error("vnc subresource", zap.Error(err), zap.String("vm", name), zap.String("namespace", driver.Namespace()))
+		logger.Error("vnc subresource", zap.Error(err), zap.String("vm", name), zap.String("namespace", ns))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

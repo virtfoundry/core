@@ -47,6 +47,7 @@ func main() {
 	kvDriver, err := hypervisor.NewKubeVirtDriver(hypervisor.KubeVirtConfig{
 		Kubeconfig: cfg.KubeVirt.Kubeconfig,
 		Namespace:  cfg.KubeVirt.Namespace,
+		InCluster:  inCluster,
 	})
 	if err != nil {
 		log.Fatal("kubevirt driver", zap.Error(err))
@@ -123,7 +124,7 @@ func main() {
 		client.ReadPump()
 	})
 
-	consoleHandler := handler.NewConsoleHandler(kvDriver)
+	consoleHandler := handler.NewConsoleHandler(kvDriver, repo)
 	router.HandleFunc("/ws/console", consoleHandler.VNCConsole)
 
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc)
@@ -211,7 +212,7 @@ func main() {
 	srv := &http.Server{Addr: addr, Handler: router}
 
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			platformSvc.SyncAllVMStates(context.Background())

@@ -60,10 +60,19 @@ Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Co
 
 ## Development
 
+**MySQL (legacy):** default local config still uses `database.driver: mysql`.
+
+**CRD store (recommended for operator work):** install CRDs from [virtfoundry/operator](https://github.com/virtfoundry/operator) or `helm-charts/charts/virtfoundry-operator`, then:
+
 ```bash
+export VIRTFOUNDRY_STORE=kubernetes
 ROOT_PASSWORD=virtfoundry go run ./cmd/server
 cd ui && npm install && npm run dev
 ```
+
+Requires in-cluster kubeconfig or `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs. The API reads/writes platform state as CRs; KubeVirt is still used for VM lifecycle and VNC until the operator owns all infra controllers.
+
+See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/specs/2026-09-01-crd-operator-design.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 

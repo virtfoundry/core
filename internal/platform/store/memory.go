@@ -666,6 +666,22 @@ func (m *Memory) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {
 	return out
 }
 
+func (m *Memory) ListVMTemplatesForTenant(tenantID string, activeOnly bool) []*platform.VMTemplate {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.VMTemplate
+	for _, t := range m.vmTemplates {
+		if t.TenantID != "" && t.TenantID != tenantID {
+			continue
+		}
+		if activeOnly && t.State != "Active" {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
 func (m *Memory) SaveSSHKeyPair(k *platform.SSHKeyPair) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

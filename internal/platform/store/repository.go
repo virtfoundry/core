@@ -96,6 +96,7 @@ type Repository interface {
 	SaveVMTemplate(t *platform.VMTemplate)
 	GetVMTemplate(id string) (*platform.VMTemplate, bool)
 	ListVMTemplates(activeOnly bool) []*platform.VMTemplate
+	ListVMTemplatesForTenant(tenantID string, activeOnly bool) []*platform.VMTemplate
 	DeleteVMTemplate(id string)
 
 	SaveSSHKeyPair(k *platform.SSHKeyPair)

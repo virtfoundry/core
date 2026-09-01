@@ -60,8 +60,11 @@ type ObservabilityConfig struct {
 }
 
 type DatabaseConfig struct {
+	// Driver selects the store backend: mysql (default when dsn set), memory, kubernetes.
 	Driver string `mapstructure:"driver"`
 	DSN    string `mapstructure:"dsn"`
+	// Kubeconfig path for driver=kubernetes local dev; empty uses in-cluster or KUBECONFIG.
+	Kubeconfig string `mapstructure:"kubeconfig"`
 }
 
 type KubeVirtConfig struct {
