@@ -1,57 +1,76 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/virtfoundry/core/internal/api/middleware"
+	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/pkg/logger"
 	"github.com/virtfoundry/core/internal/platform/store"
-	kvcorev1 "kubevirt.io/client-go/kubevirt/typed/core/v1"
+	"github.com/virtfoundry/core/internal/service"
 	"go.uber.org/zap"
+	kvcorev1 "kubevirt.io/client-go/kubevirt/typed/core/v1"
 )
 
 type ConsoleHandler struct {
 	driver *hypervisor.KubeVirtDriver
 	store  store.Repository
+	svc    *service.PlatformService
 }
 
-func NewConsoleHandler(driver *hypervisor.KubeVirtDriver, st store.Repository) *ConsoleHandler {
-	return &ConsoleHandler{driver: driver, store: st}
+func NewConsoleHandler(driver *hypervisor.KubeVirtDriver, st store.Repository, svc *service.PlatformService) *ConsoleHandler {
+	return &ConsoleHandler{driver: driver, store: st, svc: svc}
 }
 
-func (h *ConsoleHandler) resolveNamespace(vmName, queryNS string) string {
-	if queryNS != "" {
-		return queryNS
-	}
-	if h.store != nil {
-		for _, t := range h.store.ListTenants() {
-			vm, ok := h.store.GetVMByName(t.ID, vmName)
-			if ok && vm.Namespace != "" {
-				return vm.Namespace
-			}
-		}
-	}
-	return h.driver.Namespace()
-}
-
-// VNCConsole proxies KubeVirt VNC subresource to browser WebSocket (noVNC-compatible).
-func (h *ConsoleHandler) VNCConsole(w http.ResponseWriter, r *http.Request) {
+func (h *ConsoleHandler) resolveVMAccess(r *http.Request) (string, string, error) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		name = r.URL.Query().Get("virtualmachineid")
 	}
 	if name == "" {
-		http.Error(w, "name required", http.StatusBadRequest)
+		return "", "", fmt.Errorf("name required")
+	}
+
+	claims := middleware.GetClaims(r.Context())
+	requestedTenant := middleware.GetTenantID(r.Context())
+	if requestedTenant == "" {
+		requestedTenant = r.URL.Query().Get("tenant_id")
+	}
+	tenantID, err := h.svc.ResolveTenantID(claims, requestedTenant)
+	if err != nil {
+		return "", "", err
+	}
+	if _, ok := h.store.GetVMByName(tenantID, name); !ok {
+		return "", "", fmt.Errorf("vm not found")
+	}
+	tenant, ok := h.svc.GetTenant(tenantID)
+	if !ok {
+		return "", "", fmt.Errorf("tenant not found")
+	}
+	return name, tenant.Namespace, nil
+}
+
+// VNCConsole proxies KubeVirt VNC subresource to browser WebSocket (noVNC-compatible).
+func (h *ConsoleHandler) VNCConsole(w http.ResponseWriter, r *http.Request) {
+	name, namespace, err := h.resolveVMAccess(r)
+	if err != nil {
+		status := http.StatusBadRequest
+		if err == auth.ErrUnauthorized {
+			status = http.StatusUnauthorized
+		} else if msg := err.Error(); msg == "vm not found" {
+			status = http.StatusNotFound
+		}
+		http.Error(w, sanitizeClientError(err.Error()), status)
 		return
 	}
 
-	ns := h.resolveNamespace(name, r.URL.Query().Get("namespace"))
-	driver := h.driver.WithNamespace(ns)
-
-	stream, err := driver.VirtClient().VirtualMachineInstance(ns).VNC(name, false)
+	driver := h.driver.WithNamespace(namespace)
+	stream, err := driver.VirtClient().VirtualMachineInstance(namespace).VNC(name, false)
 	if err != nil {
-		logger.Error("vnc subresource", zap.Error(err), zap.String("vm", name), zap.String("namespace", ns))
+		logger.Error("vnc subresource", zap.Error(err), zap.String("vm", name), zap.String("namespace", namespace))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

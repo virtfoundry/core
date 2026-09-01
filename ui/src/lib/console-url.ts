@@ -1,11 +1,12 @@
-export function consoleUrl(name: string, namespace?: string): string {
+import { authService } from './auth';
+
+export function consoleUrl(name: string): string {
   const params = new URLSearchParams({ name });
-  if (namespace) params.set('namespace', namespace);
   return `/console?${params.toString()}`;
 }
 
-export function openConsole(name: string, namespace?: string, newTab = true): void {
-  const url = consoleUrl(name, namespace);
+export function openConsole(name: string, _namespace?: string, newTab = true): void {
+  const url = consoleUrl(name);
   if (newTab) {
     window.open(url, '_blank', 'noopener,noreferrer');
   } else {
@@ -13,9 +14,12 @@ export function openConsole(name: string, namespace?: string, newTab = true): vo
   }
 }
 
-export function consoleWsUrl(name: string, namespace?: string): string {
+export function consoleWsUrl(name: string): string {
   const params = new URLSearchParams({ name });
-  if (namespace) params.set('namespace', namespace);
+  const token = authService.getToken();
+  if (token) params.set('token', token);
+  const tenantId = localStorage.getItem('tenant_id');
+  if (tenantId) params.set('tenant_id', tenantId);
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/ws/console?${params.toString()}`;
 }

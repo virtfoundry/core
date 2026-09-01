@@ -9,21 +9,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/virtfoundry/core/internal/api/handler"
 	"github.com/virtfoundry/core/internal/api/middleware"
 	"github.com/virtfoundry/core/internal/api/ws"
 	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/config"
-	"github.com/virtfoundry/core/internal/platform/branding"
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/pkg/logger"
+	"github.com/virtfoundry/core/internal/platform/branding"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service"
 	"github.com/virtfoundry/core/internal/service/compute"
 	"github.com/virtfoundry/core/internal/service/identity"
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -47,7 +47,6 @@ func main() {
 	kvDriver, err := hypervisor.NewKubeVirtDriver(hypervisor.KubeVirtConfig{
 		Kubeconfig: cfg.KubeVirt.Kubeconfig,
 		Namespace:  cfg.KubeVirt.Namespace,
-		InCluster:  inCluster,
 	})
 	if err != nil {
 		log.Fatal("kubevirt driver", zap.Error(err))
@@ -124,12 +123,11 @@ func main() {
 		client.ReadPump()
 	})
 
-	consoleHandler := handler.NewConsoleHandler(kvDriver, repo)
-	router.HandleFunc("/ws/console", consoleHandler.VNCConsole)
-
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc)
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
+	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc)
+	router.Handle("/ws/console", middleware.Authenticate(authSvc, repo, identitySvc)(http.HandlerFunc(consoleHandler.VNCConsole)))
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/auth/login", platformHandler.Login).Methods("POST")
@@ -212,7 +210,7 @@ func main() {
 	srv := &http.Server{Addr: addr, Handler: router}
 
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			platformSvc.SyncAllVMStates(context.Background())
