@@ -10,6 +10,21 @@
 
 **Spec:** [`docs/superpowers/specs/2026-09-01-crd-operator-design.md`](../specs/2026-09-01-crd-operator-design.md)
 
+## Progress (2026-09-01 homelab slice)
+
+| Area | Status |
+|------|--------|
+| Operator repo + v1alpha1 CRDs | Shipped on `virtfoundry/operator` |
+| Tenant namespace reconciler | Done |
+| Instance status sync (KubeVirt → CR) | Done |
+| Core `store.Repository` kubernetes driver | Done (`feat/crd-store`) |
+| Helm `store.driver=kubernetes`, drop mysql/worker | Done |
+| Argo homelab operator app + values | Done |
+| Homelab validation (no MySQL, VMs Running, VNC, API latency) | Done |
+| VPC/Network/Disk/Instance create-delete controllers | Not started |
+| Remove hypervisor from API path | Not started |
+| Operator CI + digest write-back to argo-homelab | Not started |
+
 ## Global Constraints
 
 - API group `virtfoundry.io`, version `v1alpha1`
@@ -20,7 +35,7 @@
 - Credential hashes only in Secrets (`secretRef` on User/APIKey)
 - REST `/api/v1` stays; no MySQL dual-write; no live MySQL→CR exporter
 - Conventional Commits, English; no commit to `main` without PR
-- **Local gate:** run and pass tests locally; **do not open GitHub PRs until maintainer explicitly approves**
+- **Local gate:** run and pass tests locally before opening PRs
 - Homelab deploy still via Argo after merge (no default `kubectl rollout restart`)
 
 ## File structure (target)
