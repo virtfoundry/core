@@ -19,16 +19,20 @@ Replace MySQL as VirtFoundry control-plane state with Kubernetes CRDs. The opera
 - MySQL dual-write, dual-read, or a MySQL exporter.
 - Keeping `cmd/worker` after the operator owns reconcile.
 - Changing Terraform provider resources (they keep calling REST).
+- Removing the REST `/api/v1` surface (adoption layer; see §4.0).
 - OIDC / Kubernetes-native auth replacement for JWT.
 - CNCF Sandbox application (checklist Phase 2 stays later).
 - Bundling KubeVirt/Multus/CDI as hard chart dependencies (unchanged).
 - Kind name `VirtualMachine` (KubeVirt already owns that GVK in `kubevirt.io`).
+- Glued kubectl shortNames (`vfvpc`); use hyphenated `vf-*` instead.
 
 ## 3. Locked decisions
 
 | Topic | Decision |
 |-------|----------|
-| Public API | REST `/api/v1` stays. CRDs are persistence + GitOps. |
+| Canonical API | CRDs (`virtfoundry.io`) are the source of truth + GitOps surface. |
+| Adoption API | REST `/api/v1` stays (UI, Terraform, Proxmox migrants). Facade over CRs — not a second brain. |
+| Remove REST? | No. Does not help CNCF Sandbox; hurts Phase 1 traction (demo, adopters, quickstart). |
 | Operator home | New repo `virtfoundry/operator` (kubebuilder + controller-runtime). |
 | Reconcile owner | Operator creates/updates/deletes infra. Core never talks to KubeVirt/NAD/PVC. |
 | Credentials | User / Role / APIKey are CRs. `password_hash` and API key `secret_hash` live only in Secrets (`secretRef`). |
@@ -37,6 +41,7 @@ Replace MySQL as VirtFoundry control-plane state with Kubernetes CRDs. The opera
 | In-process Memory store | Deleted. Tests use fake client / envtest. |
 | Chart layout | Operator chart is a prerequisite (Argo wave 5). VirtFoundry chart installs API+UI only (wave 6). Two Argo Applications. VirtFoundry chart does not vendor CRD YAML. |
 | CRD API | Group `virtfoundry.io`, version `v1alpha1`. |
+| kubectl shortNames | Hyphenated `vf-*` (e.g. `vf-vpc`, `vf-instance`). Not glued forms like `vfvpc`. |
 | Cutover | No MySQL beside CRDs. `mysql.enabled` removed, not defaulted false. |
 
 ## 4. Architecture
@@ -67,6 +72,20 @@ virtfoundry-operator
 
 GitOps (Argo/kubectl) may apply the same CRs. REST is a convenience writer, not a second source of truth.
 
+### 4.0 API layers (CNCF narrative)
+
+| Layer | Role | Audience |
+|-------|------|----------|
+| **CRD + operator** | Desired state, reconcile, GitOps | Platform / SRE / Argo |
+| **REST + UI** | Ergonomics, demo, Terraform | Humans leaving Proxmox |
+| **MySQL** | Gone | — |
+
+Sandbox proposal language: *“Desired state lives in `virtfoundry.io` CRs; REST and UI are optional clients of that API.”*
+
+Removing REST is **out of scope**. It does not accelerate CNCF Sandbox (checklist Phase 1 needs demo/UI/adopters). Cloud-native signal comes from CRDs + operator + no external DB for platform state.
+
+Docs must show both paths: `kubectl apply` / Argo YAML **and** REST/UI quickstart.
+
 ### 4.1 Repository split
 
 | Repo | Owns | Does not own |
@@ -88,27 +107,43 @@ GitOps (Argo/kubectl) may apply the same CRs. REST is a convenience writer, not 
 
 API group: `virtfoundry.io`  
 Version: `v1alpha1` (no conversion webhook in v1 of this work)  
-Printer columns: name, phase, age. Short names must not collide with KubeVirt (`vm`) or core types.
+Printer columns: name, phase, age.
+
+**Naming layers (do not confuse):**
+
+| Layer | Rule | Example |
+|-------|------|---------|
+| Kind | PascalCase, no `Vf` prefix | `VPC`, `Instance` |
+| Plural (API path) | kubebuilder default | `vpcs.virtfoundry.io` |
+| shortName | Hyphenated `vf-*` | `vf-vpc`, `vf-instance` |
+| `metadata.name` | User-facing DNS-1123; **no** forced `vf-` prefix | `acme-web` |
+
+`vf-*` shortNames must not collide with KubeVirt (`vm`) or core Kubernetes types. Kind stays `Instance` (never `VirtualMachine`).
+
+```bash
+kubectl get vf-vpc -n virtfoundry-tenant-acme
+kubectl get vf-instance,vf-disk -A
+```
 
 ### 5.1 Scope
 
 | Kind | Scope | Namespace | Short name |
 |------|-------|-----------|------------|
-| Tenant | Cluster | — | `vftenant` |
-| Offering | Cluster | — | `vfoffering` |
-| Template | Namespaced | platform catalog in `virtfoundry-system`; tenant catalog in tenant NS | `vftemplate` |
-| User | Cluster | — | `vfuser` |
-| Role | Namespaced | system roles in `virtfoundry-system`; tenant roles in tenant NS | `vfrole` |
-| APIKey | Namespaced | tenant NS (root keys in `virtfoundry-system`) | `vfapikey` |
-| VPC | Namespaced | tenant NS | `vfvpc` |
-| Network | Namespaced | tenant NS | `vfnet` |
-| SecurityGroup | Namespaced | tenant NS | `vfsg` |
-| Disk | Namespaced | tenant NS | `vfdisk` |
-| DiskSnapshot | Namespaced | tenant NS | `vfdisksnap` |
-| Instance | Namespaced | tenant NS | `vfinstance` |
-| InstanceSnapshot | Namespaced | tenant NS | `vfisnap` |
-| SSHKey | Namespaced | tenant NS | `vfsshkey` |
-| IPAddress | Namespaced | tenant NS | `vfip` |
+| Tenant | Cluster | — | `vf-tenant` |
+| Offering | Cluster | — | `vf-offering` |
+| Template | Namespaced | platform catalog in `virtfoundry-system`; tenant catalog in tenant NS | `vf-template` |
+| User | Cluster | — | `vf-user` |
+| Role | Namespaced | system roles in `virtfoundry-system`; tenant roles in tenant NS | `vf-role` |
+| APIKey | Namespaced | tenant NS (root keys in `virtfoundry-system`) | `vf-apikey` |
+| VPC | Namespaced | tenant NS | `vf-vpc` |
+| Network | Namespaced | tenant NS | `vf-network` |
+| SecurityGroup | Namespaced | tenant NS | `vf-sg` |
+| Disk | Namespaced | tenant NS | `vf-disk` |
+| DiskSnapshot | Namespaced | tenant NS | `vf-disksnap` |
+| Instance | Namespaced | tenant NS | `vf-instance` |
+| InstanceSnapshot | Namespaced | tenant NS | `vf-isnap` |
+| SSHKey | Namespaced | tenant NS | `vf-sshkey` |
+| IPAddress | Namespaced | tenant NS | `vf-ip` |
 
 Do not create a Job CR. Async work is the operator workqueue; REST job list can be derived from `status.conditions` or omitted until a later spec.
 
@@ -312,13 +347,16 @@ Per core `CONTRIBUTING.md`: `feat/<name>`, `fix/<name>`, `docs/<name>`, `chore/<
 
 In scope:
 
-- CRDs as the API for desired state (`spec` / `status` / conditions / finalizers).
+- CRDs as the **canonical** API for desired state (`spec` / `status` / conditions / finalizers).
 - Operator pattern (controller-runtime, leader election).
 - Secrets not in CR spec.
+- REST kept as **adoption layer** (see §4.0); docs show kubectl/GitOps + REST/UI.
 - Apache-2.0 on the new repo; SECURITY/COC/CONTRIBUTING.
 - No floating `:latest` in homelab overlay.
 
-Out of scope here: Sandbox proposal, multi-maintainer, conversion webhooks, Operator SDK scorecard as a merge gate (optional follow-up).
+Out of scope here: dropping REST, Sandbox proposal draft, multi-maintainer, conversion webhooks, Operator SDK scorecard as a merge gate (optional follow-up).
+
+**Sandbox path (order):** finish CNCF checklist Phase 1 (demo, adopters, installability) while shipping this CRD cutover; Phase 2 proposal cites CRDs-as-truth + optional REST clients. Do not block Phase 1 on removing the HTTP API.
 
 Update `docs/CNCF-CHECKLIST.md` and `docs/ARCHITECTURE.md` in the core PR that lands the store switch. Update helm-charts installation docs in the chart PR.
 
@@ -328,7 +366,8 @@ Update `docs/CNCF-CHECKLIST.md` and `docs/ARCHITECTURE.md` in the core PR that l
 |------|------------|
 | Split-brain if core still writes KubeVirt | Delete driver from core in the same core PR that enables the Kubernetes store. |
 | REST `id` change vs old MySQL UUID | Greenfield; document that ids are Kubernetes uids after cutover. |
-| `kubectl get vm` ambiguity | Kind `Instance`, shortName `vfinstance`. |
+| `kubectl get vm` ambiguity | Kind `Instance`, shortName `vf-instance` (not `vm`). |
+| Removing REST “for CNCF” | Rejected — hurts traction; CRD migration is the cloud-native signal. |
 | Helm CRD upgrade | CRDs owned by operator chart/release; virtfoundry chart does not copy CRD YAML. |
 | Homelab data loss | Accepted (greenfield). Announce before merge. |
 | API RBAC too wide | ClusterRole limited to `virtfoundry.io` + Secrets in labeled namespaces; no cluster-admin. |
@@ -339,5 +378,6 @@ Update `docs/CNCF-CHECKLIST.md` and `docs/ARCHITECTURE.md` in the core PR that l
 - `spec.id` stable UUID if CloudStack import must round-trip pre-Kubernetes ids.
 - Conversion webhook when promoting `v1alpha1` → `v1`.
 - Kubernetes Events retention vs a dedicated audit store.
+- Dropping or shrinking REST after Sandbox traction (only if evidence says kubectl-only is enough).
 
 These are deferred on purpose (YAGNI). Changing them requires a spec revision, not silent scope creep.
