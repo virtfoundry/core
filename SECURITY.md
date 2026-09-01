@@ -4,27 +4,28 @@
 
 | Version | Supported |
 |---------|-----------|
-| main branch | yes |
+| `main` branch | yes |
 | tagged releases | yes |
 
 ## Reporting a vulnerability
 
 **Do not open public GitHub issues for security vulnerabilities.**
 
-Please report security issues by emailing the repository owner via GitHub (private security advisory) or by contacting maintainers listed on the [virtfoundry organization profile](https://github.com/virtfoundry).
+Report via a **private GitHub security advisory** on the affected repository, or contact maintainers listed in [MAINTAINERS.md](MAINTAINERS.md). Primary security contact: **Matheus Thurler** ([@Matheus-Thurler](https://github.com/Matheus-Thurler)).
 
 Include:
 
 - Description of the issue and impact
 - Steps to reproduce
-- Affected component (API, UI, worker, helm-charts)
+- Affected component (API, UI, operator, CRDs, Helm chart, Terraform provider)
 - Suggested fix (if any)
 
-We aim to acknowledge reports within 7 days.
+We aim to acknowledge reports within **7 days** and publish fixes via tagged releases when applicable.
 
 ## Secure deployment notes
 
 - Change default `ROOT_PASSWORD` and `JWT_SECRET` before any non-lab deployment
-- Use external MySQL with strong credentials when `mysql.enabled=false` in Helm
+- Platform state lives in `virtfoundry.io` CRs; **never** put password or API-key hashes in CR `spec` — use Kubernetes Secrets only
 - Restrict API ingress and enable TLS at the ingress controller
-- Run worker and API service accounts with least-privilege RBAC (review `helm-charts/charts/virtfoundry/templates/rbac.yaml`)
+- Run API and operator ServiceAccounts with least-privilege RBAC (review Helm chart / operator `config/rbac`)
+- Pin container images by digest in production GitOps overlays

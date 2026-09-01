@@ -45,8 +45,10 @@ Login: `root` / your root password. For volume snapshots, set `platform.storage.
 
 | Repository | Purpose |
 |------------|---------|
-| [virtfoundry/core](https://github.com/virtfoundry/core) | API, worker, UI (this repo) |
-| [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) | Helm chart, docs, deploy scripts |
+| [virtfoundry/core](https://github.com/virtfoundry/core) | REST API, UI (this repo) |
+| [virtfoundry/operator](https://github.com/virtfoundry/operator) | `virtfoundry.io` CRDs and Kubernetes operator |
+| [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) | Helm charts, docs, deploy scripts |
+| [virtfoundry/terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Terraform provider |
 
 ## Product model
 
@@ -58,10 +60,19 @@ Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Co
 
 ## Development
 
+**MySQL (legacy):** default local config still uses `database.driver: mysql`.
+
+**CRD store (recommended for operator work):** install CRDs from [virtfoundry/operator](https://github.com/virtfoundry/operator) or `helm-charts/charts/virtfoundry-operator`, then:
+
 ```bash
+export VIRTFOUNDRY_STORE=kubernetes
 ROOT_PASSWORD=virtfoundry go run ./cmd/server
 cd ui && npm install && npm run dev
 ```
+
+Requires in-cluster kubeconfig or `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs. The API reads/writes platform state as CRs; KubeVirt is still used for VM lifecycle and VNC until the operator owns all infra controllers.
+
+See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/specs/2026-09-01-crd-operator-design.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 
@@ -72,6 +83,7 @@ cd ui && npm install && npm run dev
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
 | [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |
+| [MAINTAINERS.md](MAINTAINERS.md) | Lead maintainer (Matheus) and maintainers (Rodrigo) |
 | [ADOPTERS.md](ADOPTERS.md) | Who runs VirtFoundry |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and API overview |
 | [docs/VM-TEMPLATES.md](docs/VM-TEMPLATES.md) | VM template catalog, ISO import, container disks |
@@ -79,7 +91,7 @@ cd ui && npm install && npm run dev
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Maintainers: [MAINTAINERS.md](MAINTAINERS.md).
 
 Questions and ideas: [GitHub Discussions](https://github.com/virtfoundry/core/discussions). Traction board: [VirtFoundry Traction](https://github.com/orgs/virtfoundry/projects/1).
 

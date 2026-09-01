@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/virtfoundry/core/internal/platform/branding"
 	"github.com/virtfoundry/core/internal/platform/cloudinit"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	snapshotv1 "kubevirt.io/api/snapshot/v1beta1"
@@ -43,18 +45,25 @@ type KubeVirtDriver struct {
 type KubeVirtConfig struct {
 	Kubeconfig string
 	Namespace  string
+	InCluster  bool
 }
 
 func NewKubeVirtDriver(config KubeVirtConfig) (*KubeVirtDriver, error) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	if config.Kubeconfig != "" {
-		loadingRules.ExplicitPath = config.Kubeconfig
-	}
+	var clientConfig *rest.Config
+	var err error
 
-	clientConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		loadingRules,
-		&clientcmd.ConfigOverrides{},
-	).ClientConfig()
+	if config.InCluster {
+		clientConfig, err = rest.InClusterConfig()
+	} else {
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		if config.Kubeconfig != "" {
+			loadingRules.ExplicitPath = config.Kubeconfig
+		}
+		clientConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			loadingRules,
+			&clientcmd.ConfigOverrides{},
+		).ClientConfig()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("kubeconfig: %w", err)
 	}
@@ -104,11 +113,16 @@ func (d *KubeVirtDriver) ListVMs(ctx context.Context) ([]VMInfo, error) {
 		return nil, fmt.Errorf("list VMs: %w", err)
 	}
 
-	result := make([]VMInfo, 0, len(vms.Items))
-	for _, vm := range vms.Items {
-		info := d.vmToInfo(ctx, &vm)
-		result = append(result, info)
+	result := make([]VMInfo, len(vms.Items))
+	var wg sync.WaitGroup
+	for i := range vms.Items {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			result[i] = d.vmToInfo(ctx, &vms.Items[i])
+		}(i)
 	}
+	wg.Wait()
 	return result, nil
 }
 

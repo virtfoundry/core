@@ -963,6 +963,39 @@ func (m *MySQL) ListVMTemplates(activeOnly bool) []*platform.VMTemplate {
 	return out
 }
 
+func (m *MySQL) ListVMTemplatesForTenant(tenantID string, activeOnly bool) []*platform.VMTemplate {
+	q := `SELECT id, tenant_id, name, display_name, description, image, source_type, os_type, cloud_init_user_data, iso_volume_id, iso_size_gi, boot_disk_size_gi, storage_class, import_state, hypervisor, state, external_uuid, import_source, created_at FROM vm_templates WHERE tenant_id='' OR tenant_id=?`
+	if activeOnly {
+		q += ` AND state='Active'`
+	}
+	q += ` ORDER BY tenant_id, name`
+	rows, err := m.db.Query(q, tenantID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []*platform.VMTemplate
+	for rows.Next() {
+		var t platform.VMTemplate
+		var tid, desc, osType, srcType, cloudInit, isoVol, storageClass, importState, ext, src sql.NullString
+		if err := rows.Scan(&t.ID, &tid, &t.Name, &t.DisplayName, &desc, &t.Image, &srcType, &osType, &cloudInit, &isoVol, &t.ISOSizeGi, &t.BootDiskSizeGi, &storageClass, &importState, &t.Hypervisor, &t.State, &ext, &src, &t.CreatedAt); err != nil {
+			continue
+		}
+		t.TenantID = tid.String
+		t.Description = desc.String
+		t.OSType = osType.String
+		t.SourceType = srcType.String
+		t.CloudInitUserData = cloudInit.String
+		t.ISOVolumeID = isoVol.String
+		t.StorageClass = storageClass.String
+		t.ImportState = importState.String
+		t.ExternalUUID = ext.String
+		t.ImportSource = src.String
+		out = append(out, &t)
+	}
+	return out
+}
+
 func (m *MySQL) SaveSSHKeyPair(k *platform.SSHKeyPair) {
 	_, _ = m.db.Exec(`INSERT INTO ssh_key_pairs (id, tenant_id, name, public_key, fingerprint, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)

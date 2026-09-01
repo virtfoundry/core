@@ -13,8 +13,8 @@ Goal: project looks intentional to strangers in under 5 minutes.
 
 | # | Item | Owner | Status |
 |---|------|-------|--------|
-| 0.1 | Apache-2.0 `LICENSE` on all official repos | — | ✅ core / helm / terraform |
-| 0.2 | `GOVERNANCE.md` (root) | | ✅ |
+| 0.1 | Apache-2.0 `LICENSE` + `NOTICE` on all official repos | — | ✅ core / helm / terraform / operator |
+| 0.2 | `GOVERNANCE.md` + `MAINTAINERS.md` (root) | — | ✅ |
 | 0.3 | `CONTRIBUTING.md` + Conventional Commits | — | ✅ |
 | 0.4 | `CODE_OF_CONDUCT.md` on all repos | | ✅ |
 | 0.5 | `SECURITY.md` on all repos | | ✅ |
@@ -57,7 +57,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 |---|------|--------|
 | 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ⬜ |
 | 2.2 | Adopters statement + logos (if any) | ⬜ |
-| 2.3 | Multiple contributors with merged PRs | ⬜ |
+| 2.3 | Multiple contributors with merged PRs | ⬜ (Rodrigo Gonçalves — maintainer; grow external contributors) |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
 | 2.5 | Submit via CNCF TOC process | ⬜ |
 
@@ -69,7 +69,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 | # | Item | Status |
 |---|------|--------|
-| 3.1 | Grow maintainers beyond BDFL | ⬜ |
+| 3.1 | Grow maintainers beyond BDFL | 🟡 (lead + Rodrigo; document in MAINTAINERS.md) |
 | 3.2 | Multi-cluster CI (kind + bare metal or cloud) | ⬜ |
 | 3.3 | Incubation criteria tracking | ⬜ |
 
@@ -86,9 +86,21 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 ## Related docs
 
-- [WHY.md](WHY.md) — positioning  
-- [ROADMAP.md](../ROADMAP.md) — product themes  
-- [LOAD-BALANCER-PLAN.md](LOAD-BALANCER-PLAN.md) — AWS-style LB (tracked on Traction Phase 0 · [#63](https://github.com/virtfoundry/core/issues/63); product work, not a Phase 0 CNCF exit item)  
-- [GOVERNANCE.md](../GOVERNANCE.md) — how decisions are made  
+- [GOVERNANCE.md (core)](https://github.com/virtfoundry/core/blob/main/GOVERNANCE.md) — how decisions are made  
+- [CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) — traction & Sandbox readiness  
 - [Installation](https://virtfoundry.github.io/helm-charts/docs/guide/installation/)  
 - [Topologies](https://virtfoundry.github.io/helm-charts/docs/guide/topologies/)  
+
+## CNCF open-source alignment (2026)
+
+VirtFoundry follows common [CNCF](https://www.cncf.io/) project conventions:
+
+| Requirement | Location |
+|-------------|----------|
+| Apache-2.0 + NOTICE | All official repos |
+| GOVERNANCE + MAINTAINERS | [GOVERNANCE.md](../GOVERNANCE.md), [MAINTAINERS.md](../MAINTAINERS.md) |
+| CONTRIBUTING + Conventional Commits | [CONTRIBUTING.md](../CONTRIBUTING.md) |
+| CODE_OF_CONDUCT (Contributor Covenant 2.1) | All repos |
+| SECURITY.md + private advisory | [SECURITY.md](../SECURITY.md) |
+| ADOPTERS + ROADMAP | [ADOPTERS.md](../ADOPTERS.md), [ROADMAP.md](../ROADMAP.md) |
+| Operator / CRD-first control plane | [operator](https://github.com/virtfoundry/operator), [CRD design spec](docs/superpowers/specs/2026-09-01-crd-operator-design.md) |

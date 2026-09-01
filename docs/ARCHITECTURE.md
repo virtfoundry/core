@@ -8,29 +8,36 @@ Multi-tenant IaaS platform native to Kubernetes. This document describes the cur
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Browser (React SPA)                                            │
+│  Browser (React SPA) · Terraform provider                       │
 │  REST /api/v1  ·  WS /ws/events  ·  WS /ws/console (noVNC)     │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│  cmd/server          JWT middleware · handlers · WebSocket hub  │
-│  cmd/worker          async_jobs · deploy_vm · ReconcileAll      │
+│  cmd/server          JWT · handlers · WebSocket hub             │
+│  store.Repository    mysql | memory | kubernetes (CRDs)         │
+└────────────────────────────┬────────────────────────────────────┘
+                             │  dynamic client (kubernetes store)
+┌────────────────────────────▼────────────────────────────────────┐
+│  virtfoundry.io CRs in etcd (Tenant, Instance, VPC, …)         │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│  internal/service/platform.go  (facade)                         │
-│    tenant · identity · network · storage · compute · jobs       │
-└─┬──────────────┬─────────────────────┬──────────────────────────┘
-  │              │                     │
-  ▼              ▼                     ▼
-store.Repository  platform/k8s.Manager  hypervisor.KubeVirtDriver
-(MySQL/Memory)    namespaces, NAD,      VirtualMachine, snapshots,
-                  PVC, NetPol, VolSnap  VNC proxy
+│  virtfoundry-operator    Tenant → Namespace                     │
+│                          Instance → status from KubeVirt (WIP) │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│  KubeVirt · Multus · CDI · PVC · NetworkPolicy (infra)          │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+**Target (spec):** operator owns all infra reconciliation; API is a REST facade over CRs only. **Today:** API still uses `hypervisor.KubeVirtDriver` and `platform/k8s.Manager` for VM lifecycle, NAD, and console while controllers are ported.
+
+**Legacy path:** `store.Repository` backed by MySQL + `cmd/worker` for async reconcile (deprecated; removed from homelab/CRD chart profile).
 
 **Product:** VirtFoundry  
 **Go module:** `github.com/virtfoundry/core`  
-**Deploy:** [helm-charts](https://github.com/virtfoundry/helm-charts) (`virtfoundry-system` namespace)
+**Deploy:** [helm-charts](https://github.com/virtfoundry/helm-charts) — install **virtfoundry-operator** (CRDs) then **virtfoundry** (API+UI)
 
 ---
 

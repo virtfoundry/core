@@ -11,6 +11,7 @@ import (
 	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var errVPCNotFound = errors.New("vpc not found")
@@ -23,6 +24,13 @@ func defaultSecurityGroupRules() []platform.SecurityGroupRule {
 
 // EnsureDefaultSecurityGroup creates the tenant default SG (HTTP port 80) if missing.
 func (s *Service) EnsureDefaultSecurityGroup(ctx context.Context, tenantID string) (*platform.SecurityGroup, error) {
+	ns, err := shared.TenantNamespace(s.store, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.k8s.Clientset.CoreV1().Namespaces().Get(ctx, ns, metav1.GetOptions{}); err != nil {
+		return nil, nil
+	}
 	for _, sg := range s.store.ListSGs(tenantID) {
 		if sg.Name == branding.DefaultSecurityGroupName {
 			return sg, nil
@@ -118,6 +126,13 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 
 // EnsureDefaultVPC creates the AWS-style default VPC (10.0.0.0/16 + default subnet) if missing.
 func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platform.Network, error) {
+	ns, err := shared.TenantNamespace(s.store, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.k8s.Clientset.CoreV1().Namespaces().Get(ctx, ns, metav1.GetOptions{}); err != nil {
+		return nil, nil
+	}
 	if net, ok := s.defaultVPCNetwork(tenantID); ok {
 		return net, nil
 	}
