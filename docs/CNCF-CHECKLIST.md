@@ -105,4 +105,4 @@ VirtFoundry follows common [CNCF](https://www.cncf.io/) project conventions:
 | SECURITY.md + private advisory | [SECURITY.md](../SECURITY.md) |
 | ADOPTERS + ROADMAP | [ADOPTERS.md](../ADOPTERS.md), [ROADMAP.md](../ROADMAP.md) |
 | Operator / CRD-first control plane | [operator](https://github.com/virtfoundry/operator), [CRD design spec](docs/superpowers/specs/2026-09-01-crd-operator-design.md) |
-| Platform store | Kubernetes CRDs (`store.driver=kubernetes`); MySQL legacy code for dev/migration only — **not** used in homelab/production |
+| Platform store | Kubernetes CRDs (`store.driver=kubernetes`) only — no MySQL/Vitess/worker |

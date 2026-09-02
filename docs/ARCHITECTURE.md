@@ -14,7 +14,7 @@ Multi-tenant IaaS platform native to Kubernetes. This document describes the cur
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │  cmd/server          JWT · handlers · WebSocket hub             │
-│  store.Repository    mysql | memory | kubernetes (CRDs)         │
+│  store.Repository    memory (dev) | kubernetes (CRDs)            │
 └────────────────────────────┬────────────────────────────────────┘
                              │  dynamic client (kubernetes store)
 ┌────────────────────────────▼────────────────────────────────────┐
@@ -33,7 +33,7 @@ Multi-tenant IaaS platform native to Kubernetes. This document describes the cur
 
 **Target (spec):** operator owns all infra reconciliation; API is a REST facade over CRs only. **Today:** API still uses `hypervisor.KubeVirtDriver` and `platform/k8s.Manager` for VM lifecycle, NAD, and console while controllers are ported.
 
-**Legacy path:** `store.Repository` backed by MySQL + `cmd/worker` for async reconcile (deprecated; removed from homelab/CRD chart profile).
+**Prerequisites:** [KubeVirt](https://kubevirt.io/), [Multus](https://github.com/k8snetworkplumbingwg/multus-cni), [CDI](https://github.com/kubevirt/containerized-data-importer) — see [Platform prerequisites](https://virtfoundry.github.io/helm-charts/docs/guide/prerequisites/).
 
 **Product:** VirtFoundry  
 **Go module:** `github.com/virtfoundry/core`  
@@ -50,7 +50,6 @@ Multi-tenant IaaS platform native to Kubernetes. This document describes the cur
 | **Network** | vpcs, networks, security_groups | `GET/POST /vpcs`, `/networks`, `/security-groups` | `/vpcs`, `/networks`, `/security-groups` | VPC NS, Multus NAD, NetworkPolicy; **default VPC** (`10.0.0.0/16`) per tenant |
 | **Compute** | vms, vm_nics, vm_snapshots, catalog | `GET/POST /vms`, start/stop/delete, `/vm-snapshots` | `/vms`, `/vms/:name`, `/vm-snapshots`, `/console` | KubeVirt VM, VirtualMachineSnapshot |
 | **Storage** | volumes, snapshots | `GET/POST /volumes`, `/snapshots` | `/volumes`, `/snapshots` | PVC; VolumeSnapshot (needs CSI snapshotter — not `local-path`) |
-| **Jobs** | async_jobs | internal (worker) | — | — |
 | **Console** | — | `GET /ws/console` | `/console` (new tab) | KubeVirt VNC subresource |
 
 ### Domain dependencies
@@ -81,11 +80,10 @@ Tenant ────────────────────────�
 | Transport | `internal/api/handler/console_handler.go` | KubeVirt VNC WebSocket proxy |
 | Auth | `internal/auth` | JWT, bcrypt |
 | Service | `internal/service/` | Facade `platform.go` + domains (`tenant/`, `network/`, `compute/`, …) |
-| Persistence | `internal/platform/store` | `Repository` interface + MySQL/Memory |
+| Persistence | `internal/platform/store` | `Repository` — Memory (dev) or Kubernetes CRDs |
 | Models | `internal/platform/models.go` | Shared entities |
-| K8s infra | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot |
+| K8s infra | `internal/platform/k8s` | tenant, vpc, securitygroup, volume, snapshot, load balancer |
 | Hypervisor | `internal/infra/hypervisor` | `Driver` interface + KubeVirt |
-| Migration | `internal/migrate`, `cmd/migrate` | CloudStack → VirtFoundry import |
 
 ### Typical flow: VM deploy
 
@@ -97,14 +95,6 @@ Tenant ────────────────────────�
 6. Cloud-init / Multus static IP when public network is attached
 7. Persists `vms` + `vm_nics` in store
 8. Broadcasts `vm.created` on WebSocket hub
-9. Async mode: enqueues `deploy_vm` job for worker
-
-### Worker (`cmd/worker`)
-
-- Polls `async_jobs` every 3s
-- Runs `deploy_vm`, `reconcile`
-- `ReconcileAll` every 15s: adopts orphan KubeVirt VMs, marks `Destroyed` if gone
-- `SyncAllVMStates`: syncs KubeVirt phase → DB + WS events
 
 ---
 
@@ -188,27 +178,13 @@ Tenant ────────────────────────�
 
 ---
 
-## Database
+## Persistence (CRD store)
 
-Schema: `internal/platform/store/migrations/schema.sql`
+Production and homelab use `store.driver=kubernetes`: platform entities are `virtfoundry.io` CRs in etcd (see [operator CRD design](superpowers/specs/2026-09-01-crd-operator-design.md)).
 
-| Table | Description |
-|-------|-------------|
-| `users` | root / tenant_admin |
-| `tenants` | slug, namespace, import fields |
-| `vpcs` | VPC per tenant |
-| `networks` | Multus NAD (namespace + name) |
-| `security_groups` | Rules as JSON |
-| `service_offerings` | CPU/mem catalog |
-| `vm_templates` | Container disk and ISO images (`source_type`, `import_state`) |
-| `vms` | KubeVirt metadata |
-| `vm_nics` | NICs per VM |
-| `volumes` | PVCs |
-| `snapshots` | VolumeSnapshots |
-| `vm_snapshots` | VirtualMachineSnapshots |
-| `async_jobs` | Worker queue |
+Local `go run` without a cluster uses the in-memory store with seeded catalog.
 
-Store: MySQL when `database.dsn` is set; otherwise Memory with catalog seed.
+**Not used:** MySQL, Vitess, or `cmd/worker`.
 
 ---
 
@@ -224,11 +200,10 @@ helm-charts/scripts/sideload/import-pod.yaml     # Image sideload (no registry)
 | Workload | Image | Role |
 |----------|-------|------|
 | `virtfoundry-api` | `ghcr.io/virtfoundry/core` | `./server` |
-| `virtfoundry-worker` | `ghcr.io/virtfoundry/core` | `./worker` |
 | `virtfoundry-ui` | `ghcr.io/virtfoundry/ui` | nginx + SPA |
-| `virtfoundry-mysql` | mysql:8 | StatefulSet |
+| `virtfoundry-operator` | `ghcr.io/virtfoundry/operator` | CRD controllers |
 
-Install with `helm install` from helm-charts (see chart README).
+Install order: platform prerequisites → **virtfoundry-operator** → **virtfoundry**. See [Installation](https://virtfoundry.github.io/helm-charts/docs/guide/installation/).
 
 ---
 
@@ -236,20 +211,16 @@ Install with `helm install` from helm-charts (see chart README).
 
 ```
 virtfoundry/
-├── cmd/
-│   ├── server/           # REST API + WebSockets
-│   ├── worker/           # Async jobs + reconciliation
-│   └── migrate/          # CloudStack import CLI
+├── cmd/server/           # REST API + WebSockets
 ├── internal/
 │   ├── api/              # Handlers, middleware, WS
 │   ├── auth/             # JWT
 │   ├── config/           # Viper
 │   ├── service/          # Domain services (tenant, network, compute, …)
 │   ├── platform/
-│   │   ├── store/        # Repository + MySQL/Memory
+│   │   ├── store/        # Repository — Memory / Kubernetes
 │   │   └── k8s/          # K8s provisioning per resource
-│   ├── infra/hypervisor/ # KubeVirt driver
-│   └── migrate/          # Import logic
+│   └── infra/hypervisor/ # KubeVirt driver
 ├── ui/src/               # React SPA
 ├── config/               # Local dev config (cluster config → helm-charts)
 ├── docker/               # Dockerfiles + nginx config (images only)

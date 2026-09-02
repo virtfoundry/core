@@ -57,7 +57,7 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` 
 
 | Repo | When to contribute here |
 |------|-------------------------|
-| [virtfoundry](https://github.com/virtfoundry/core) | API, worker, UI, migration CLI, local dev config |
+| [virtfoundry](https://github.com/virtfoundry/core) | API, UI, local dev config |
 | [helm-charts](https://github.com/virtfoundry/helm-charts) | Helm chart, cluster values, deploy scripts |
 | [virtfoundry-website](https://github.com/virtfoundry/core-website) | Marketing site and published docs |
 

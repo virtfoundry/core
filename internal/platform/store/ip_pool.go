@@ -60,22 +60,3 @@ func seedIPRangeLocked(m *Memory, networkID, start, end string) error {
 	}
 	return nil
 }
-
-func (m *MySQL) SeedIPPool(networkID, start, end string) error {
-	if start == "" || end == "" {
-		return nil
-	}
-	for addr := start; ; {
-		_, _ = m.db.Exec(`INSERT IGNORE INTO ip_addresses (id, network_id, address, status, created_at) VALUES (?, ?, ?, 'available', ?)`,
-			NewID(), networkID, addr, Now())
-		if addr == end {
-			break
-		}
-		next, ok := nextIPString(addr)
-		if !ok || ipGreater(next, end) {
-			break
-		}
-		addr = next
-	}
-	return nil
-}

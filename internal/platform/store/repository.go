@@ -2,7 +2,7 @@ package store
 
 import "github.com/virtfoundry/core/internal/platform"
 
-// Repository persists platform state. Memory and MySQL both implement it.
+// Repository persists platform state. Memory and Kubernetes (CRD) backends implement it.
 type Repository interface {
 	SaveUser(u *platform.User)
 	GetUserByUsername(username string) (*platform.User, bool)

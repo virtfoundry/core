@@ -57,7 +57,7 @@ Create LB → create empty `Service` type LoadBalancer → persist VIP from `.st
 
 ## Implementation order
 
-1. Domain models + Memory/MySQL store — **done** (v1 minimal; kubernetes ephemeral store on homelab)
+1. Domain models + Memory/kubernetes store — **done** (homelab uses CRD ephemeral store)
 2. `k8s.Manager`: EnsureLBService / SyncLBEndpoints / DeleteLB — **done**
 3. Service layer + HTTP handlers — **done** (create/list/delete LB, listeners, target groups, register target)
 4. UI: Load Balancers + Target Groups (PageTable pattern) — pending

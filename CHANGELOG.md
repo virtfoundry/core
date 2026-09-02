@@ -1,8 +1,22 @@
 # Changelog
 
-All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
+All notable changes to **VirtFoundry** (API, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
+
+## [0.7.0] - 2026-09-02
+
+### Removed
+
+- MySQL store (`mysql.go`, migrations, `go-sql-driver/mysql`)
+- `cmd/worker` and `cmd/migrate` (CloudStack MySQL import)
+- Worker binary from API container image
+
+### Changed
+
+- Store backends: **kubernetes** (production) or **memory** (local dev/tests) only
+- Docs: [Platform prerequisites](https://virtfoundry.github.io/helm-charts/docs/guide/prerequisites/) with KubeVirt, Multus, CDI, Longhorn, MetalLB links
+- UI and docs advertise `0.7.0`
 
 ## [0.6.0] - 2026-09-01
 
