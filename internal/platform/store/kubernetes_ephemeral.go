@@ -206,4 +206,9 @@ func (k *Kubernetes) PurgeTenantData(tenantID string) {
 	for _, u := range k.ListUsersByTenant(tenantID) {
 		k.DeleteUser(u.ID)
 	}
+	if t, ok := k.GetTenant(tenantID); ok {
+		if u, ok := k.GetUserByUsername(t.Slug + "-admin"); ok {
+			k.DeleteUser(u.ID)
+		}
+	}
 }

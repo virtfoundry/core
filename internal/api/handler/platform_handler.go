@@ -410,7 +410,7 @@ func (h *PlatformHandler) ListVMVolumes(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	name := mux.Vars(r)["name"]
-	respondJSON(w, http.StatusOK, map[string]interface{}{"volumes": h.svc.ListVolumesForVM(tid, name)})
+	respondJSON(w, http.StatusOK, map[string]interface{}{"volumes": nonNilSlice(h.svc.ListVolumesForVM(tid, name))})
 }
 
 func (h *PlatformHandler) AttachVolumeToVM(w http.ResponseWriter, r *http.Request) {

@@ -90,16 +90,6 @@ func (s *Service) CreateLoadBalancer(ctx context.Context, tenantID, name, descri
 		State:       stateCreating,
 		CreatedAt:   store.Now(),
 	}
-	vip, err := s.k8s.EnsureLBService(ctx, ns, svcName, lbID, nil)
-	if err != nil {
-		lb.State = stateError
-		s.store.SaveLoadBalancer(lb)
-		return lb, nil
-	}
-	if vip != "" {
-		lb.VIP = vip
-		lb.State = stateActive
-	}
 	s.store.SaveLoadBalancer(lb)
 	return lb, nil
 }
@@ -152,9 +142,7 @@ func (s *Service) CreateListener(ctx context.Context, tenantID, lbID, protocol s
 	if err := s.syncLBService(ctx, lb); err != nil {
 		return listener, err
 	}
-	if err := s.syncLBEndpoints(ctx, lb); err != nil {
-		return listener, err
-	}
+	_ = s.syncLBEndpoints(ctx, lb)
 	return listener, nil
 }
 

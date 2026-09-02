@@ -84,9 +84,24 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name s
 		State: "creating", CreatedAt: store.Now(),
 	}
 	s.store.SaveSnapshot(snap)
+	if ready, err := s.k8s.WaitVolumeSnapshotReady(ctx, vol.Namespace, snapName, 180); err == nil && ready {
+		snap.State = "ready"
+		s.store.SaveSnapshot(snap)
+	}
 	return snap, nil
 }
 
 func (s *Service) ListSnapshots(tenantID string) []*platform.Snapshot {
-	return s.store.ListSnapshots(tenantID)
+	snaps := s.store.ListSnapshots(tenantID)
+	for _, snap := range snaps {
+		if snap.State == "ready" {
+			continue
+		}
+		slug := shared.SanitizeSlug(snap.Name)
+		if ready, err := s.k8s.VolumeSnapshotReady(context.Background(), snap.Namespace, slug); err == nil && ready {
+			snap.State = "ready"
+			s.store.SaveSnapshot(snap)
+		}
+	}
+	return snaps
 }
