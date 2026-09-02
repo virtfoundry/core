@@ -194,7 +194,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		spec.Image = ""
 	}
 
-	if s.canDeployViaOperator(deployTmpl, in, networkIDs) {
+	if s.canDeployViaOperator(deployTmpl, in, in.NetworkIDs) {
 		return s.deployVMViaOperator(ctx, tenantID, in, name, ns, cpu, memMi, image, dedicated, deployTmpl, tmplDisplay)
 	}
 
@@ -215,6 +215,9 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		ServiceOfferingID: in.ServiceOfferingID,
 		NICs:              vmNics,
 		CreatedAt:         store.Now(),
+	}
+	if deployTmpl != nil {
+		vm.TemplateRef = deployTmpl.Name
 	}
 	if tenant != nil {
 		vm.Zone = tenant.Slug

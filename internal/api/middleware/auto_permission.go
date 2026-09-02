@@ -17,6 +17,8 @@ var resourcePermMap = map[string]string{
 	"security-groups":  "security_groups",
 	"volumes":          "volumes",
 	"snapshots":        "volumes",
+	"load-balancers":   "networks",
+	"target-groups":    "networks",
 	"vms":              "vms",
 	"vm-templates":     "vms",
 	"vm-snapshots":     "vms",

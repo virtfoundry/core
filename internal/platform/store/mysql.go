@@ -292,6 +292,10 @@ func (m *MySQL) PurgeTenantData(tenantID string) {
 	_, _ = m.db.Exec(`DELETE FROM networks WHERE tenant_id=?`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM vpcs WHERE tenant_id=?`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM vm_templates WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM lb_targets WHERE target_group_id IN (SELECT id FROM target_groups WHERE tenant_id=?)`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM lb_listeners WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM load_balancers WHERE tenant_id=?`, tenantID)
+	_, _ = m.db.Exec(`DELETE FROM target_groups WHERE tenant_id=?`, tenantID)
 	_, _ = m.db.Exec(`DELETE FROM audit_events WHERE target_tenant_id=?`, tenantID)
 }
 

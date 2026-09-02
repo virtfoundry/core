@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store/mapping"
@@ -29,6 +30,8 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	tenantCRName := ""
 	if u.TenantID != "" {
 		if t, ok := k.GetTenant(u.TenantID); ok {
+			tenantCRName = mapping.TenantCRName(t.Slug)
+		} else if t, ok := k.GetTenantBySlug(strings.TrimSuffix(u.Username, "-admin")); ok && t.ID == u.TenantID {
 			tenantCRName = mapping.TenantCRName(t.Slug)
 		}
 	}
@@ -133,7 +136,8 @@ func (k *Kubernetes) ListUsersByTenant(tenantID string) []*platform.User {
 	var out []*platform.User
 	for i := range list.Items {
 		ref, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "tenantRef", "name")
-		if ref == tenantCR {
+		username, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "username")
+		if ref == tenantCR || username == tenantCR+"-admin" {
 			out = append(out, k.userFromCR(context.Background(), &list.Items[i]))
 		}
 	}

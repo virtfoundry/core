@@ -259,3 +259,50 @@ CREATE TABLE IF NOT EXISTS ip_addresses (
     UNIQUE KEY uk_ip_network_addr (network_id, address),
     INDEX idx_ip_status (network_id, status)
 );
+
+CREATE TABLE IF NOT EXISTS target_groups (
+    id          CHAR(36) PRIMARY KEY,
+    tenant_id   CHAR(36) NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    protocol    VARCHAR(16) NOT NULL,
+    port        INT NOT NULL,
+    state       VARCHAR(32) NOT NULL DEFAULT 'active',
+    created_at  DATETIME(3) NOT NULL,
+    INDEX idx_tg_tenant (tenant_id)
+);
+
+CREATE TABLE IF NOT EXISTS load_balancers (
+    id              CHAR(36) PRIMARY KEY,
+    tenant_id       CHAR(36) NOT NULL,
+    name            VARCHAR(255) NOT NULL,
+    description     VARCHAR(512) NULL,
+    namespace       VARCHAR(255) NOT NULL,
+    service_name    VARCHAR(255) NOT NULL,
+    vip             VARCHAR(64) NULL,
+    state           VARCHAR(32) NOT NULL DEFAULT 'Creating',
+    created_at      DATETIME(3) NOT NULL,
+    INDEX idx_lb_tenant (tenant_id)
+);
+
+CREATE TABLE IF NOT EXISTS lb_listeners (
+    id              CHAR(36) PRIMARY KEY,
+    tenant_id       CHAR(36) NOT NULL,
+    load_balancer_id CHAR(36) NOT NULL,
+    protocol        VARCHAR(16) NOT NULL,
+    port            INT NOT NULL,
+    target_group_id CHAR(36) NOT NULL,
+    created_at      DATETIME(3) NOT NULL,
+    INDEX idx_listener_lb (load_balancer_id)
+);
+
+CREATE TABLE IF NOT EXISTS lb_targets (
+    id              CHAR(36) PRIMARY KEY,
+    tenant_id       CHAR(36) NOT NULL,
+    target_group_id CHAR(36) NOT NULL,
+    vm_id           CHAR(36) NOT NULL,
+    ip              VARCHAR(64) NOT NULL,
+    port            INT NOT NULL,
+    state           VARCHAR(32) NOT NULL DEFAULT 'registered',
+    created_at      DATETIME(3) NOT NULL,
+    INDEX idx_lb_target_tg (target_group_id)
+);

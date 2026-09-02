@@ -69,6 +69,9 @@ func (s *Service) AttachVolumeToVM(ctx context.Context, tenantID, vmName, volume
 	if vol.Namespace != ns {
 		return nil, fmt.Errorf("volume namespace mismatch")
 	}
+	if strings.TrimSpace(vol.PVCName) == "" {
+		return nil, fmt.Errorf("volume has no backing PVC")
+	}
 	bus := s.vmDiskBus(ctx, ns, vmName)
 	kv := s.kvBase.WithNamespace(ns)
 	if err := kv.AttachVolumeToVM(ctx, vmName, vol.PVCName, bus); err != nil {

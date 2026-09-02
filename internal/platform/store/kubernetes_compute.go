@@ -103,11 +103,31 @@ func (k *Kubernetes) SaveVolume(v *platform.Volume) {
 		}
 	}
 	slug := k.tenantSlug(v.TenantID)
+	prior := *v
 	k.saveNamespacedMapped(mapping.DiskGVR, ns, func() *unstructured.Unstructured {
 		return mapping.DiskToUnstructured(v, slug, instanceCR)
 	}, func(saved *unstructured.Unstructured) {
-		*v = *mapping.DiskFromUnstructured(saved, v.TenantID)
+		fromCR := mapping.DiskFromUnstructured(saved, v.TenantID)
+		*v = *fromCR
+		if v.PVCName == "" && prior.PVCName != "" {
+			v.PVCName = prior.PVCName
+		}
+		if v.VMID == "" && prior.VMID != "" {
+			v.VMID = prior.VMID
+			v.State = prior.State
+		}
 	})
+}
+
+func (k *Kubernetes) volumeFromDisk(obj *unstructured.Unstructured, tenantID string) *platform.Volume {
+	vol := mapping.DiskFromUnstructured(obj, tenantID)
+	if vol.VMID == "" {
+		vol.VMID = k.vmIDFromInstanceRef(tenantID, obj)
+		if vol.VMID != "" {
+			vol.State = "attached"
+		}
+	}
+	return vol
 }
 
 func (k *Kubernetes) ListVolumes(tenantID string) []*platform.Volume {
@@ -121,7 +141,7 @@ func (k *Kubernetes) ListVolumes(tenantID string) []*platform.Volume {
 	}
 	out := make([]*platform.Volume, 0, len(list.Items))
 	for i := range list.Items {
-		out = append(out, mapping.DiskFromUnstructured(&list.Items[i], tenantID))
+		out = append(out, k.volumeFromDisk(&list.Items[i], tenantID))
 	}
 	return out
 }
@@ -141,7 +161,8 @@ func (k *Kubernetes) GetVolume(id string) (*platform.Volume, bool) {
 	if !ok {
 		return nil, false
 	}
-	return mapping.DiskFromUnstructured(obj, k.tenantIDForNamespace(ns)), true
+	tenantID := k.tenantIDForNamespace(ns)
+	return k.volumeFromDisk(obj, tenantID), true
 }
 
 func (k *Kubernetes) DeleteVolume(id string) {
@@ -159,10 +180,15 @@ func (k *Kubernetes) SaveSnapshot(s *platform.Snapshot) {
 	if vol, ok := k.GetVolume(s.VolumeID); ok {
 		diskCR = mapping.DiskCRName(vol)
 	}
+	prior := *s
 	k.saveNamespacedMapped(mapping.DiskSnapshotGVR, ns, func() *unstructured.Unstructured {
 		return mapping.DiskSnapshotToUnstructured(s, diskCR)
 	}, func(saved *unstructured.Unstructured) {
-		*s = *mapping.DiskSnapshotFromUnstructured(saved, s.TenantID, s.VolumeID)
+		fromCR := mapping.DiskSnapshotFromUnstructured(saved, s.TenantID, s.VolumeID)
+		*s = *fromCR
+		if s.State == "" && prior.State != "" {
+			s.State = prior.State
+		}
 	})
 }
 

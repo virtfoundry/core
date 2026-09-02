@@ -164,6 +164,9 @@ func DiskFromUnstructured(obj *unstructured.Unstructured, tenantID string) *plat
 	name, _, _ := unstructured.NestedString(obj.Object, "spec", "name")
 	size, _, _ := unstructured.NestedInt64(obj.Object, "spec", "sizeGi")
 	pvc, _, _ := unstructured.NestedString(obj.Object, "status", "pvcName")
+	if pvc == "" && name != "" {
+		pvc = SanitizeCRName(name)
+	}
 	v.Name = name
 	v.SizeGi = int(size)
 	v.PVCName = pvc

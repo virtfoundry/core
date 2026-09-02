@@ -104,5 +104,26 @@ type Repository interface {
 	ListSSHKeyPairs(tenantID string) []*platform.SSHKeyPair
 	DeleteSSHKeyPair(id string)
 
+	SaveTargetGroup(tg *platform.TargetGroup)
+	GetTargetGroup(id string) (*platform.TargetGroup, bool)
+	ListTargetGroups(tenantID string) []*platform.TargetGroup
+	DeleteTargetGroup(id string)
+
+	SaveLoadBalancer(lb *platform.LoadBalancer)
+	GetLoadBalancer(id string) (*platform.LoadBalancer, bool)
+	ListLoadBalancers(tenantID string) []*platform.LoadBalancer
+	DeleteLoadBalancer(id string)
+
+	SaveLBListener(l *platform.LBListener)
+	GetLBListener(id string) (*platform.LBListener, bool)
+	ListLBListeners(loadBalancerID string) []*platform.LBListener
+	DeleteLBListener(id string)
+
+	SaveLBTarget(t *platform.LBTarget)
+	GetLBTarget(id string) (*platform.LBTarget, bool)
+	ListLBTargets(targetGroupID string) []*platform.LBTarget
+	DeleteLBTarget(id string)
+	DeleteLBTargetsByTargetGroup(targetGroupID string)
+
 	Close() error
 }
