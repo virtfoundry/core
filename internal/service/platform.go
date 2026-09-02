@@ -16,6 +16,7 @@ import (
 	"github.com/virtfoundry/core/internal/service/compute"
 	"github.com/virtfoundry/core/internal/service/identity"
 	"github.com/virtfoundry/core/internal/service/jobs"
+	"github.com/virtfoundry/core/internal/service/loadbalancer"
 	"github.com/virtfoundry/core/internal/service/network"
 	"github.com/virtfoundry/core/internal/service/shared"
 	"github.com/virtfoundry/core/internal/service/sshkeys"
@@ -35,6 +36,7 @@ type PlatformService struct {
 	compute  *compute.Service
 	jobs     *jobs.Service
 	sshkeys  *sshkeys.Service
+	lb       *loadbalancer.Service
 }
 
 func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub EventBroadcaster) *PlatformService {
@@ -50,6 +52,7 @@ func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hyper
 		compute:  computeSvc,
 		jobs:     jobs.New(st, computeSvc),
 		sshkeys:  sshkeys.New(st),
+		lb:       loadbalancer.New(st, k8s),
 	}
 }
 
@@ -143,7 +146,7 @@ func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.Ne
 
 func (s *PlatformService) BootstrapStorage(cfg config.StorageConfig) {
 	s.compute.ConfigureStorage(cfg.DefaultClass, cfg.WindowsBootSizeGi, cfg.WindowsISOSizeGi)
-	s.storage.ConfigureStorage(cfg.DefaultClass)
+	s.storage.ConfigureStorage(cfg.DefaultClass, cfg.SnapshotClass)
 }
 
 // --- tenant ---
@@ -406,4 +409,42 @@ func (s *PlatformService) StreamVMLogs(ctx context.Context, tenantID, vmName str
 
 func (s *PlatformService) VMLogExploreURL(tenantID, vmName string) string {
 	return s.compute.LogExploreURL(tenantID, vmName)
+}
+
+// --- load balancers ---
+
+func (s *PlatformService) CreateTargetGroup(tenantID, name, protocol string, port int) (*platform.TargetGroup, error) {
+	return s.lb.CreateTargetGroup(tenantID, name, protocol, port)
+}
+
+func (s *PlatformService) ListTargetGroups(tenantID string) []*platform.TargetGroup {
+	return s.lb.ListTargetGroups(tenantID)
+}
+
+func (s *PlatformService) DeleteTargetGroup(ctx context.Context, tenantID, id string) error {
+	return s.lb.DeleteTargetGroup(ctx, tenantID, id)
+}
+
+func (s *PlatformService) CreateLoadBalancer(ctx context.Context, tenantID, name, description string) (*platform.LoadBalancer, error) {
+	return s.lb.CreateLoadBalancer(ctx, tenantID, name, description)
+}
+
+func (s *PlatformService) ListLoadBalancers(tenantID string) []*platform.LoadBalancer {
+	return s.lb.ListLoadBalancers(tenantID)
+}
+
+func (s *PlatformService) DeleteLoadBalancer(ctx context.Context, tenantID, id string) error {
+	return s.lb.DeleteLoadBalancer(ctx, tenantID, id)
+}
+
+func (s *PlatformService) CreateLBListener(ctx context.Context, tenantID, lbID, protocol string, port int, targetGroupID string) (*platform.LBListener, error) {
+	return s.lb.CreateListener(ctx, tenantID, lbID, protocol, port, targetGroupID)
+}
+
+func (s *PlatformService) DeleteLBListener(ctx context.Context, tenantID, lbID, listenerID string) error {
+	return s.lb.DeleteListener(ctx, tenantID, lbID, listenerID)
+}
+
+func (s *PlatformService) RegisterLBTarget(ctx context.Context, tenantID, targetGroupID, vmID string) (*platform.LBTarget, error) {
+	return s.lb.RegisterTarget(ctx, tenantID, targetGroupID, vmID)
 }

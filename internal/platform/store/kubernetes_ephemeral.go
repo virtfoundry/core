@@ -203,4 +203,7 @@ func (k *Kubernetes) PurgeTenantData(tenantID string) {
 			k.deleteNamespaced(gvr, ns, list.Items[i].GetName())
 		}
 	}
+	for _, u := range k.ListUsersByTenant(tenantID) {
+		k.DeleteUser(u.ID)
+	}
 }

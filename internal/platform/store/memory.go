@@ -28,6 +28,10 @@ type Memory struct {
 	serviceOfferings map[string]*platform.ServiceOffering
 	vmTemplates      map[string]*platform.VMTemplate
 	sshKeyPairs      map[string]*platform.SSHKeyPair
+	targetGroups     map[string]*platform.TargetGroup
+	loadBalancers    map[string]*platform.LoadBalancer
+	lbListeners      map[string]*platform.LBListener
+	lbTargets        map[string]*platform.LBTarget
 	roles            map[string]*platform.RoleRecord
 	rolePerms        map[string][]string
 	apiKeys          map[string]*platform.APIKey
@@ -51,6 +55,10 @@ func NewMemory() *Memory {
 		serviceOfferings: make(map[string]*platform.ServiceOffering),
 		vmTemplates:      make(map[string]*platform.VMTemplate),
 		sshKeyPairs:      make(map[string]*platform.SSHKeyPair),
+		targetGroups:     make(map[string]*platform.TargetGroup),
+		loadBalancers:    make(map[string]*platform.LoadBalancer),
+		lbListeners:      make(map[string]*platform.LBListener),
+		lbTargets:        make(map[string]*platform.LBTarget),
 		roles:            make(map[string]*platform.RoleRecord),
 		rolePerms:        make(map[string][]string),
 		apiKeys:          make(map[string]*platform.APIKey),
@@ -219,6 +227,26 @@ func (m *Memory) PurgeTenantData(tenantID string) {
 	for id, t := range m.vmTemplates {
 		if t.TenantID == tenantID {
 			delete(m.vmTemplates, id)
+		}
+	}
+	for id, tg := range m.targetGroups {
+		if tg.TenantID == tenantID {
+			delete(m.targetGroups, id)
+		}
+	}
+	for id, lb := range m.loadBalancers {
+		if lb.TenantID == tenantID {
+			delete(m.loadBalancers, id)
+		}
+	}
+	for id, l := range m.lbListeners {
+		if l.TenantID == tenantID {
+			delete(m.lbListeners, id)
+		}
+	}
+	for id, t := range m.lbTargets {
+		if t.TenantID == tenantID {
+			delete(m.lbTargets, id)
 		}
 	}
 }
@@ -711,6 +739,140 @@ func (m *Memory) DeleteSSHKeyPair(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.sshKeyPairs, id)
+}
+
+func (m *Memory) SaveTargetGroup(tg *platform.TargetGroup) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.targetGroups[tg.ID] = tg
+}
+
+func (m *Memory) GetTargetGroup(id string) (*platform.TargetGroup, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	tg, ok := m.targetGroups[id]
+	return tg, ok
+}
+
+func (m *Memory) ListTargetGroups(tenantID string) []*platform.TargetGroup {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.TargetGroup
+	for _, tg := range m.targetGroups {
+		if tg.TenantID == tenantID {
+			out = append(out, tg)
+		}
+	}
+	return out
+}
+
+func (m *Memory) DeleteTargetGroup(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.targetGroups, id)
+}
+
+func (m *Memory) SaveLoadBalancer(lb *platform.LoadBalancer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.loadBalancers[lb.ID] = lb
+}
+
+func (m *Memory) GetLoadBalancer(id string) (*platform.LoadBalancer, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	lb, ok := m.loadBalancers[id]
+	return lb, ok
+}
+
+func (m *Memory) ListLoadBalancers(tenantID string) []*platform.LoadBalancer {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.LoadBalancer
+	for _, lb := range m.loadBalancers {
+		if lb.TenantID == tenantID {
+			out = append(out, lb)
+		}
+	}
+	return out
+}
+
+func (m *Memory) DeleteLoadBalancer(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.loadBalancers, id)
+}
+
+func (m *Memory) SaveLBListener(l *platform.LBListener) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.lbListeners[l.ID] = l
+}
+
+func (m *Memory) GetLBListener(id string) (*platform.LBListener, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	l, ok := m.lbListeners[id]
+	return l, ok
+}
+
+func (m *Memory) ListLBListeners(loadBalancerID string) []*platform.LBListener {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.LBListener
+	for _, l := range m.lbListeners {
+		if l.LoadBalancerID == loadBalancerID {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+func (m *Memory) DeleteLBListener(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.lbListeners, id)
+}
+
+func (m *Memory) SaveLBTarget(t *platform.LBTarget) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.lbTargets[t.ID] = t
+}
+
+func (m *Memory) GetLBTarget(id string) (*platform.LBTarget, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	t, ok := m.lbTargets[id]
+	return t, ok
+}
+
+func (m *Memory) ListLBTargets(targetGroupID string) []*platform.LBTarget {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []*platform.LBTarget
+	for _, t := range m.lbTargets {
+		if t.TargetGroupID == targetGroupID {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func (m *Memory) DeleteLBTarget(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.lbTargets, id)
+}
+
+func (m *Memory) DeleteLBTargetsByTargetGroup(targetGroupID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, t := range m.lbTargets {
+		if t.TargetGroupID == targetGroupID {
+			delete(m.lbTargets, id)
+		}
+	}
 }
 
 func NewID() string {

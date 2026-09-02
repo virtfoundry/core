@@ -23,6 +23,7 @@ type Config struct {
 
 type StorageConfig struct {
 	DefaultClass      string `mapstructure:"default_class"`
+	SnapshotClass     string `mapstructure:"snapshot_class"`
 	WindowsBootSizeGi int    `mapstructure:"windows_boot_size_gi"`
 	WindowsISOSizeGi  int    `mapstructure:"windows_iso_size_gi"`
 }

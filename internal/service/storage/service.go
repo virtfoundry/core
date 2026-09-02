@@ -13,18 +13,22 @@ import (
 
 // Service manages volumes and volume snapshots (PVC / VolumeSnapshot).
 type Service struct {
-	store        store.Repository
-	k8s          *platformk8s.Manager
-	storageClass string
+	store         store.Repository
+	k8s           *platformk8s.Manager
+	storageClass  string
+	snapshotClass string
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager) *Service {
 	return &Service{store: st, k8s: k8s}
 }
 
-func (s *Service) ConfigureStorage(defaultClass string) {
+func (s *Service) ConfigureStorage(defaultClass, snapshotClass string) {
 	if defaultClass != "" {
 		s.storageClass = defaultClass
+	}
+	if snapshotClass != "" {
+		s.snapshotClass = snapshotClass
 	}
 }
 
@@ -70,7 +74,7 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name s
 		return nil, fmt.Errorf("volume not found")
 	}
 	snapName := shared.SanitizeSlug(name)
-	created, err := s.k8s.CreateVolumeSnapshot(ctx, vol.Namespace, snapName, vol.PVCName, "")
+	created, err := s.k8s.CreateVolumeSnapshot(ctx, vol.Namespace, snapName, vol.PVCName, s.snapshotClass)
 	if err != nil {
 		return nil, err
 	}

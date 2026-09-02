@@ -16,8 +16,13 @@ var volumeSnapshotGVR = schema.GroupVersionResource{
 }
 
 func (m *Manager) CreateVolumeSnapshot(ctx context.Context, namespace, name, pvcName, snapshotClass string) (*unstructured.Unstructured, error) {
-	if snapshotClass == "" {
-		snapshotClass = "csi-snapclass"
+	spec := map[string]interface{}{
+		"source": map[string]interface{}{
+			"persistentVolumeClaimName": pvcName,
+		},
+	}
+	if snapshotClass != "" {
+		spec["volumeSnapshotClassName"] = snapshotClass
 	}
 
 	obj := &unstructured.Unstructured{
@@ -31,12 +36,7 @@ func (m *Manager) CreateVolumeSnapshot(ctx context.Context, namespace, name, pvc
 					LabelManagedBy: ManagedByValue,
 				},
 			},
-			"spec": map[string]interface{}{
-				"volumeSnapshotClassName": snapshotClass,
-				"source": map[string]interface{}{
-					"persistentVolumeClaimName": pvcName,
-				},
-			},
+			"spec": spec,
 		},
 	}
 

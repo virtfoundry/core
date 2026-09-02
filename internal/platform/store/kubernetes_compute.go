@@ -103,10 +103,15 @@ func (k *Kubernetes) SaveVolume(v *platform.Volume) {
 		}
 	}
 	slug := k.tenantSlug(v.TenantID)
+	prior := *v
 	k.saveNamespacedMapped(mapping.DiskGVR, ns, func() *unstructured.Unstructured {
 		return mapping.DiskToUnstructured(v, slug, instanceCR)
 	}, func(saved *unstructured.Unstructured) {
-		*v = *mapping.DiskFromUnstructured(saved, v.TenantID)
+		fromCR := mapping.DiskFromUnstructured(saved, v.TenantID)
+		*v = *fromCR
+		if v.PVCName == "" && prior.PVCName != "" {
+			v.PVCName = prior.PVCName
+		}
 	})
 }
 

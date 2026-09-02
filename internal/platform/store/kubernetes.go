@@ -22,6 +22,10 @@ type Kubernetes struct {
 
 	mu            sync.RWMutex
 	jobs          map[string]*platform.AsyncJob
+	targetGroups  map[string]*platform.TargetGroup
+	loadBalancers map[string]*platform.LoadBalancer
+	lbListeners   map[string]*platform.LBListener
+	lbTargets     map[string]*platform.LBTarget
 	auditEvents   []*platform.AuditEvent
 	tenantCacheMu sync.RWMutex
 	tenantCache   *cachedTenants
@@ -72,10 +76,14 @@ func NewKubernetes(opts KubernetesOptions) (*Kubernetes, error) {
 	}
 
 	return &Kubernetes{
-		dyn:         dyn,
-		clientset:   cs,
-		jobs:        make(map[string]*platform.AsyncJob),
-		auditEvents: make([]*platform.AuditEvent, 0),
+		dyn:           dyn,
+		clientset:     cs,
+		jobs:          make(map[string]*platform.AsyncJob),
+		targetGroups:  make(map[string]*platform.TargetGroup),
+		loadBalancers: make(map[string]*platform.LoadBalancer),
+		lbListeners:   make(map[string]*platform.LBListener),
+		lbTargets:     make(map[string]*platform.LBTarget),
+		auditEvents:   make([]*platform.AuditEvent, 0),
 	}, nil
 }
 
