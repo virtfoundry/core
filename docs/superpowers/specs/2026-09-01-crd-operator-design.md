@@ -1,7 +1,8 @@
 # VirtFoundry CRD operator — design spec
 
 Date: 2026-09-01  
-Status: **in progress** (homelab validated 2026-09-01)  
+Status: **in progress** (homelab validated 2026-09-01; **0.6.0 shipped**)  
+**Note:** REST-as-public-API decisions in §3 and §4.0 are superseded by [2026-09-02-crd-only-cncf-migration-design.md](./2026-09-02-crd-only-cncf-migration-design.md) — CRDs become the public contract; REST becomes UI gateway only.  
 Repos: `virtfoundry/operator`, `virtfoundry/core`, `virtfoundry/helm-charts`, `Matheus-Thurler/argo-homelab`
 
 **Shipped in this slice:** Kubernetes `Repository` in core (`VIRTFOUNDRY_STORE=kubernetes`), helm `store.driver`, operator **Tenant** + **Instance status** controllers, homelab cutover without MySQL/worker. REST/UI/Terraform unchanged.
