@@ -112,6 +112,10 @@ func (k *Kubernetes) SaveVolume(v *platform.Volume) {
 		if v.PVCName == "" && prior.PVCName != "" {
 			v.PVCName = prior.PVCName
 		}
+		if v.VMID == "" && prior.VMID != "" {
+			v.VMID = prior.VMID
+			v.State = prior.State
+		}
 	})
 }
 
@@ -126,7 +130,14 @@ func (k *Kubernetes) ListVolumes(tenantID string) []*platform.Volume {
 	}
 	out := make([]*platform.Volume, 0, len(list.Items))
 	for i := range list.Items {
-		out = append(out, mapping.DiskFromUnstructured(&list.Items[i], tenantID))
+		vol := mapping.DiskFromUnstructured(&list.Items[i], tenantID)
+		if vol.VMID == "" {
+			vol.VMID = k.vmIDFromInstanceRef(tenantID, &list.Items[i])
+			if vol.VMID != "" {
+				vol.State = "attached"
+			}
+		}
+		out = append(out, vol)
 	}
 	return out
 }
@@ -164,10 +175,15 @@ func (k *Kubernetes) SaveSnapshot(s *platform.Snapshot) {
 	if vol, ok := k.GetVolume(s.VolumeID); ok {
 		diskCR = mapping.DiskCRName(vol)
 	}
+	prior := *s
 	k.saveNamespacedMapped(mapping.DiskSnapshotGVR, ns, func() *unstructured.Unstructured {
 		return mapping.DiskSnapshotToUnstructured(s, diskCR)
 	}, func(saved *unstructured.Unstructured) {
-		*s = *mapping.DiskSnapshotFromUnstructured(saved, s.TenantID, s.VolumeID)
+		fromCR := mapping.DiskSnapshotFromUnstructured(saved, s.TenantID, s.VolumeID)
+		*s = *fromCR
+		if s.State == "" && prior.State != "" {
+			s.State = prior.State
+		}
 	})
 }
 
