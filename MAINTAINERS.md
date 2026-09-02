@@ -1,15 +1,21 @@
 # Maintainers
 
-VirtFoundry follows [CNCF](https://www.cncf.io/) open-source project conventions (Apache-2.0, open governance, security disclosure, Contributor Covenant). This file is the **canonical** maintainer list for all official repositories under [github.com/virtfoundry](https://github.com/virtfoundry).
+VirtFoundry follows [CNCF](https://www.cncf.io/) project conventions. This file is the **canonical** maintainer list for all official repositories under [github.com/virtfoundry](https://github.com/virtfoundry).
+
+Aligned with the [CNCF project template](https://github.com/cncf/project-template) `MAINTAINERS.md` shape (Name / GitHub ID / Company).
+
+<!-- Sandbox applications require a minimum of 3 maintainers from 2+ organizations (employers). Affiliations must be updated within 30 days of employment changes. -->
 
 ## Active maintainers
 
-| Name | GitHub | Role | Responsibilities |
-|------|--------|------|------------------|
-| Matheus Thurler | [@Matheus-Thurler](https://github.com/Matheus-Thurler) | **Lead maintainer** | Releases, roadmap, org settings, security contact, final merge authority |
-| Rodrigo Gonçalves | [@RodrigoGoncalves-dev](https://github.com/RodrigoGoncalves-dev) | **Maintainer** | Code review, homelab/cluster validation, operator and infra contributions |
+| Name | GitHub ID | Company/Organization | Role / focus |
+|------|-----------|----------------------|--------------|
+| Matheus Thurler | [@Matheus-Thurler](https://github.com/Matheus-Thurler) | CI&T | **Lead maintainer** — DevOps / SRE; releases, roadmap, org settings, security contact, final merge authority |
+| Rodrigo Gonçalves | [@RodrigoGoncalves-dev](https://github.com/RodrigoGoncalves-dev) | SYS MANAGER INFORMATICA LTDA | **Maintainer** — full-stack; code review, homelab/cluster validation, operator and infra contributions |
 
-Matheus remains the primary point of contact for security advisories and CNCF application topics. Rodrigo supports day-to-day review, testing, and technical decisions alongside the lead maintainer.
+Matheus is the primary contact for security advisories and CNCF application topics. Rodrigo supports day-to-day review, testing, and technical decisions alongside the lead maintainer.
+
+**Note:** CNCF Sandbox gate expects **≥3 maintainers** from **≥2 employers**. VirtFoundry currently has **2** maintainers (already **2** distinct employers). A third maintainer is required before a Sandbox application.
 
 ## Official repositories
 
@@ -22,13 +28,21 @@ Matheus remains the primary point of contact for security advisories and CNCF ap
 
 ## How to become a maintainer
 
-1. Sustained, high-quality contributions (merged PRs, reviews, docs, issue triage).
+1. Sustained, high-quality contributions (merged PRs, reviews, docs, issue triage) — see [CONTRIBUTOR_LADDER.md](CONTRIBUTOR_LADDER.md).
 2. Nomination by an existing maintainer or a community request in [Discussions](https://github.com/virtfoundry/core/discussions).
 3. Recorded agreement in a public Issue or PR; lead maintainer confirms and updates this file.
 
-## Emeritus
+## Emeritus maintainers
+
+Maintainers who have stepped back from active participation. Emeritus maintainers do not have voting rights or merge access.
 
 _None yet._
+
+A maintainer may move to emeritus after **12 months** of inactivity, or by request. Return to active status follows the normal nomination process. See [GOVERNANCE.md](GOVERNANCE.md).
+
+## Maintainer affiliation updates
+
+When a maintainer changes employers, update the **Company/Organization** column within **30 days**. Accurate affiliations are required for CNCF organizational diversity checks.
 
 ## Contact
 
@@ -38,3 +52,4 @@ _None yet._
 | Security | [SECURITY.md](SECURITY.md) — **private advisory only** |
 | Community | [Discussions](https://github.com/virtfoundry/core/discussions) |
 | Governance | [GOVERNANCE.md](GOVERNANCE.md) |
+| Code of Conduct | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) or [conduct@cncf.io](mailto:conduct@cncf.io) |
