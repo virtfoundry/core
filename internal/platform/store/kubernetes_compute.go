@@ -119,6 +119,17 @@ func (k *Kubernetes) SaveVolume(v *platform.Volume) {
 	})
 }
 
+func (k *Kubernetes) volumeFromDisk(obj *unstructured.Unstructured, tenantID string) *platform.Volume {
+	vol := mapping.DiskFromUnstructured(obj, tenantID)
+	if vol.VMID == "" {
+		vol.VMID = k.vmIDFromInstanceRef(tenantID, obj)
+		if vol.VMID != "" {
+			vol.State = "attached"
+		}
+	}
+	return vol
+}
+
 func (k *Kubernetes) ListVolumes(tenantID string) []*platform.Volume {
 	ns, ok := k.tenantNamespace(tenantID)
 	if !ok {
@@ -130,14 +141,7 @@ func (k *Kubernetes) ListVolumes(tenantID string) []*platform.Volume {
 	}
 	out := make([]*platform.Volume, 0, len(list.Items))
 	for i := range list.Items {
-		vol := mapping.DiskFromUnstructured(&list.Items[i], tenantID)
-		if vol.VMID == "" {
-			vol.VMID = k.vmIDFromInstanceRef(tenantID, &list.Items[i])
-			if vol.VMID != "" {
-				vol.State = "attached"
-			}
-		}
-		out = append(out, vol)
+		out = append(out, k.volumeFromDisk(&list.Items[i], tenantID))
 	}
 	return out
 }
@@ -157,7 +161,8 @@ func (k *Kubernetes) GetVolume(id string) (*platform.Volume, bool) {
 	if !ok {
 		return nil, false
 	}
-	return mapping.DiskFromUnstructured(obj, k.tenantIDForNamespace(ns)), true
+	tenantID := k.tenantIDForNamespace(ns)
+	return k.volumeFromDisk(obj, tenantID), true
 }
 
 func (k *Kubernetes) DeleteVolume(id string) {
