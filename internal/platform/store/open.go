@@ -7,7 +7,7 @@ import (
 	"github.com/virtfoundry/core/internal/config"
 )
 
-// Open returns the configured platform store backend.
+// Open returns the configured platform store backend (kubernetes or memory).
 func Open(cfg config.DatabaseConfig) (Repository, error) {
 	driver := os.Getenv("VIRTFOUNDRY_STORE")
 	if driver == "" {
@@ -27,13 +27,6 @@ func Open(cfg config.DatabaseConfig) (Repository, error) {
 		return repo, nil
 	}
 
-	dsn := cfg.DSN
-	if dsn == "" {
-		dsn = os.Getenv("DATABASE_DSN")
-	}
-	if dsn != "" {
-		return NewMySQL(dsn)
-	}
 	mem := NewMemory()
 	_ = SeedCatalog(mem)
 	_ = mem.SeedIAM()

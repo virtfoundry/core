@@ -15,7 +15,7 @@ kubevirt:
   kubeconfig: ""
   namespace: "default"
 
-# Uncomment for local MySQL. In-cluster config is rendered by helm-charts (see config/README.md).
+# Local dev store: memory (default) or kubernetes (requires CRDs + KUBECONFIG).
 # database:
-#   driver: mysql
-#   dsn: "virtfoundry:virtfoundry@tcp(localhost:3306)/virtfoundry?charset=utf8mb4"
+#   driver: kubernetes
+#   kubeconfig: ""

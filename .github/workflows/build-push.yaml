@@ -133,13 +133,12 @@ jobs:
               )
           out = text
           out = sub_image("api", api, out)
-          out = sub_image("worker", api, out)
           out = sub_image("ui", ui, out)
           out = re.sub(r"(?m)^(\s*pullPolicy:\s*).+$", r"\1IfNotPresent", out, count=1)
           if out == text:
-              raise SystemExit("values file unchanged — check images.api/worker/ui keys exist")
+              raise SystemExit("values file unchanged — check images.api/ui keys exist")
           path.write_text(out)
-          print(f"pinned api/worker -> {api}")
+          print(f"pinned api -> {api}")
           print(f"pinned ui -> {ui}")
           PY
 

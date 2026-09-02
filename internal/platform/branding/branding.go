@@ -1,4 +1,4 @@
-// Package branding holds VirtFoundry naming used across API, worker, and K8s integration.
+// Package branding holds VirtFoundry naming used across API and K8s integration.
 package branding
 
 import "strings"

@@ -33,7 +33,7 @@ Full prerequisites and platform setup: [installation guide](https://virtfoundry.
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
 helm install virtfoundry virtfoundry/virtfoundry \
-  --version 0.6.0 \
+  --version 0.7.0 \
   -n virtfoundry-system --create-namespace \
   --set secrets.rootPassword='change-me' \
   --set secrets.jwtSecret='change-me'
@@ -60,11 +60,11 @@ Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Co
 
 ## Development
 
-**Production / homelab:** `store.driver=kubernetes` — platform state in `virtfoundry.io` CRDs (no MySQL, no Vitess).
+**Production / homelab:** `store.driver=kubernetes` — platform state in `virtfoundry.io` CRDs.
 
-**MySQL (legacy):** optional local dev backend and CloudStack import tooling only; not deployed with the Helm chart.
+**Local without cluster:** memory store (default for `go run`).
 
-**CRD store (default for operator work):** install CRDs from [virtfoundry/operator](https://github.com/virtfoundry/operator) or `helm-charts/charts/virtfoundry-operator`, then:
+**Prerequisites for kubernetes store:** [Platform prerequisites](https://virtfoundry.github.io/helm-charts/docs/guide/prerequisites/) — KubeVirt, Multus, CDI, operator CRDs.
 
 ```bash
 export VIRTFOUNDRY_STORE=kubernetes
@@ -72,7 +72,7 @@ ROOT_PASSWORD=virtfoundry go run ./cmd/server
 cd ui && npm install && npm run dev
 ```
 
-Requires in-cluster kubeconfig or `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs. The API reads/writes platform state as CRs; KubeVirt is still used for VM lifecycle and VNC until the operator owns all infra controllers.
+Requires `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs installed.
 
 See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/specs/2026-09-01-crd-operator-design.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
