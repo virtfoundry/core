@@ -19,7 +19,9 @@ func (k *Kubernetes) SaveVM(vm *platform.PlatformVM) {
 		}
 	}
 	templateCR := ""
-	if vm.Template != "" {
+	if vm.TemplateRef != "" {
+		templateCR = mapping.SanitizeCRName(vm.TemplateRef)
+	} else if vm.Template != "" {
 		templateCR = mapping.SanitizeCRName(vm.Template)
 	}
 	networkRefs := map[string]string{}

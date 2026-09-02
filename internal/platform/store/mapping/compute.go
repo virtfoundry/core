@@ -90,6 +90,12 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 			spec["nics"] = nics
 		}
 	}
+	if vm.PowerState != "" {
+		spec["powerState"] = vm.PowerState
+	}
+	if vm.DedicatedCPU {
+		spec["dedicatedCPU"] = true
+	}
 	if imp := importMeta(vm.ExternalUUID, vm.ImportSource); imp != nil {
 		spec["import"] = imp
 	}

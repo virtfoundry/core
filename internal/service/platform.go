@@ -39,6 +39,9 @@ type PlatformService struct {
 
 func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub EventBroadcaster) *PlatformService {
 	computeSvc := compute.New(st, k8s, kv, hub)
+	if _, ok := st.(*store.Kubernetes); ok {
+		computeSvc.SetOperatorReconcile(true)
+	}
 	return &PlatformService{
 		tenant:   tenant.New(st, k8s),
 		identity: identity.New(st),
