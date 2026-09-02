@@ -36,6 +36,7 @@ type Service struct {
 	storageClass      string
 	windowsBootSizeGi int
 	windowsISOSizeGi  int
+	operatorReconcile bool
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub shared.EventBroadcaster) *Service {
@@ -193,6 +194,10 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		spec.Image = ""
 	}
 
+	if s.canDeployViaOperator(deployTmpl, in, networkIDs) {
+		return s.deployVMViaOperator(ctx, tenantID, in, name, ns, cpu, memMi, image, dedicated, deployTmpl, tmplDisplay)
+	}
+
 	if err := kv.CreateVM(ctx, spec); err != nil {
 		return nil, err
 	}
@@ -302,7 +307,7 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 	}
 
 	stored := s.store.ListVMs(tenantID)
-	if storeVMsHaveObservedState(stored) {
+	if s.operatorReconcile || storeVMsHaveObservedState(stored) {
 		vms := clonePlatformVMs(stored)
 		s.setVMListCache(tenantID, vms)
 		return vms, nil
@@ -352,6 +357,13 @@ func (s *Service) listVMsFromKubeVirt(ctx context.Context, tenantID string) ([]*
 }
 
 func (s *Service) SyncAllVMStates(ctx context.Context) {
+	if s.operatorReconcile {
+		for _, tenant := range s.store.ListTenants() {
+			vms := clonePlatformVMs(s.store.ListVMs(tenant.ID))
+			s.setVMListCache(tenant.ID, vms)
+		}
+		return
+	}
 	for _, tenant := range s.store.ListTenants() {
 		vms, err := s.listVMsFromKubeVirt(ctx, tenant.ID)
 		if err != nil {
@@ -377,6 +389,9 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 }
 
 func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
+	if s.operatorReconcile {
+		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerRunning)
+	}
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -394,6 +409,9 @@ func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platfo
 }
 
 func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
+	if s.operatorReconcile {
+		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerHalted)
+	}
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -411,6 +429,9 @@ func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platfor
 }
 
 func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {
+	if s.operatorReconcile {
+		return s.deleteVMViaOperator(ctx, tenantID, vmName)
+	}
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return err

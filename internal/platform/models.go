@@ -189,6 +189,9 @@ type PlatformVM struct {
 	Zone              string    `json:"zone,omitempty"`
 	HostName          string    `json:"host_name,omitempty"`
 	ServiceOfferingID string    `json:"service_offering_id,omitempty"`
+	TemplateRef       string    `json:"template_ref,omitempty"`
+	PowerState        string    `json:"power_state,omitempty"`
+	DedicatedCPU      bool      `json:"dedicated_cpu,omitempty"`
 	ExternalUUID      string    `json:"external_uuid,omitempty"`
 	ImportSource      string    `json:"import_source,omitempty"`
 	NICs              []VMNic   `json:"nics,omitempty"`
