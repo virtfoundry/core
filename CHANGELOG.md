@@ -4,6 +4,25 @@ All notable changes to **VirtFoundry** (API, worker, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [0.6.0] - 2026-09-01
+
+### Added
+
+- Kubernetes `Repository` store (`virtfoundry.io` CRDs) as the only persistence backend
+- [virtfoundry/operator](https://github.com/virtfoundry/operator): `v1alpha1` CRDs, Tenant namespace reconciler, Instance status sync from KubeVirt
+- VM list performance improvements (CR fast path, reduced writes on list)
+
+### Changed
+
+- **Breaking (0.x):** MySQL store, embedded MySQL chart resources, and `cmd/worker` removed
+- Helm chart defaults to CRD store; install **virtfoundry-operator** before API/UI
+- UI and docs advertise `0.6.0`
+
+### Fixed
+
+- Console auth tenant isolation via `resolveVMAccess`
+- Homelab validated: API + operator + UI without MySQL/worker pods
+
 ## [0.5.0] - 2026-08-16
 
 Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`â€“`v1.5.0` remain for history; they are not a SemVer 1.0 contract. UI/Helm advertise `0.5.0`.
@@ -145,6 +164,7 @@ Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`â
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
+[0.6.0]: https://github.com/virtfoundry/core/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/virtfoundry/core/compare/v1.5.0...v0.5.0
 [1.5.0]: https://github.com/virtfoundry/core/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/virtfoundry/core/compare/v1.4.0...v1.4.1
