@@ -14,10 +14,11 @@ Goal: project looks intentional to strangers in under 5 minutes.
 | # | Item | Owner | Status |
 |---|------|-------|--------|
 | 0.1 | Apache-2.0 `LICENSE` + `NOTICE` on all official repos | — | ✅ core / helm / terraform / operator |
-| 0.2 | `GOVERNANCE.md` + `MAINTAINERS.md` (root) | — | ✅ |
+| 0.2 | `GOVERNANCE.md` + `MAINTAINERS.md` (root; Company column) | — | ✅ ([project-template](https://github.com/cncf/project-template) shape) |
 | 0.3 | `CONTRIBUTING.md` + Conventional Commits | — | ✅ |
-| 0.4 | `CODE_OF_CONDUCT.md` on all repos | | ✅ |
+| 0.4 | `CODE_OF_CONDUCT.md` (CNCF CoC) on all repos | | ✅ |
 | 0.5 | `SECURITY.md` on all repos | | ✅ |
+| 0.5b | `RELEASES.md` + `CONTRIBUTOR_LADDER.md` + `CODEOWNERS` | | ✅ (recommended template files) |
 | 0.6 | `ROADMAP.md` (public milestones) | | ✅ |
 | 0.7 | `ADOPTERS.md` (template + first entry) | | ✅ |
 | 0.8 | [Why VirtFoundry](WHY.md) (vs Proxmox / KubeVirt / Harvester) | | ✅ |
@@ -57,7 +58,8 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 |---|------|--------|
 | 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ⬜ |
 | 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; logos when available) |
-| 2.3 | Multiple contributors with merged PRs | ⬜ (Rodrigo Gonçalves — maintainer; grow external contributors) |
+| 2.3 | Multiple contributors with merged PRs | 🟡 (Rodrigo maintainer; need external contributors) |
+| 2.3b | Sandbox maintainer gate: ≥3 maintainers, ≥2 orgs | 🟡 (2 maintainers today: CI&T + SYS MANAGER; **need 3rd**) |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
 | 2.5 | Submit via CNCF TOC process | ⬜ |
 

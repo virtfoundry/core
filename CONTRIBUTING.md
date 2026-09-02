@@ -47,23 +47,26 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` 
 
 ## Pull request process
 
-1. Fork `virtfoundry/virtfoundry` and create a feature branch
+1. Fork [virtfoundry/core](https://github.com/virtfoundry/core) (or the relevant repo) and create a feature branch
 2. Keep changes focused; match existing code style
 3. Run `go test ./...` and UI build when touching those areas (see [docs/CI.md](docs/CI.md))
-4. Update wiki pages when behavior or deploy steps change
+4. Update docs when behavior or deploy steps change
 5. Open a PR with a clear summary and test plan — required CI checks must be green before merge
 
 ## Repositories
 
 | Repo | When to contribute here |
 |------|-------------------------|
-| [virtfoundry](https://github.com/virtfoundry/core) | API, UI, local dev config |
-| [helm-charts](https://github.com/virtfoundry/helm-charts) | Helm chart, cluster values, deploy scripts |
-| [virtfoundry-website](https://github.com/virtfoundry/core-website) | Marketing site and published docs |
+| [core](https://github.com/virtfoundry/core) | API, UI, local dev config |
+| [operator](https://github.com/virtfoundry/operator) | CRDs and controllers |
+| [helm-charts](https://github.com/virtfoundry/helm-charts) | Helm charts, docs site, deploy scripts |
+| [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Terraform provider |
+
+Roles: [CONTRIBUTOR_LADDER.md](CONTRIBUTOR_LADDER.md) · Releases: [RELEASES.md](RELEASES.md)
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Be respectful and constructive.
+This project follows the [CNCF Code of Conduct](CODE_OF_CONDUCT.md). Be respectful and constructive.
 
 ## Security
 

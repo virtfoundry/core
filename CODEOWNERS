@@ -1,0 +1,8 @@
+# Default owners — must match MAINTAINERS.md / GOVERNANCE.md
+* @Matheus-Thurler @RodrigoGoncalves-dev
+
+# Lead retains primary ownership of release and security surfaces
+/.github/ @Matheus-Thurler
+/SECURITY.md @Matheus-Thurler
+/MAINTAINERS.md @Matheus-Thurler @RodrigoGoncalves-dev
+/GOVERNANCE.md @Matheus-Thurler @RodrigoGoncalves-dev

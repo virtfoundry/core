@@ -32,9 +32,16 @@ Full prerequisites and platform setup: [installation guide](https://virtfoundry.
 ```bash
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
+
+# 1. CRDs + operator
+helm install virtfoundry-operator virtfoundry/virtfoundry-operator \
+  --version 0.7.0 \
+  -n virtfoundry-system --create-namespace
+
+# 2. API + UI
 helm install virtfoundry virtfoundry/virtfoundry \
   --version 0.7.0 \
-  -n virtfoundry-system --create-namespace \
+  -n virtfoundry-system \
   --set secrets.rootPassword='change-me' \
   --set secrets.jwtSecret='change-me'
 ```
