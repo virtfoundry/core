@@ -57,12 +57,36 @@ Create LB → create empty `Service` type LoadBalancer → persist VIP from `.st
 
 ## Implementation order
 
-1. Domain models + Memory/MySQL store  
-2. `k8s.Manager`: EnsureLBService / SyncLBEndpoints / DeleteLB  
-3. Service layer + HTTP handlers  
-4. UI: Load Balancers + Target Groups (PageTable pattern)  
-5. Enforce `reservedRanges` when seeding VM IP pools  
-6. Homelab E2E + Features guide  
+1. Domain models + Memory/MySQL store — **done** (v1 minimal; kubernetes ephemeral store on homelab)
+2. `k8s.Manager`: EnsureLBService / SyncLBEndpoints / DeleteLB — **done**
+3. Service layer + HTTP handlers — **done** (create/list/delete LB, listeners, target groups, register target)
+4. UI: Load Balancers + Target Groups (PageTable pattern) — pending
+5. Enforce `reservedRanges` when seeding VM IP pools — pending
+6. Homelab E2E + Features guide — **E2E** `scripts/e2e/test-load-balancer.sh` passes (create TG/LB/listener + cleanup)
+
+## v1 scope (merged 2026-09)
+
+REST only; no cluster-wide MetalLB/Cilium changes from the API.
+
+| Action | K8s effect |
+|--------|------------|
+| `POST /load-balancers` | Metadata only — **no** `Service` yet |
+| `POST .../listeners` | First listener creates `Service` `type: LoadBalancer` in **tenant namespace** (`virtfoundry-tenant-*`) |
+| `POST /target-groups/.../targets` | Manual `Endpoints` with VM NIC IPs (Multus/public) |
+| `DELETE /load-balancers/{id}` | Deletes tenant `Service` + `Endpoints` only |
+
+Labels: `virtfoundry.io/managed-by`, `virtfoundry.io/load-balancer={id}`.
+
+## Homelab safety
+
+What **does not** happen (vs experiments that stressed the cluster):
+
+- No edits to MetalLB `IPAddressPool`, L2Advertisement, or Cilium config
+- No `Service` in `kube-system`, `metallb-system`, or default namespace
+- No VIP allocation until a **listener** exists (empty LB is store-only)
+- `syncLBEndpoints` errors are non-fatal on listener create (missing RBAC used to surface as 500; now listener succeeds, endpoints sync when SA has `endpoints` verb — helm-charts #25)
+
+Residual risks: each listener still requests one MetalLB VIP from the tenant pool (`10.0.50.100–150`); orphan Services left outside the API would hold IPs. E2E always deletes LB/TG/listener. Prefer Argo-managed deploy over manual `kubectl patch` on cluster networking.
 
 ## Risks
 
