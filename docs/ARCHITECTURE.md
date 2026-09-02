@@ -254,7 +254,7 @@ virtfoundry/
 ├── config/               # Local dev config (cluster config → helm-charts)
 ├── docker/               # Dockerfiles + nginx config (images only)
 ├── docs/
-└── TODO.md
+└── ROADMAP.md
 ```
 
 **Monorepo decision:** domain packages in `internal/service/`, single deploy unit. No separate microservice repos until API boundaries stabilize.
@@ -263,4 +263,4 @@ virtfoundry/
 
 ## Roadmap
 
-See [TODO.md](../TODO.md) for the current backlog.
+See [ROADMAP.md](../ROADMAP.md) and [CNCF-CHECKLIST.md](CNCF-CHECKLIST.md).

@@ -101,6 +101,6 @@ Residual risks: each listener still requests one MetalLB VIP from the tenant poo
 
 ## Related
 
-- [TODO.md](../TODO.md) — production hardening  
+- [ROADMAP.md](../ROADMAP.md) — production hardening  
 - [ROADMAP.md](../ROADMAP.md) — Now / networking  
 - [CNCF-CHECKLIST.md](./CNCF-CHECKLIST.md) — Phase 0 board tracking (product item; not a CNCF doc exit criterion)
