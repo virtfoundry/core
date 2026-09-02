@@ -60,9 +60,11 @@ Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Co
 
 ## Development
 
-**MySQL (legacy):** default local config still uses `database.driver: mysql`.
+**Production / homelab:** `store.driver=kubernetes` — platform state in `virtfoundry.io` CRDs (no MySQL, no Vitess).
 
-**CRD store (recommended for operator work):** install CRDs from [virtfoundry/operator](https://github.com/virtfoundry/operator) or `helm-charts/charts/virtfoundry-operator`, then:
+**MySQL (legacy):** optional local dev backend and CloudStack import tooling only; not deployed with the Helm chart.
+
+**CRD store (default for operator work):** install CRDs from [virtfoundry/operator](https://github.com/virtfoundry/operator) or `helm-charts/charts/virtfoundry-operator`, then:
 
 ```bash
 export VIRTFOUNDRY_STORE=kubernetes

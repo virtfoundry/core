@@ -40,7 +40,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 | 1.1 | 10-min demo video (VM + volume + snapshot + UI) | ⬜ |
 | 1.2 | Blog/post: “Leaving Proxmox for K8s-native private cloud” | ⬜ |
 | 1.3 | Comparison page kept honest (what Proxmox still wins) | ✅ (WHY.md “When Proxmox still wins”) |
-| 1.4 | 2–3 adopters listed (homelab OK; company optional) | ⬜ |
+| 1.4 | 2–3 adopters listed (homelab OK; company optional) | ✅ (Matheus + Rodrigo; see [ADOPTERS.md](../ADOPTERS.md)) |
 | 1.5 | Slack or Discord + link from README | ⬜ |
 | 1.6 | Talk/meetup (KubeVirt / CNCF BR / local) | ⬜ |
 | 1.7 | CI green on PR (Go test + UI build + helm lint) | ✅ ([docs/CI.md](CI.md); enforce ruleset on `main`) |
@@ -56,7 +56,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 | # | Item | Status |
 |---|------|--------|
 | 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ⬜ |
-| 2.2 | Adopters statement + logos (if any) | ⬜ |
+| 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; logos when available) |
 | 2.3 | Multiple contributors with merged PRs | ⬜ (Rodrigo Gonçalves — maintainer; grow external contributors) |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
 | 2.5 | Submit via CNCF TOC process | ⬜ |
@@ -81,8 +81,9 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 2. ~~Open GitHub milestones + Project + checklist issues~~  
 3. ~~Enable Discussions (#25) + seed good first issues (#26)~~  
 4. ~~Document **quickstart under 30 min** (#24)~~  
-5. Record or script a **demo** (#32)  
+5. Record or script a **demo** ([#32](https://github.com/virtfoundry/core/issues/32))  
 6. Ask 2 friends/homelabs to try install and file issues  
+7. ~~Homelab E2E suite green (CR store)~~ — done 2026-09  
 
 ## Related docs
 
@@ -104,3 +105,4 @@ VirtFoundry follows common [CNCF](https://www.cncf.io/) project conventions:
 | SECURITY.md + private advisory | [SECURITY.md](../SECURITY.md) |
 | ADOPTERS + ROADMAP | [ADOPTERS.md](../ADOPTERS.md), [ROADMAP.md](../ROADMAP.md) |
 | Operator / CRD-first control plane | [operator](https://github.com/virtfoundry/operator), [CRD design spec](docs/superpowers/specs/2026-09-01-crd-operator-design.md) |
+| Platform store | Kubernetes CRDs (`store.driver=kubernetes`); MySQL legacy code for dev/migration only — **not** used in homelab/production |

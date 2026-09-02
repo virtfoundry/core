@@ -34,4 +34,4 @@ make render-local-config                                    # default values
 make render-local-config VALUES=./charts/virtfoundry/values-gateway.yaml
 ```
 
-See [helm-charts/docs/CONFIGURATION.md](https://github.com/virtfoundry/helm-charts/blob/main/docs/CONFIGURATION.md) for the full values reference.
+See [Configuration guide](https://virtfoundry.github.io/helm-charts/docs/guide/configuration/) for the full values reference.

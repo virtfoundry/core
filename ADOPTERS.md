@@ -12,7 +12,12 @@ Homelabs are welcome — traction starts there.
 
 | Adopter | Type | Since | Notes |
 |---------|------|-------|-------|
-| Thurler IT / Matheus Thurler | Homelab / maintainer | 2026 | Homelab K8s + Longhorn + Argo CD |
+| Matheus Thurler | Homelab / maintainer | 2026 | Homelab K8s + KubeVirt + Longhorn + Argo CD; CRD store |
+| Rodrigo Gonçalves | Homelab / maintainer | 2026 | Homelab validation, operator and infra contributions |
+
+## Adopters statement (CNCF)
+
+VirtFoundry is used by its maintainers in production-style homelab environments on Kubernetes with KubeVirt, Multus, and GitOps (Argo CD). We list homelab adopters openly; production deployments may be added as they appear. Listing does not imply employer endorsement.
 
 ## Template (copy one line into the table)
 
