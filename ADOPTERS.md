@@ -13,6 +13,7 @@ Homelabs are welcome — traction starts there.
 | Adopter | Type | Since | Notes |
 |---------|------|-------|-------|
 | Matheus Thurler | Homelab / maintainer | 2026 | Homelab K8s + KubeVirt + Longhorn + Argo CD; CRD store |
+| Weslei Paulo Pereira | Homelab / maintainer | 2026 | Charts and platform validation (CI&T) |
 | Rodrigo Gonçalves | Homelab / maintainer | 2026 | Homelab validation, operator and infra contributions |
 
 ## Adopters statement (CNCF)

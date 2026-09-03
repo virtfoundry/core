@@ -11,20 +11,21 @@ Aligned with the [CNCF project template](https://github.com/cncf/project-templat
 | Name | GitHub ID | Company/Organization | Role / focus |
 |------|-----------|----------------------|--------------|
 | Matheus Thurler | [@Matheus-Thurler](https://github.com/Matheus-Thurler) | CI&T | **Lead maintainer** — DevOps / SRE; releases, roadmap, org settings, security contact, final merge authority |
+| Weslei Paulo Pereira | [@wesleip](https://github.com/wesleip) | CI&T | **Maintainer** — DevOps / SRE; charts, platform jobs/RBAC, code review |
 | Rodrigo Gonçalves | [@RodrigoGoncalves-dev](https://github.com/RodrigoGoncalves-dev) | SYS MANAGER INFORMATICA LTDA | **Maintainer** — full-stack; code review, homelab/cluster validation, operator and infra contributions |
 
-Matheus is the primary contact for security advisories and CNCF application topics. Rodrigo supports day-to-day review, testing, and technical decisions alongside the lead maintainer.
+Matheus is the primary contact for security advisories and CNCF application topics. Weslei and Rodrigo support day-to-day review, testing, and technical decisions alongside the lead maintainer.
 
-**Note:** CNCF Sandbox gate expects **≥3 maintainers** from **≥2 employers**. VirtFoundry currently has **2** maintainers (already **2** distinct employers). A third maintainer is required before a Sandbox application.
+**CNCF Sandbox gate:** ≥3 maintainers from ≥2 employers — **met** (CI&T + SYS MANAGER INFORMATICA LTDA).
 
 ## Official repositories
 
 | Repository | Maintainers |
 |------------|-------------|
-| [core](https://github.com/virtfoundry/core) | Matheus (lead), Rodrigo |
-| [operator](https://github.com/virtfoundry/operator) | Matheus (lead), Rodrigo |
-| [helm-charts](https://github.com/virtfoundry/helm-charts) | Matheus (lead), Rodrigo |
-| [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Matheus (lead), Rodrigo |
+| [core](https://github.com/virtfoundry/core) | Matheus (lead), Weslei, Rodrigo |
+| [operator](https://github.com/virtfoundry/operator) | Matheus (lead), Weslei, Rodrigo |
+| [helm-charts](https://github.com/virtfoundry/helm-charts) | Matheus (lead), Weslei, Rodrigo |
+| [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Matheus (lead), Weslei, Rodrigo |
 
 ## How to become a maintainer
 
