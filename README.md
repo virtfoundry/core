@@ -91,6 +91,7 @@ See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/
 | [docs/WHY.md](docs/WHY.md) | Positioning vs Proxmox / KubeVirt / Harvester |
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
+| [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) | Sandbox application draft (do not submit before 6‑month gate) |
 | [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |
 | [MAINTAINERS.md](MAINTAINERS.md) | Lead (Matheus) and maintainers (Weslei, Rodrigo) |
 | [ADOPTERS.md](ADOPTERS.md) | Who runs VirtFoundry |
