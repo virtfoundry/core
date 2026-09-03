@@ -92,7 +92,7 @@ See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
 | [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |
-| [MAINTAINERS.md](MAINTAINERS.md) | Lead maintainer (Matheus) and maintainers (Rodrigo) |
+| [MAINTAINERS.md](MAINTAINERS.md) | Lead (Matheus) and maintainers (Weslei, Rodrigo) |
 | [ADOPTERS.md](ADOPTERS.md) | Who runs VirtFoundry |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and API overview |
 | [docs/VM-TEMPLATES.md](docs/VM-TEMPLATES.md) | VM template catalog, ISO import, container disks |

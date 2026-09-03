@@ -41,7 +41,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 | 1.1 | 10-min demo video (VM + volume + snapshot + UI) | ⬜ |
 | 1.2 | Blog/post: “Leaving Proxmox for K8s-native private cloud” | ⬜ |
 | 1.3 | Comparison page kept honest (what Proxmox still wins) | ✅ (WHY.md “When Proxmox still wins”) |
-| 1.4 | 2–3 adopters listed (homelab OK; company optional) | ✅ (Matheus + Rodrigo; see [ADOPTERS.md](../ADOPTERS.md)) |
+| 1.4 | 2–3 adopters listed (homelab OK; company optional) | ✅ (Matheus + Rodrigo + Weslei; see [ADOPTERS.md](../ADOPTERS.md)) |
 | 1.5 | Slack or Discord + link from README | ⬜ |
 | 1.6 | Talk/meetup (KubeVirt / CNCF BR / local) | ⬜ |
 | 1.7 | CI green on PR (Go test + UI build + helm lint) | ✅ ([docs/CI.md](CI.md); enforce ruleset on `main`) |
@@ -58,8 +58,8 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 |---|------|--------|
 | 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ⬜ |
 | 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; logos when available) |
-| 2.3 | Multiple contributors with merged PRs | 🟡 (Rodrigo maintainer; need external contributors) |
-| 2.3b | Sandbox maintainer gate: ≥3 maintainers, ≥2 orgs | 🟡 (2 maintainers today: CI&T + SYS MANAGER; **need 3rd**) |
+| 2.3 | Multiple contributors with merged PRs | 🟡 (Rodrigo + Weslei maintainers; grow more external contributors) |
+| 2.3b | Sandbox maintainer gate: ≥3 maintainers, ≥2 orgs | ✅ (Matheus + Weslei @ CI&T; Rodrigo @ SYS MANAGER) |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
 | 2.5 | Submit via CNCF TOC process | ⬜ |
 
@@ -71,7 +71,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 | # | Item | Status |
 |---|------|--------|
-| 3.1 | Grow maintainers beyond BDFL | 🟡 (lead + Rodrigo; document in MAINTAINERS.md) |
+| 3.1 | Grow maintainers beyond BDFL | ✅ (lead + Weslei + Rodrigo; see MAINTAINERS.md) |
 | 3.2 | Multi-cluster CI (kind + bare metal or cloud) | ⬜ |
 | 3.3 | Incubation criteria tracking | ⬜ |
 
