@@ -13,7 +13,7 @@ Goal: project looks intentional to strangers in under 5 minutes.
 
 | # | Item | Owner | Status |
 |---|------|-------|--------|
-| 0.1 | Apache-2.0 `LICENSE` + `NOTICE` on all official repos | — | ✅ core / helm / terraform / operator |
+| 0.1 | Apache-2.0 `LICENSE` + `NOTICE` on all official repos | — | ✅ full Apache-2.0 text (GitHub-detectable) + NOTICE |
 | 0.2 | `GOVERNANCE.md` + `MAINTAINERS.md` (root; Company column) | — | ✅ ([project-template](https://github.com/cncf/project-template) shape) |
 | 0.3 | `CONTRIBUTING.md` + Conventional Commits | — | ✅ |
 | 0.4 | `CODE_OF_CONDUCT.md` (CNCF CoC) on all repos | | ✅ |
@@ -56,14 +56,17 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 | # | Item | Status |
 |---|------|--------|
-| 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ⬜ |
-| 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; logos when available) |
+| 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ✅ [CNCF-SANDBOX-APPLICATION.md](CNCF-SANDBOX-APPLICATION.md) |
+| 2.1b | Repo age ≥6 months (cncf/sandbox hard checklist) | ⬜ (`core` since 2026-08-03 → ~2027-02) |
+| 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; need non-maintainer adopters) |
 | 2.3 | Multiple contributors with merged PRs | 🟡 (Rodrigo + Weslei maintainers; grow more external contributors) |
 | 2.3b | Sandbox maintainer gate: ≥3 maintainers, ≥2 orgs | ✅ (Matheus + Weslei @ CI&T; Rodrigo @ SYS MANAGER) |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
-| 2.5 | Submit via CNCF TOC process | ⬜ |
+| 2.5 | Signatory + contact emails filled for Contribution Agreement | 🟡 (placeholders in draft) |
+| 2.6 | Optional Day 0 GTR / TAG Runtime intro | ⬜ |
+| 2.7 | Submit via [cncf/sandbox](https://github.com/cncf/sandbox) issue form | ⬜ **blocked by 2.1b** |
 
-**Do not apply early** without 0+1 exit criteria.
+**Do not apply early** without 0+1 exit criteria and the **6-month** repo-age gate.
 
 ---
 
@@ -84,8 +87,10 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 3. ~~Enable Discussions (#25) + seed good first issues (#26)~~  
 4. ~~Document **quickstart under 30 min** (#24)~~  
 5. Record or script a **demo** ([#32](https://github.com/virtfoundry/core/issues/32))  
-6. Ask 2 friends/homelabs to try install and file issues  
+6. Ask 2 friends/homelabs to try install and file issues (non-maintainer ADOPTERS)  
 7. ~~Homelab E2E suite green (CR store)~~ — done 2026-09  
+8. ~~Full Apache-2.0 LICENSE text + Sandbox application draft~~  
+9. Wait for **6-month** repo age before opening cncf/sandbox issue (~2027-02)  
 
 ## Related docs
 
@@ -100,7 +105,7 @@ VirtFoundry follows common [CNCF](https://www.cncf.io/) project conventions:
 
 | Requirement | Location |
 |-------------|----------|
-| Apache-2.0 + NOTICE | All official repos |
+| Apache-2.0 + NOTICE | All official repos (full LICENSE text; see [Sandbox draft](CNCF-SANDBOX-APPLICATION.md)) |
 | GOVERNANCE + MAINTAINERS | [GOVERNANCE.md](../GOVERNANCE.md), [MAINTAINERS.md](../MAINTAINERS.md) |
 | CONTRIBUTING + Conventional Commits | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | CODE_OF_CONDUCT (Contributor Covenant 2.1) | All repos |

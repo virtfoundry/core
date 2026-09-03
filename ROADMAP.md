@@ -30,7 +30,7 @@ Status: **M** = must for traction · **S** = stretch
 |-------|--------|
 | SSO / OIDC | Enterprise-adjacent; keep core clean |
 | Billing hooks | Optional / enterprise |
-| CNCF Sandbox | After traction checklist Phase 1 exit |
+| CNCF Sandbox | After Phase 1 exit **and** ≥6 months repo age (~2027-02); draft: [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) |
 
 ## Non-goals (near term)
 
