@@ -4,6 +4,18 @@ export function isWindowsTemplate(tmpl?: VMTemplate | null) {
   return tmpl?.os_type?.toLowerCase() === 'windows';
 }
 
+export function isISOTemplate(tmpl?: VMTemplate | null) {
+  return tmpl?.source_type?.toLowerCase() === 'iso' || isWindowsTemplate(tmpl);
+}
+
+/** ISO/Windows only after the tenant uploaded the image (CDI import ready). Platform seed has no ISO. */
+export function isDeployableImage(tmpl: VMTemplate) {
+  if (!isISOTemplate(tmpl)) return true;
+  return Boolean(tmpl.tenant_id) && (
+    tmpl.import_state?.toLowerCase() === 'ready' || Boolean(tmpl.iso_volume_id)
+  );
+}
+
 export function offeringsForTemplate(offerings: ServiceOffering[], tmpl?: VMTemplate | null) {
   if (isWindowsTemplate(tmpl)) {
     return offerings.filter((o) => o.name === 'windows-large');
