@@ -4,6 +4,21 @@ All notable changes to **VirtFoundry** (API, UI) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://github.com/virtfoundry/helm-charts/blob/main/docs/project/versioning.md).
 
+## [0.7.1] - 2026-09-04
+
+### Fixed
+
+- VM create image list hides the platform Windows ISO until the tenant uploads an ISO (CDI import ready)
+
+### Changed
+
+- Full Apache-2.0 `LICENSE` text in the repository
+- UI and docs advertise `0.7.1`
+
+### Added
+
+- Draft [`docs/CNCF-SANDBOX-APPLICATION.md`](docs/CNCF-SANDBOX-APPLICATION.md)
+
 ## [0.7.0] - 2026-09-02
 
 ### Removed

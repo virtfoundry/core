@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.7.1** — VM create hides platform Windows ISO until the tenant uploads one
 - **0.7.0** — MySQL/worker/migrate removed; CRD-only store; prerequisites docs
 - **0.6.0** — CRD store default, operator chart, homelab cutover
 - **0.5.0** — IAM, Helm install, public network, Kind lab
