@@ -9,7 +9,7 @@ import {
   listServiceOfferings, PlatformVM, VMTemplate,
 } from '../lib/platform-api';
 import {
-  isWindowsTemplate, offeringsForTemplate, offeringLabel, findOfferingByName,
+  isWindowsTemplate, isDeployableImage, offeringsForTemplate, offeringLabel, findOfferingByName,
 } from '../lib/offerings';
 import { Modal } from '../components/Modal';
 import { SGRulesEditor, defaultSGRules } from '../components/SGRulesEditor';
@@ -84,7 +84,7 @@ export function VMs() {
     queryFn: listVMTemplates,
     enabled: !needsTenant && deployModal,
   });
-  const templates = tmplData?.vm_templates || [];
+  const templates = (tmplData?.vm_templates || []).filter(isDeployableImage);
   const selectedTemplate = templates.find((tmpl) => tmpl.id === form.template_id) || null;
   const linuxTemplates = templates.filter((tmpl) => !isWindowsTemplate(tmpl));
   const windowsTemplates = templates.filter((tmpl) => isWindowsTemplate(tmpl));
