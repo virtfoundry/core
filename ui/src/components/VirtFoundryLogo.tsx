@@ -39,6 +39,7 @@ function LogoStack({
   className,
   imgClass,
   imgStyle,
+  containerStyle,
   layout = 'inline',
 }: {
   lightSrc: string;
@@ -48,6 +49,7 @@ function LogoStack({
   className?: string;
   imgClass: string;
   imgStyle?: React.CSSProperties;
+  containerStyle?: React.CSSProperties;
   layout?: 'inline' | 'block';
 }) {
   return (
@@ -56,6 +58,7 @@ function LogoStack({
         layout === 'block' ? 'block w-full' : 'inline-flex shrink-0 items-center overflow-hidden',
         className,
       )}
+      style={containerStyle}
     >
       <img
         src={lightSrc}
@@ -89,25 +92,32 @@ export function VirtFoundryLogo({
   const { theme } = useTheme();
   const isDark = variant ? variant === 'dark' : theme === 'dark';
 
+  const effectiveFullWidth = fullWidth && !iconOnly;
+
   const imgClass = clsx(
-    'select-none object-contain object-left block',
-    iconOnly ? 'h-full w-full' : fullWidth ? 'h-auto w-full' : 'h-auto w-auto max-w-full',
+    'select-none block object-left',
+    iconOnly
+      ? 'object-cover h-full w-full'
+      : effectiveFullWidth
+        ? 'object-contain h-auto w-full'
+        : 'object-contain h-auto w-auto max-w-full',
   );
 
   const imgStyle: React.CSSProperties | undefined = iconOnly
-    ? { width: height, height, minWidth: height }
-    : fullWidth
+    ? undefined
+    : effectiveFullWidth
       ? undefined
       : { height, width: 'auto' };
 
   if (iconOnly) {
     return (
       <LogoStack
-        lightSrc={iconLight}
-        darkSrc={iconDark}
+        lightSrc={logoLight}
+        darkSrc={logoDark}
         isDark={isDark}
         alt="VirtFoundry"
         className={clsx('overflow-hidden', className)}
+        containerStyle={{ width: height, height, minWidth: height, minHeight: height }}
         imgClass={imgClass}
         imgStyle={imgStyle}
       />
@@ -120,7 +130,7 @@ export function VirtFoundryLogo({
       darkSrc={logoDark}
       isDark={isDark}
       alt="VirtFoundry Cloud Orchestrator"
-      layout={fullWidth ? 'block' : 'inline'}
+      layout={effectiveFullWidth ? 'block' : 'inline'}
       className={className}
       imgClass={imgClass}
       imgStyle={imgStyle}
