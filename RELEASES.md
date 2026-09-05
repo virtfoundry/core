@@ -10,9 +10,9 @@ VirtFoundry follows [Semantic Versioning](https://semver.org/). Cross-repo versi
 
 | Change | Bump | Example |
 |--------|------|---------|
-| Bug / doc fix | PATCH | `0.7.0` → `0.7.1` |
-| Feature or chart profile change | MINOR | `0.7.0` → `0.8.0` |
-| Breaking API/chart (still 0.x) | MINOR + CHANGELOG note | `0.7.0` → `0.8.0` |
+| Bug / doc fix | PATCH | `0.7.1` → `0.7.2` |
+| Feature or chart profile change | MINOR | `0.7.1` → `0.8.0` |
+| Breaking API/chart (still 0.x) | MINOR + CHANGELOG note | `0.7.1` → `0.8.0` |
 | First stable contract | MAJOR | `0.x` → `1.0.0` |
 
 ## Artifacts
