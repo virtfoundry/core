@@ -55,6 +55,12 @@ func MergePlatformVM(dst, prior, fromCR *platform.PlatformVM) {
 	if dst.UpdatedAt.IsZero() && !prior.UpdatedAt.IsZero() {
 		dst.UpdatedAt = prior.UpdatedAt
 	}
+	if dst.PowerState == "" && prior.PowerState != "" {
+		dst.PowerState = prior.PowerState
+	}
+	if !dst.DedicatedCPU && prior.DedicatedCPU {
+		dst.DedicatedCPU = true
+	}
 }
 
 func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, templateCR string, networkRefs map[string]string) *unstructured.Unstructured {
@@ -114,6 +120,18 @@ func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, r
 	}
 	display, _, _ := unstructured.NestedString(obj.Object, "spec", "displayName")
 	vm.DisplayName = display
+	if ps, ok, _ := unstructured.NestedString(obj.Object, "spec", "powerState"); ok {
+		vm.PowerState = ps
+	}
+	if dc, ok, _ := unstructured.NestedBool(obj.Object, "spec", "dedicatedCPU"); ok {
+		vm.DedicatedCPU = dc
+	}
+	if tref, ok, _ := unstructured.NestedString(obj.Object, "spec", "templateRef", "name"); ok {
+		vm.TemplateRef = tref
+	}
+	if oref, ok, _ := unstructured.NestedString(obj.Object, "spec", "offeringRef", "name"); ok {
+		vm.ServiceOfferingID = oref
+	}
 	if phase, ok, _ := unstructured.NestedString(obj.Object, "status", "phase"); ok && phase != "" {
 		vm.State = InstancePhaseToPlatformState(phase)
 	} else {

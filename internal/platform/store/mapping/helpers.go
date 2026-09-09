@@ -78,6 +78,27 @@ func localRef(name string) map[string]interface{} {
 	return map[string]interface{}{"name": name}
 }
 
+// MergeUnstructuredSpec copies spec keys from src onto dst without deleting
+// keys that exist only on dst. Stop/start must set powerState without wiping
+// offeringRef/nics written at deploy.
+func MergeUnstructuredSpec(dst, src *unstructured.Unstructured) {
+	if dst == nil || src == nil {
+		return
+	}
+	srcSpec, ok, _ := unstructured.NestedMap(src.Object, "spec")
+	if !ok || len(srcSpec) == 0 {
+		return
+	}
+	dstSpec, _, _ := unstructured.NestedMap(dst.Object, "spec")
+	if dstSpec == nil {
+		dstSpec = map[string]interface{}{}
+	}
+	for k, v := range srcSpec {
+		dstSpec[k] = v
+	}
+	_ = unstructured.SetNestedMap(dst.Object, dstSpec, "spec")
+}
+
 func setSpecField(obj *unstructured.Unstructured, key string, val interface{}) {
 	spec, _, _ := unstructured.NestedMap(obj.Object, "spec")
 	if spec == nil {

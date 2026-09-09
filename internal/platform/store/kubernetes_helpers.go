@@ -52,8 +52,8 @@ func (k *Kubernetes) upsertNamespaced(gvr schema.GroupVersionResource, ns string
 	if err != nil {
 		return nil, err
 	}
-	obj.SetResourceVersion(existing.GetResourceVersion())
-	return k.dyn.Resource(gvr).Namespace(ns).Update(ctx, obj, metav1.UpdateOptions{})
+	mapping.MergeUnstructuredSpec(existing, obj)
+	return k.dyn.Resource(gvr).Namespace(ns).Update(ctx, existing, metav1.UpdateOptions{})
 }
 
 func (k *Kubernetes) findClusterByID(gvr schema.GroupVersionResource, id string) (*unstructured.Unstructured, bool) {
