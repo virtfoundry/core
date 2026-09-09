@@ -51,27 +51,30 @@ Terraform CLI
 
 ---
 
-## API → Terraform mapping (current API v0.2.x)
+## API → Terraform mapping (current API v0.7.x / provider 0.3.0)
 
 Status legend: `—` not started · `plan` designed · `dev` in progress · `done` shipped · `n/a` not planned
 
 | API route | Terraform | Status | Notes |
 |-----------|-----------|--------|-------|
 | `POST /auth/login` | Provider config | done | JWT or API key |
-| `GET/POST /tenants` | `virtfoundry_tenant` | done | Root credentials only |
+| `GET/POST/DELETE /tenants` | `virtfoundry_tenant` | done | Root credentials; default tenant protected |
 | `GET/POST/PATCH/DELETE /vpcs` | `virtfoundry_vpc` | done | `default_network_id` computed |
 | `GET/POST/PATCH/DELETE /networks` | `virtfoundry_network` | done | `vpc_id`, CIDR |
 | `GET/POST/PATCH/DELETE /security-groups` | `virtfoundry_security_group` | done | `rule` nested blocks |
-| `GET/POST /volumes` | `virtfoundry_volume` | done | No API delete yet |
+| `GET/POST/DELETE /volumes` | `virtfoundry_volume` | done | Destroy deletes PVC; 409 if attached |
+| `POST/DELETE /vms/{name}/volumes` | `virtfoundry_volume_attachment` | done | Hot-plug; not `data_volume_id` |
 | `GET/POST /snapshots` | `virtfoundry_volume_snapshot` | done | No API delete yet |
 | `GET/POST/PATCH/DELETE /vm-templates` | `virtfoundry_vm_template` | done | container + iso `source_type` |
-| `GET/POST/PATCH/DELETE /vms` (+ start/stop/delete) | `virtfoundry_vm` | done | `desired_state`, networks, SGs |
+| `GET/POST/PATCH/DELETE /vms` (+ start/stop/delete) | `virtfoundry_vm` | done | `desired_state`, in-place resize, `dedicated_cpu` |
 | `GET/POST /vm-snapshots` (+ restore/delete) | `virtfoundry_vm_snapshot` | done | Delete via POST body |
 | `GET/POST/DELETE /ssh-keys` | `virtfoundry_ssh_key` | done | Register public key material |
-| `GET /service-offerings` | `virtfoundry_service_offerings` (data) | done | Read-only seed |
+| `GET /service-offerings` | `virtfoundry_service_offerings` (data) | done | Includes `dedicated_cpu` |
+| `POST/PATCH/DELETE /service-offerings` | `virtfoundry_service_offering` | done | Root credentials |
 | `GET /vm-templates` | `virtfoundry_vm_templates` (data) | done | List tenant templates |
 | `GET /vpcs/cidr-plan`, `/networks/cidr-plan` | data source (optional) | n/a | Can compute client-side |
 | `POST /vms/{name}/ssh` | attribute on `virtfoundry_vm` | — | Deprecated in UI — use public network or noVNC console |
+| `GET/POST/DELETE /load-balancers`, listeners, target-groups | — | n/a | Deferred until dataplane is reliable |
 | WebSocket `/ws/console` | — | n/a | Use UI or virtctl |
 
 ---
@@ -171,4 +174,4 @@ When merging a **major API feature** in `virtfoundry`:
 - Plugin Framework: https://developer.hashicorp.com/terraform/plugin/framework
 - Registry publishing: https://developer.hashicorp.com/terraform/registry/providers/publishing
 
-**Last updated:** 2026-08-04 (full resource inventory in [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry))
+**Last updated:** 2026-09-09 (provider 0.3.0 catch-up: volume delete/attach, offerings, tenant delete, VM resize / `dedicated_cpu`; LB deferred)
