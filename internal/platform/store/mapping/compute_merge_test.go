@@ -60,7 +60,10 @@ func TestInstancePowerStateRoundTrip(t *testing.T) {
 		DedicatedCPU: true,
 	}
 	obj := InstanceToUnstructured(vm, "default", "small", "cirros", nil)
-	got := InstanceFromUnstructured(obj, "tenant-1", nil)
+	got, err := InstanceFromUnstructured(obj, "tenant-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got.PowerState != "Halted" {
 		t.Fatalf("powerState: got %q", got.PowerState)
 	}
@@ -69,6 +72,15 @@ func TestInstancePowerStateRoundTrip(t *testing.T) {
 	}
 	if got.TemplateRef != "cirros" {
 		t.Fatalf("templateRef: got %q", got.TemplateRef)
+	}
+}
+
+func TestInstanceFromUnstructuredReturnsErrorForInvalidFieldType(t *testing.T) {
+	obj := newObject("Instance", "web-01", "ns")
+	obj.Object["spec"] = map[string]interface{}{"dedicatedCPU": "true"}
+
+	if _, err := InstanceFromUnstructured(obj, "tenant-1", nil); err == nil {
+		t.Fatal("expected invalid dedicatedCPU type to return an error")
 	}
 }
 

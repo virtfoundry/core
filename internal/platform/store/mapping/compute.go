@@ -1,6 +1,8 @@
 package mapping
 
 import (
+	"fmt"
+
 	"github.com/virtfoundry/core/internal/platform"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -109,7 +111,7 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 	return obj
 }
 
-func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, resolveNetwork func(string) string) *platform.PlatformVM {
+func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, resolveNetwork func(string) string) (*platform.PlatformVM, error) {
 	vm := &platform.PlatformVM{
 		ID:         ResourceID(obj),
 		TenantID:   tenantID,
@@ -118,38 +120,91 @@ func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, r
 		Hypervisor: "KubeVirt",
 		CreatedAt:  obj.GetCreationTimestamp().Time,
 	}
-	display, _, _ := unstructured.NestedString(obj.Object, "spec", "displayName")
+	fieldError := func(path string, err error) error {
+		return fmt.Errorf("instance %q: %s: %w", obj.GetName(), path, err)
+	}
+
+	display, err := instanceString(obj, "spec", "displayName")
+	if err != nil {
+		return nil, fieldError("spec.displayName", err)
+	}
 	vm.DisplayName = display
-	if ps, ok, _ := unstructured.NestedString(obj.Object, "spec", "powerState"); ok {
+	ps, err := instanceString(obj, "spec", "powerState")
+	if err != nil {
+		return nil, fieldError("spec.powerState", err)
+	}
+	if ps != "" {
 		vm.PowerState = ps
 	}
-	if dc, ok, _ := unstructured.NestedBool(obj.Object, "spec", "dedicatedCPU"); ok {
+	dc, err := instanceBool(obj, "spec", "dedicatedCPU")
+	if err != nil {
+		return nil, fieldError("spec.dedicatedCPU", err)
+	}
+	if dc {
 		vm.DedicatedCPU = dc
 	}
-	if tref, ok, _ := unstructured.NestedString(obj.Object, "spec", "templateRef", "name"); ok {
+	tref, err := instanceString(obj, "spec", "templateRef", "name")
+	if err != nil {
+		return nil, fieldError("spec.templateRef.name", err)
+	}
+	if tref != "" {
 		vm.TemplateRef = tref
 	}
-	if oref, ok, _ := unstructured.NestedString(obj.Object, "spec", "offeringRef", "name"); ok {
+	oref, err := instanceString(obj, "spec", "offeringRef", "name")
+	if err != nil {
+		return nil, fieldError("spec.offeringRef.name", err)
+	}
+	if oref != "" {
 		vm.ServiceOfferingID = oref
 	}
-	if phase, ok, _ := unstructured.NestedString(obj.Object, "status", "phase"); ok && phase != "" {
+	phase, err := instanceString(obj, "status", "phase")
+	if err != nil {
+		return nil, fieldError("status.phase", err)
+	}
+	if phase != "" {
 		vm.State = InstancePhaseToPlatformState(phase)
 	} else {
 		vm.State = "Pending"
 	}
-	if ip, ok, _ := unstructured.NestedString(obj.Object, "status", "ip"); ok {
+	ip, err := instanceString(obj, "status", "ip")
+	if err != nil {
+		return nil, fieldError("status.ip", err)
+	}
+	if ip != "" {
 		vm.IP = ip
 	}
-	if errMsg, ok, _ := unstructured.NestedString(obj.Object, "status", "errorMessage"); ok {
+	errMsg, err := instanceString(obj, "status", "errorMessage")
+	if err != nil {
+		return nil, fieldError("status.errorMessage", err)
+	}
+	if errMsg != "" {
 		vm.ErrorMsg = errMsg
 	}
-	if ext, ok, _ := unstructured.NestedString(obj.Object, "spec", "import", "externalUUID"); ok {
+	ext, err := instanceString(obj, "spec", "import", "externalUUID")
+	if err != nil {
+		return nil, fieldError("spec.import.externalUUID", err)
+	}
+	if ext != "" {
 		vm.ExternalUUID = ext
 	}
-	if src, ok, _ := unstructured.NestedString(obj.Object, "spec", "import", "source"); ok {
+	src, err := instanceString(obj, "spec", "import", "source")
+	if err != nil {
+		return nil, fieldError("spec.import.source", err)
+	}
+	if src != "" {
 		vm.ImportSource = src
 	}
-	return vm
+	return vm, nil
+}
+
+func instanceString(obj *unstructured.Unstructured, fields ...string) (string, error) {
+	value, _, err := unstructured.NestedString(obj.Object, fields...)
+	return value, err
+}
+
+func instanceBool(obj *unstructured.Unstructured, fields ...string) (bool, error) {
+	value, _, err := unstructured.NestedBool(obj.Object, fields...)
+	return value, err
 }
 
 func DiskCRName(v *platform.Volume) string {
