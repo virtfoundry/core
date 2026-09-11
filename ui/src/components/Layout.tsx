@@ -76,7 +76,7 @@ export function Layout() {
         )}
       >
         <div className="flex h-16 items-center border-b border-outline-variant">
-          <div className={clsx('flex h-full min-w-0 items-center', sidebarOpen ? 'px-5' : 'w-full justify-center px-2')}>
+          <div className={clsx('flex h-full min-w-0 items-center', sidebarOpen ? 'w-full justify-center px-5' : 'w-full justify-center px-2')}>
             <VirtFoundryLogo iconOnly={!sidebarOpen} height={56} />
           </div>
         </div>
