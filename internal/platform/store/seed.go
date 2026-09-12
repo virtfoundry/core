@@ -1,10 +1,23 @@
 package store
 
-import "github.com/virtfoundry/core/internal/platform"
+import (
+	"strings"
+
+	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/cloudinit"
+)
 
 // SeedCatalog inserts default service offerings and VM templates when empty,
 // then ensures platform-specific catalog entries (e.g. Windows) exist.
-func SeedCatalog(r Repository) error {
+//
+// defaultPassword is the password baked into seed Linux templates that lack
+// their own userData. Callers should resolve it from configuration
+// (config.VM.DefaultPassword or VIRTFOUNDRY_VM_DEFAULT_PASSWORD), falling
+// back to config.BuiltinDefaultVMPassword ("ubuntu") when unset. The seed
+// CloudInitNoCloud payload marks this password as expired (chpasswd.expire:
+// True inside BuildLinuxUserData), so PAM forces the user to pick a new one
+// on first login.
+func SeedCatalog(r Repository, defaultPassword string) error {
 	if len(r.ListServiceOfferings(false)) == 0 {
 		now := Now()
 		defaults := []platform.ServiceOffering{
@@ -20,7 +33,7 @@ func SeedCatalog(r Repository) error {
 		now := Now()
 		defaults := []platform.VMTemplate{
 			{ID: NewID(), Name: "cirros", DisplayName: "Cirros (demo)", Image: "quay.io/kubevirt/cirros-container-disk-demo", OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
-			{ID: NewID(), Name: "ubuntu-2204", DisplayName: "Ubuntu 22.04", Image: "quay.io/containerdisks/ubuntu:22.04", OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now},
+			{ID: NewID(), Name: "ubuntu-2204", DisplayName: "Ubuntu 22.04", Image: "quay.io/containerdisks/ubuntu:22.04", OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now, CloudInitUserData: ubuntuDefaultUserData(defaultPassword)},
 		}
 		for i := range defaults {
 			r.SaveVMTemplate(&defaults[i])
@@ -49,7 +62,26 @@ func SeedCatalog(r Repository) error {
 		Name: "windows-server-2022", DisplayName: "Windows Server 2022 Eval",
 		Image: "windows-server-2022-eval", OSType: "windows", SourceType: "iso", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
 	})
+	// Backfill CloudInitUserData on pre-existing ubuntu-2204 templates so the operator
+	// (which propagates the Template CR's cloudInitUserData verbatim into
+	// cloudInitNoCloud.userData) does not boot the guest without credentials.
+	// Preserves all other fields the operator may have customised (Image, etc.).
+	for _, t := range r.ListVMTemplates(false) {
+		if t.Name == "ubuntu-2204" && strings.TrimSpace(t.CloudInitUserData) == "" {
+			t.CloudInitUserData = ubuntuDefaultUserData(defaultPassword)
+			r.SaveVMTemplate(t)
+		}
+	}
 	return nil
+}
+
+// ubuntuDefaultUserData returns a #cloud-config payload that creates the `ubuntu`
+// user (the only account baked into the quay.io/containerdisks/ubuntu:22.04 image)
+// with the supplied password. Mirrors the runtime default used by the hypervisor
+// path in internal/platform/cloudinit/build.go so behaviour is consistent
+// regardless of which deploy path is taken.
+func ubuntuDefaultUserData(password string) string {
+	return cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{Password: password})
 }
 
 func ensureOffering(r Repository, want platform.ServiceOffering) {

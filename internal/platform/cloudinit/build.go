@@ -90,7 +90,10 @@ func BuildLinuxUserData(cfg LinuxConfig) string {
 			pass = "ubuntu"
 		}
 		fmt.Fprintf(&b, "password: %s\n", pass)
-		b.WriteString("chpasswd: { expire: False }\n")
+		// Force password change at first login. PAM enforces the prompt on
+		// both TTY and SSH password auth; SSH-key-only logins are unaffected
+		// because lock_passwd is set above in the SSH-key branch.
+		b.WriteString("chpasswd: { expire: True }\n")
 		b.WriteString("ssh_pwauth: true\n")
 		b.WriteString("users:\n")
 		b.WriteString("  - name: ubuntu\n")
