@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"testing"
 
 	"github.com/virtfoundry/core/internal/platform"
@@ -73,6 +74,52 @@ func TestKubernetesStore_UserSecretRoundTrip(t *testing.T) {
 	}
 	if !repo.HasRootUser() {
 		t.Fatal("expected HasRootUser true")
+	}
+}
+
+func TestKubernetesStore_AdminUserIncludesTenantRefWhenTenantIDCacheMisses(t *testing.T) {
+	dyn := newTestDynamicClient()
+	cs := kubefake.NewSimpleClientset()
+	repo := &Kubernetes{dyn: dyn, clientset: cs}
+	tenant := &platform.Tenant{Name: "Sub", Slug: "sub", Namespace: "virtfoundry-tenant-sub", State: "active"}
+	repo.SaveTenant(tenant)
+
+	user := &platform.User{
+		Username: "sub-admin", TenantID: "stale-tenant-id", Role: platform.RoleTenantAdmin,
+		RoleID: SystemRoleIDTenantAdmin, PasswordHash: "hash", State: "active",
+	}
+	repo.SaveUser(user)
+	obj, err := dyn.Resource(mapping.UserGVR).Get(context.Background(), mapping.UserCRName(user.Username), metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, found, err := unstructured.NestedString(obj.Object, "spec", "tenantRef", "name")
+	if err != nil || !found || ref != "sub" {
+		t.Fatalf("tenantRef = %q (found=%v, err=%v), want sub", ref, found, err)
+	}
+}
+
+func TestKubernetesStore_SystemRoleNamesRoundTrip(t *testing.T) {
+	dyn := newTestDynamicClient()
+	cs := kubefake.NewSimpleClientset()
+	repo := &Kubernetes{dyn: dyn, clientset: cs}
+	if err := repo.SeedIAM(); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{
+		platform.SystemRoleRoot,
+		platform.SystemRoleTenantAdmin,
+		platform.SystemRoleTenantOperator,
+		platform.SystemRoleTenantViewer,
+	} {
+		role, ok := repo.GetRoleByName("", name)
+		if !ok {
+			t.Fatalf("system role %q not found", name)
+		}
+		if role.Name != name {
+			t.Fatalf("system role name = %q, want %q", role.Name, name)
+		}
 	}
 }
 

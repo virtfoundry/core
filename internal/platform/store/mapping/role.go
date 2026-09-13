@@ -66,11 +66,11 @@ func roleNameFromCR(crName string) string {
 	switch crName {
 	case "platform-root":
 		return platform.SystemRoleRoot
-	case "platform-tenant-admin":
+	case "tenant-admin", "platform-tenant-admin":
 		return platform.SystemRoleTenantAdmin
-	case "platform-tenant-operator":
+	case "tenant-operator", "platform-tenant-operator":
 		return platform.SystemRoleTenantOperator
-	case "platform-tenant-viewer":
+	case "tenant-viewer", "platform-tenant-viewer":
 		return platform.SystemRoleTenantViewer
 	default:
 		return crName

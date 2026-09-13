@@ -9,8 +9,8 @@ import (
 	"github.com/virtfoundry/core/internal/config"
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/platform"
-	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
 	"github.com/virtfoundry/core/internal/platform/branding"
+	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/compute"
@@ -102,24 +102,24 @@ func (s *PlatformService) ListUsers(tenantID string) []*platform.User {
 	return s.identity.ListUsers(tenantID)
 }
 
-func (s *PlatformService) UpdateUser(tenantID, userID, email, roleID, state string) (*platform.User, error) {
-	return s.identity.UpdateUser(tenantID, userID, email, roleID, state)
+func (s *PlatformService) UpdateUser(tenantID, userID, email, roleID, state string, actor *auth.Actor) (*platform.User, error) {
+	return s.identity.UpdateUser(tenantID, userID, email, roleID, state, actor)
 }
 
 func (s *PlatformService) DeleteUser(tenantID, userID string) error {
 	return s.identity.DeleteUser(tenantID, userID)
 }
 
-func (s *PlatformService) CreateRole(tenantID string, in identity.CreateRoleInput) (*platform.RoleRecord, error) {
-	return s.identity.CreateRole(tenantID, in)
+func (s *PlatformService) CreateRole(tenantID string, in identity.CreateRoleInput, actor *auth.Actor) (*platform.RoleRecord, error) {
+	return s.identity.CreateRole(tenantID, in, actor)
 }
 
 func (s *PlatformService) ListRoles(tenantID string) []*platform.RoleRecord {
 	return s.identity.ListRoles(tenantID)
 }
 
-func (s *PlatformService) UpdateRole(tenantID, roleID, desc string, perms []string) (*platform.RoleRecord, error) {
-	return s.identity.UpdateRole(tenantID, roleID, desc, perms)
+func (s *PlatformService) UpdateRole(tenantID, roleID, desc string, perms []string, actor *auth.Actor) (*platform.RoleRecord, error) {
+	return s.identity.UpdateRole(tenantID, roleID, desc, perms, actor)
 }
 
 func (s *PlatformService) DeleteRole(tenantID, roleID string) error {

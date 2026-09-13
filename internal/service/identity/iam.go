@@ -70,7 +70,7 @@ func (s *Service) ListUsers(tenantID string) []*platform.User {
 	return s.store.ListUsersByTenant(tenantID)
 }
 
-func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string) (*platform.User, error) {
+func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string, actor *auth.Actor) (*platform.User, error) {
 	u, ok := s.store.GetUser(userID)
 	if !ok || u.TenantID != tenantID {
 		return nil, fmt.Errorf("user not found")
@@ -85,7 +85,7 @@ func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string) (*pl
 		u.State = state
 	}
 	if roleID != "" {
-		role, err := s.roleForTenant(tenantID, roleID)
+		role, err := s.roleForTenant(tenantID, roleID, actor)
 		if err != nil {
 			return nil, err
 		}
@@ -108,13 +108,16 @@ func (s *Service) DeleteUser(tenantID, userID string) error {
 	return nil
 }
 
-func (s *Service) CreateRole(tenantID string, in CreateRoleInput) (*platform.RoleRecord, error) {
+func (s *Service) CreateRole(tenantID string, in CreateRoleInput, actor *auth.Actor) (*platform.RoleRecord, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return nil, fmt.Errorf("role name required")
 	}
 	if _, ok := s.store.GetRoleByName(tenantID, name); ok {
 		return nil, fmt.Errorf("role name already exists")
+	}
+	if err := validateTenantRolePermissions(in.Permissions, actor); err != nil {
+		return nil, err
 	}
 	r := &platform.RoleRecord{
 		ID: store.NewID(), TenantID: tenantID, Name: name,
@@ -130,10 +133,15 @@ func (s *Service) ListRoles(tenantID string) []*platform.RoleRecord {
 	return s.store.ListRoles(tenantID)
 }
 
-func (s *Service) UpdateRole(tenantID, roleID string, desc string, perms []string) (*platform.RoleRecord, error) {
+func (s *Service) UpdateRole(tenantID, roleID string, desc string, perms []string, actor *auth.Actor) (*platform.RoleRecord, error) {
 	r, ok := s.store.GetRole(roleID)
-	if !ok || r.IsSystem || (r.TenantID != "" && r.TenantID != tenantID) {
+	if !ok || (r.IsSystem && !isRoot(actor)) || (!r.IsSystem && r.TenantID != tenantID) {
 		return nil, fmt.Errorf("role not found")
+	}
+	if perms != nil && !r.IsSystem {
+		if err := validateTenantRolePermissions(perms, actor); err != nil {
+			return nil, err
+		}
 	}
 	if desc != "" {
 		r.Description = desc
@@ -251,7 +259,7 @@ func (s *Service) ActorFromUser(u *platform.User) *auth.Actor {
 
 func (s *Service) resolveRoleForTenant(tenantID, roleID, roleName string, actor *auth.Actor) (string, platform.Role, error) {
 	if roleID != "" {
-		r, err := s.roleForTenant(tenantID, roleID)
+		r, err := s.roleForTenant(tenantID, roleID, actor)
 		if err != nil {
 			return "", "", err
 		}
@@ -262,6 +270,9 @@ func (s *Service) resolveRoleForTenant(tenantID, roleID, roleName string, actor 
 		name = platform.SystemRoleTenantOperator
 	}
 	if r, ok := s.store.GetRoleByName("", name); ok {
+		if isPlatformRootRole(r) && !isRoot(actor) {
+			return "", "", fmt.Errorf("forbidden")
+		}
 		return r.ID, legacyRoleFromSystemName(r.Name), nil
 	}
 	if r, ok := s.store.GetRoleByName(tenantID, name); ok {
@@ -270,18 +281,46 @@ func (s *Service) resolveRoleForTenant(tenantID, roleID, roleName string, actor 
 	return "", "", fmt.Errorf("role not found")
 }
 
-func (s *Service) roleForTenant(tenantID, roleID string) (*platform.RoleRecord, error) {
+func (s *Service) roleForTenant(tenantID, roleID string, actor *auth.Actor) (*platform.RoleRecord, error) {
 	r, ok := s.store.GetRole(roleID)
 	if !ok {
 		return nil, fmt.Errorf("role not found")
 	}
 	if r.IsSystem {
+		if isPlatformRootRole(r) && !isRoot(actor) {
+			return nil, fmt.Errorf("forbidden")
+		}
 		return r, nil
 	}
 	if r.TenantID != tenantID {
 		return nil, fmt.Errorf("role not found")
 	}
 	return r, nil
+}
+
+func isRoot(actor *auth.Actor) bool {
+	return actor != nil && actor.Role == platform.RoleRoot
+}
+
+func isPlatformRootRole(role *platform.RoleRecord) bool {
+	return role.ID == store.SystemRoleIDRoot || role.Name == platform.SystemRoleRoot
+}
+
+// validateTenantRolePermissions ensures tenant admins can delegate only powers
+// they already hold, and that tenant-owned roles can never gain platform scope.
+func validateTenantRolePermissions(perms []string, actor *auth.Actor) error {
+	if actor == nil {
+		return fmt.Errorf("forbidden")
+	}
+	for _, perm := range perms {
+		if perm == auth.PermAll || strings.Contains(perm, "*") || strings.HasPrefix(perm, "tenants:") {
+			return fmt.Errorf("forbidden")
+		}
+		if !auth.HasPermission(actor.Permissions, perm) {
+			return fmt.Errorf("forbidden")
+		}
+	}
+	return nil
 }
 
 func legacyRoleFromSystemName(name string) platform.Role {

@@ -11,9 +11,9 @@ import (
 type ctxKey string
 
 const (
-	ContextClaims  ctxKey = "claims"
-	ContextTenant  ctxKey = "tenant_id"
-	ContextActor   ctxKey = "actor"
+	ContextClaims ctxKey = "claims"
+	ContextTenant ctxKey = "tenant_id"
+	ContextActor  ctxKey = "actor"
 )
 
 func JWTAuth(authSvc *auth.Service) func(http.Handler) http.Handler {
@@ -42,7 +42,14 @@ func JWTAuth(authSvc *auth.Service) func(http.Handler) http.Handler {
 }
 
 func RequireRoot(next http.Handler) http.Handler {
-	return RequirePermission(auth.PermTenantsWrite)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		actor := GetActor(r.Context())
+		if actor == nil || actor.Role != platform.RoleRoot {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func GetClaims(ctx context.Context) *auth.Claims {
@@ -61,4 +68,3 @@ func GetTenantID(ctx context.Context) string {
 	}
 	return ""
 }
-

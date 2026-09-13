@@ -81,7 +81,7 @@ func (h *IAMHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	u, err := h.svc.UpdateUser(tid, id, req.Email, req.RoleID, req.State)
+	u, err := h.svc.UpdateUser(tid, id, req.Email, req.RoleID, req.State, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
 		return
@@ -128,7 +128,7 @@ func (h *IAMHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	}
 	role, err := h.svc.CreateRole(tid, identity.CreateRoleInput{
 		Name: req.Name, Description: req.Description, Permissions: req.Permissions,
-	})
+	}, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
 		return
@@ -150,7 +150,7 @@ func (h *IAMHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	role, err := h.svc.UpdateRole(tid, mux.Vars(r)["id"], req.Description, req.Permissions)
+	role, err := h.svc.UpdateRole(tid, mux.Vars(r)["id"], req.Description, req.Permissions, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
 		return

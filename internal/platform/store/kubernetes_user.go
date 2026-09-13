@@ -31,7 +31,7 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	if u.TenantID != "" {
 		if t, ok := k.GetTenant(u.TenantID); ok {
 			tenantCRName = mapping.TenantCRName(t.Slug)
-		} else if t, ok := k.GetTenantBySlug(strings.TrimSuffix(u.Username, "-admin")); ok && t.ID == u.TenantID {
+		} else if t, ok := k.GetTenantBySlug(strings.TrimSuffix(u.Username, "-admin")); ok {
 			tenantCRName = mapping.TenantCRName(t.Slug)
 		}
 	}
