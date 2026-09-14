@@ -52,7 +52,7 @@ func main() {
 		log.Fatal("kubevirt driver", zap.Error(err))
 	}
 
-	repo, err := store.Open(cfg.Database)
+	repo, err := store.Open(*cfg)
 	if err != nil {
 		log.Fatal("open store", zap.Error(err))
 	}

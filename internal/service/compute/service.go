@@ -392,15 +392,11 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 }
 
 func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
+	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, true); err != nil {
+		return nil, err
+	}
 	if s.operatorReconcile {
 		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerRunning)
-	}
-	ns, err := shared.TenantNamespace(s.store, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.kvBase.WithNamespace(ns).StartVM(ctx, vmName); err != nil {
-		return nil, err
 	}
 	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)
@@ -412,15 +408,11 @@ func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platfo
 }
 
 func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
+	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, false); err != nil {
+		return nil, err
+	}
 	if s.operatorReconcile {
 		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerHalted)
-	}
-	ns, err := shared.TenantNamespace(s.store, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.kvBase.WithNamespace(ns).StopVM(ctx, vmName); err != nil {
-		return nil, err
 	}
 	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)
@@ -429,6 +421,21 @@ func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platfor
 	}
 	s.broadcastVM("vm.updated", vm)
 	return vm, nil
+}
+
+func (s *Service) patchKubeVirtRunStrategy(ctx context.Context, tenantID, vmName string, start bool) error {
+	if s.kvBase == nil {
+		return nil
+	}
+	ns, err := shared.TenantNamespace(s.store, tenantID)
+	if err != nil {
+		return err
+	}
+	kv := s.kvBase.WithNamespace(ns)
+	if start {
+		return kv.StartVM(ctx, vmName)
+	}
+	return kv.StopVM(ctx, vmName)
 }
 
 func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {

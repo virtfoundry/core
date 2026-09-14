@@ -33,7 +33,10 @@ func (k *Kubernetes) SaveVM(vm *platform.PlatformVM) {
 	k.saveNamespacedMapped(mapping.InstanceGVR, ns, func() *unstructured.Unstructured {
 		return mapping.InstanceToUnstructured(vm, slug, offeringCR, templateCR, networkRefs)
 	}, func(saved *unstructured.Unstructured) {
-		fromCR := mapping.InstanceFromUnstructured(saved, vm.TenantID, nil)
+		fromCR, err := mapping.InstanceFromUnstructured(saved, vm.TenantID, nil)
+		if err != nil {
+			return
+		}
 		mapping.MergePlatformVM(vm, &prior, fromCR)
 	})
 }
@@ -43,7 +46,11 @@ func (k *Kubernetes) GetVM(id string) (*platform.PlatformVM, bool) {
 	if !ok {
 		return nil, false
 	}
-	return mapping.InstanceFromUnstructured(obj, k.tenantIDForNamespace(ns), nil), true
+	vm, err := mapping.InstanceFromUnstructured(obj, k.tenantIDForNamespace(ns), nil)
+	if err != nil {
+		return nil, false
+	}
+	return vm, true
 }
 
 func (k *Kubernetes) GetVMByName(tenantID, name string) (*platform.PlatformVM, bool) {
@@ -55,7 +62,11 @@ func (k *Kubernetes) GetVMByName(tenantID, name string) (*platform.PlatformVM, b
 	if err != nil {
 		return nil, false
 	}
-	return mapping.InstanceFromUnstructured(obj, tenantID, nil), true
+	vm, err := mapping.InstanceFromUnstructured(obj, tenantID, nil)
+	if err != nil {
+		return nil, false
+	}
+	return vm, true
 }
 
 func (k *Kubernetes) GetVMByExternalUUID(source, externalUUID string) (*platform.PlatformVM, bool) {
@@ -63,7 +74,11 @@ func (k *Kubernetes) GetVMByExternalUUID(source, externalUUID string) (*platform
 		src, _, _ := unstructured.NestedString(obj.Object, "spec", "import", "source")
 		ext, _, _ := unstructured.NestedString(obj.Object, "spec", "import", "externalUUID")
 		if src == source && ext == externalUUID {
-			return mapping.InstanceFromUnstructured(&obj, k.tenantIDForNamespace(obj.GetNamespace()), nil), true
+			vm, err := mapping.InstanceFromUnstructured(&obj, k.tenantIDForNamespace(obj.GetNamespace()), nil)
+			if err != nil {
+				return nil, false
+			}
+			return vm, true
 		}
 	}
 	return nil, false
@@ -80,7 +95,11 @@ func (k *Kubernetes) ListVMs(tenantID string) []*platform.PlatformVM {
 	}
 	out := make([]*platform.PlatformVM, 0, len(list.Items))
 	for i := range list.Items {
-		out = append(out, mapping.InstanceFromUnstructured(&list.Items[i], tenantID, nil))
+		vm, err := mapping.InstanceFromUnstructured(&list.Items[i], tenantID, nil)
+		if err != nil {
+			continue
+		}
+		out = append(out, vm)
 	}
 	return out
 }

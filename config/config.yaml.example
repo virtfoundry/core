@@ -15,6 +15,12 @@ kubevirt:
   kubeconfig: ""
   namespace: "default"
 
+# VM defaults applied during template seeding. The seed CloudInitNoCloud payload
+# marks the password as expired (chpasswd.expire: True), so PAM forces the user
+# to pick a new one on first login. Empty falls back to "ubuntu".
+# vm:
+#   default_password: ""
+
 # Local dev store: memory (default) or kubernetes (requires CRDs + KUBECONFIG).
 # database:
 #   driver: kubernetes

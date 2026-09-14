@@ -1,10 +1,10 @@
 import clsx from 'clsx';
 import { useTheme } from '../lib/theme';
 
-const logoLight = '/virtfounfry-light.png';
-const logoDark = '/virtfounfry-dark.png';
-const iconLight = '/virtfounfry-icon-light.png';
-const iconDark = '/virtfounfry-icon-dark.png';
+import logoLight from '../assets/logo-virtfoundry-light.png';
+import logoDark from '../assets/logo-virtfoundry-dark.png';
+import iconLight from '../assets/virtfoundry-icon-light.png';
+import iconDark from '../assets/virtfoundry-icon-dark.png';
 
 const LOGO_ASSETS = [logoLight, logoDark, iconLight, iconDark];
 

@@ -3,17 +3,16 @@ import { Moon, Sun } from 'lucide-react';
 import clsx from 'clsx';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectIsDarkTheme, selectTheme, setTheme, toggleTheme, type Theme } from '../store/themeSlice';
+import logoLight from '../assets/logo-virtfoundry-light.png';
+import logoDark from '../assets/logo-virtfoundry-dark.png';
+import iconLight from '../assets/virtfoundry-icon-light.png';
+import iconDark from '../assets/virtfoundry-icon-dark.png';
 
 export type { Theme };
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
-    for (const src of [
-      '/virtfounfry-light.png',
-      '/virtfounfry-dark.png',
-      '/virtfounfry-icon-light.png',
-      '/virtfounfry-icon-dark.png',
-    ]) {
+    for (const src of [logoLight, logoDark, iconLight, iconDark]) {
       const img = new Image();
       img.src = src;
     }

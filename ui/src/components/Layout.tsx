@@ -75,9 +75,9 @@ export function Layout() {
           sidebarOpen ? 'w-sidebar-expanded' : 'w-sidebar-collapsed',
         )}
       >
-        <div className={clsx('border-b border-outline-variant', sidebarOpen ? 'px-5 py-5' : 'px-2 py-4')}>
-          <div className={clsx('flex items-center', !sidebarOpen && 'justify-center')}>
-            <VirtFoundryLogo fullWidth iconOnly={!sidebarOpen} height={36} />
+        <div className="flex h-16 items-center border-b border-outline-variant">
+          <div className={clsx('flex h-full min-w-0 items-center', sidebarOpen ? 'w-full justify-center px-5' : 'w-full justify-center px-2')}>
+            <VirtFoundryLogo iconOnly={!sidebarOpen} height={56} />
           </div>
         </div>
 
@@ -91,7 +91,7 @@ export function Layout() {
         <header
           className={clsx(
             'fixed top-0 right-0 z-50 h-16 bg-surface border-b border-outline-variant inner-glow',
-            'flex items-center justify-between px-4 md:px-6 gap-4 left-0',
+            'flex items-center justify-between px-4 md:px-6 gap-4 left-0 transition-[left] duration-300 ease-in-out',
             sidebarOpen ? 'md:left-sidebar-expanded' : 'md:left-sidebar-collapsed',
           )}
         >
