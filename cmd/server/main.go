@@ -27,6 +27,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	serverReadHeaderTimeout = 10 * time.Second
+	serverReadTimeout       = 30 * time.Second
+	serverIdleTimeout       = 120 * time.Second
+)
+
 func main() {
 	cfg := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
@@ -106,6 +112,7 @@ func main() {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.CORS)
+	router.Use(middleware.MaxBodyBytes(middleware.DefaultMaxBodyBytes))
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -216,7 +223,13 @@ func main() {
 	rootOnly.HandleFunc("/service-offerings/{id}", platformHandler.DeleteServiceOffering).Methods("DELETE")
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	srv := &http.Server{Addr: addr, Handler: router}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
+		ReadTimeout:       serverReadTimeout,
+		IdleTimeout:       serverIdleTimeout,
+	}
 
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)

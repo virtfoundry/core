@@ -6,10 +6,14 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/server
 
 FROM alpine:3.21
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata \
+	&& addgroup -S virtfoundry \
+	&& adduser -S -G virtfoundry virtfoundry
 WORKDIR /app
 COPY --from=builder /server ./server
 COPY config/config.yaml.example ./config/config.yaml
+RUN chown -R virtfoundry:virtfoundry /app
+USER virtfoundry
 ENV CONFIG_PATH=/app/config/config.yaml
 EXPOSE 8080
 CMD ["./server"]

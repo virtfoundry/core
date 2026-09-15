@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/virtfoundry/core/internal/pkg/logger"
 	"github.com/google/uuid"
+	"github.com/virtfoundry/core/internal/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -54,6 +54,29 @@ func CORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// DefaultMaxBodyBytes is the default request body size limit (~1MiB).
+const DefaultMaxBodyBytes int64 = 1 << 20
+
+// MaxBodyBytes rejects requests with Content-Length over max and wraps the body
+// with http.MaxBytesReader so oversized bodies yield HTTP 413.
+func MaxBodyBytes(max int64) func(http.Handler) http.Handler {
+	if max <= 0 {
+		max = DefaultMaxBodyBytes
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > max {
+				http.Error(w, `{"error":"request body too large"}`, http.StatusRequestEntityTooLarge)
+				return
+			}
+			if r.Body != nil && r.Body != http.NoBody {
+				r.Body = http.MaxBytesReader(w, r.Body, max)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 type responseWriter struct {
