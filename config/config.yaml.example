@@ -6,8 +6,10 @@ logger:
   level: "info"
   format: "json"
 
+# JWT_SECRET must be supplied via env / Kubernetes Secret.
+# The server refuses to start if it is empty, shorter than 32 chars, or a known default
+# (change-me-in-production / dev-secret-change-in-prod).
 security:
-  jwt_secret: "dev-secret-change-in-prod"
   jwt_expire: 86400
   # Browser origins allowed to open the /ws/events WebSocket. The request host
   # is always accepted (the UI is served same-origin), so this is only needed
