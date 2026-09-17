@@ -6,8 +6,14 @@ VirtFoundry reads a YAML config file at startup (`CONFIG_PATH`, default `config/
 
 ```bash
 cp config/config.yaml.example config/config.yaml   # optional — defaults work with memory store
-ROOT_PASSWORD=virtfoundry go run ./cmd/server
+JWT_SECRET="$(openssl rand -base64 32)" \
+ROOT_PASSWORD="$(openssl rand -base64 18)" \
+go run ./cmd/server
 ```
+
+The API refuses to start when `JWT_SECRET` or `ROOT_PASSWORD` are missing, too short, or a known default. For local development only, `VF_ALLOW_INSECURE_DEFAULTS=1` opts out of these checks (the API will print a loud warning and fall back to the historical defaults — never use this flag in production).
+
+If `ROOT_PASSWORD` is unset in a brand-new install (no root user in the store), the API generates a one-time strong password, bootstraps the root user with it, and logs it once. Save it from the boot log before it scrolls away.
 
 | File | Tracked | Purpose |
 |------|---------|---------|

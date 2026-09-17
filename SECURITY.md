@@ -43,7 +43,9 @@ Lead maintainer (see [MAINTAINERS.md](MAINTAINERS.md)). Additional maintainers m
 
 ## Secure deployment notes
 
-- Change default `ROOT_PASSWORD` and `JWT_SECRET` before any non-lab deployment
+- The API **refuses to start** if `JWT_SECRET` is empty, shorter than 32 characters, or equal to a known default (`change-me-in-production`, `dev-secret-change-in-prod`). It also refuses to bootstrap when `ROOT_PASSWORD` is empty, shorter than 12 characters, or equal to `virtfoundry` — unless `VF_ALLOW_INSECURE_DEFAULTS=1` is set (dev only). See [CHANGELOG.md](./CHANGELOG.md) and issue [#93](https://github.com/virtfoundry/core/issues/93).
+- Generate secrets with `openssl rand -base64 32` (JWT) and a strong password manager (root). Inject via Kubernetes Secrets / sealed-secrets / external-secrets — never commit them.
+- On a brand-new install with no `ROOT_PASSWORD`, the server generates a one-time strong password and logs it once at boot. Capture it from the boot log before it scrolls away and store it in your secret manager.
 - Platform state lives in `virtfoundry.io` CRs; **never** put password or API-key hashes in CR `spec` — use Kubernetes Secrets only
 - Restrict API ingress and enable TLS at the ingress controller
 - Run API and operator ServiceAccounts with least-privilege RBAC (review Helm chart / operator `config/rbac`)
