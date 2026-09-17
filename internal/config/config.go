@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -100,8 +101,19 @@ type LoggerConfig struct {
 }
 
 type SecurityConfig struct {
-	JWTSecret string `mapstructure:"jwt_secret"`
-	JWTExpire int    `mapstructure:"jwt_expire"`
+	JWTSecret     string              `mapstructure:"jwt_secret"`
+	JWTExpire     int                 `mapstructure:"jwt_expire"`
+	LoginThrottle LoginThrottleConfig `mapstructure:"login_throttle"`
+}
+
+// LoginThrottleConfig tunes login brute-force protection. Zero values fall
+// back to the auth package defaults (5 per username, 20 per IP, 10m window,
+// 5m lockout).
+type LoginThrottleConfig struct {
+	UserMaxFailures int           `mapstructure:"user_max_failures"`
+	IPMaxFailures   int           `mapstructure:"ip_max_failures"`
+	Window          time.Duration `mapstructure:"window"`
+	Lockout         time.Duration `mapstructure:"lockout"`
 }
 
 func DefaultConfig() *Config {

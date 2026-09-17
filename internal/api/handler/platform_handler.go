@@ -22,13 +22,24 @@ func nonNilSlice[T any](items []T) []T {
 }
 
 type PlatformHandler struct {
-	auth  *auth.Service
-	store store.Repository
-	svc   *service.PlatformService
+	auth      *auth.Service
+	store     store.Repository
+	svc       *service.PlatformService
+	throttle  *auth.LoginThrottle
+	dummyHash string
 }
 
-func NewPlatformHandler(authSvc *auth.Service, st store.Repository, svc *service.PlatformService) *PlatformHandler {
-	return &PlatformHandler{auth: authSvc, store: st, svc: svc}
+func NewPlatformHandler(authSvc *auth.Service, st store.Repository, svc *service.PlatformService, throttle *auth.LoginThrottle) *PlatformHandler {
+	if throttle == nil {
+		throttle = auth.NewLoginThrottle(auth.ThrottleParams{})
+	}
+	// Dummy bcrypt hash (DefaultCost) compared when the username does not
+	// exist, so missing-user and wrong-password logins take the same time.
+	dummy, err := auth.HashPassword("virtfoundry-login-timing-equalizer")
+	if err != nil {
+		dummy = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+	}
+	return &PlatformHandler{auth: authSvc, store: st, svc: svc, throttle: throttle, dummyHash: dummy}
 }
 
 func (h *PlatformHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -40,11 +51,26 @@ func (h *PlatformHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	user, ok := h.store.GetUserByUsername(req.Username)
-	if !ok || !auth.CheckPassword(user.PasswordHash, req.Password) {
+	ip := auth.ClientIP(r)
+	if retryAfter, ok := h.throttle.Allow(ip, req.Username); !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
+		http.Error(w, `{"error":"too many login attempts, try again later"}`, http.StatusTooManyRequests)
+		return
+	}
+	user, found := h.store.GetUserByUsername(req.Username)
+	hash := h.dummyHash
+	if found {
+		hash = user.PasswordHash
+	}
+	valid := auth.CheckPassword(hash, req.Password)
+	// State is checked last, after bcrypt, so disabled accounts get the same
+	// generic 401 as unknown users and wrong passwords (no enumeration oracle).
+	if !found || !valid || user.State == "disabled" {
+		h.throttle.Failure(ip, req.Username)
 		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
+	h.throttle.Success(ip, req.Username)
 	token, exp, err := h.auth.IssueToken(user)
 	if err != nil {
 		respondError(w, err)
