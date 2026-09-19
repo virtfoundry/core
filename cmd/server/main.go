@@ -123,7 +123,13 @@ func main() {
 		client.ReadPump()
 	})
 
-	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc)
+	loginThrottle := auth.NewLoginThrottle(auth.ThrottleParams{
+		UserMaxFailures: cfg.Security.LoginThrottle.UserMaxFailures,
+		IPMaxFailures:   cfg.Security.LoginThrottle.IPMaxFailures,
+		Window:          cfg.Security.LoginThrottle.Window,
+		Lockout:         cfg.Security.LoginThrottle.Lockout,
+	})
+	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc, loginThrottle)
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
 	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc)

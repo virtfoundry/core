@@ -9,6 +9,13 @@ logger:
 security:
   jwt_secret: "dev-secret-change-in-prod"
   jwt_expire: 86400
+  # Login brute-force protection: failures within `window` beyond the max
+  # temporarily block the username / client IP for `lockout` (HTTP 429).
+  # login_throttle:
+  #   user_max_failures: 5
+  #   ip_max_failures: 20
+  #   window: 10m
+  #   lockout: 5m
 
 kubevirt:
   enabled: true
