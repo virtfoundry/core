@@ -30,7 +30,7 @@ Cluster runtime config is **not** maintained here. The Helm chart renders a Conf
 helm-charts/charts/virtfoundry/values.yaml  →  ConfigMap  →  /etc/virtfoundry/config.yaml
 ```
 
-Sensitive values (`JWT_SECRET`, `ROOT_PASSWORD`) are injected via Kubernetes Secrets as env vars on the API pod.
+Sensitive values (`JWT_SECRET`, `ROOT_PASSWORD`) are injected via Kubernetes Secrets as env vars on the API pod. The chart mounts the rendered config at `/etc/virtfoundry/config.yaml`; `CONFIG_PATH` is wired to that path.
 
 To generate a local `config.yaml` that matches a Helm profile:
 
@@ -41,3 +41,13 @@ make render-local-config VALUES=./charts/virtfoundry/values-gateway.yaml
 ```
 
 See [Configuration guide](https://virtfoundry.github.io/helm-charts/docs/guide/configuration/) for the full values reference.
+
+## Standalone Docker image (not Helm)
+
+The published image no longer bakes `config.yaml.example` into it (the file shipped a `JWT_SECRET` placeholder that fails validation). A bare `docker run` of the image with no config mount will exit 1 with:
+
+```
+failed to load config "...": failed to read config: ...
+```
+
+This is **fail-closed by design** — `JWT_SECRET` is now mandatory, so the only supported way to run the API is via the Helm chart (or by mounting your own `config.yaml` and supplying `JWT_SECRET` / `ROOT_PASSWORD` env vars). Do not copy the old Dockerfile path verbatim on operators' machines; point them to the Helm chart instead.

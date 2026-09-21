@@ -10,8 +10,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 - **Refuse to start with default `JWT_SECRET` or `ROOT_PASSWORD`** (issue [#93](https://github.com/virtfoundry/core/issues/93))
   - `JWT_SECRET` must be provided via env / Kubernetes Secret: empty, shorter than 32 characters, or equal to the historical defaults (`change-me-in-production`, `dev-secret-change-in-prod`) cause the server to exit non-zero with a clear error.
-  - `ROOT_PASSWORD` must be at least 12 characters and cannot be the historical default `virtfoundry`. Empty values cause the same hard fail in production.
-  - On a brand-new install with no `ROOT_PASSWORD` set and no root user in the store, the server generates a strong one-time password, bootstraps the root user with it, and logs it once in the boot log. Capture it from the first boot — it is not persisted in plaintext.
+- `ROOT_PASSWORD` is enforced only when set via env / Kubernetes Secret: at least 12 characters and not the historical default `virtfoundry` (case-insensitive).
+- An **empty** `ROOT_PASSWORD` is accepted. On a brand-new install with no root user in the store, the server generates a strong one-time password, bootstraps the root user with it, and logs it once at startup as a `WARN` — capture it from the boot log; it is not persisted in plaintext. On subsequent boots with the same empty env, the existing root hash is kept (no rotation).
   - Dev-only escape hatch: `VF_ALLOW_INSECURE_DEFAULTS=1` opts out of both checks (prints a `WARN` at startup). Never use this in production. Not exposed via the YAML config file.
   - `docker/Dockerfile` no longer bakes `config/config.yaml.example` into the image; the Helm chart (`virtfoundry/helm-charts`) must mount or render the config (tracked separately).
   - MINOR bump for 0.x per [RELEASES.md](./RELEASES.md).
