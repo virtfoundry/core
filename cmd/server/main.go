@@ -100,6 +100,8 @@ func main() {
 		log.Fatal("bootstrap networking", zap.Error(err))
 	}
 	platformSvc.BootstrapStorage(cfg.Storage)
+	isoImportHosts := platformSvc.BootstrapISOImport(cfg.Security.ISOImport)
+	log.Info("iso import allowlist", zap.Strings("allowed_hosts", isoImportHosts))
 	if cfg.Networking.Public.Enabled {
 		log.Info("public network enabled",
 			zap.String("cidr", cfg.Networking.Public.CIDR),
@@ -272,6 +274,7 @@ func loadConfig() (*config.Config, string) {
 	if v := os.Getenv("JWT_SECRET"); v != "" {
 		cfg.Security.JWTSecret = v
 	}
+	config.ApplyISOImportEnv(cfg)
 	if err := config.Validate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "insecure configuration rejected: %v\n", err)
 		os.Exit(1)

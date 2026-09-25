@@ -98,8 +98,13 @@ func (s *Service) CreateVMTemplate(ctx context.Context, tenantID string, in Crea
 	if sourceType == "container" && strings.TrimSpace(in.Image) == "" && in.ISOVolumeID == "" {
 		return nil, fmt.Errorf("image is required")
 	}
-	if sourceType == "iso" && in.ISOVolumeID == "" && strings.TrimSpace(in.Image) == "" {
-		return nil, fmt.Errorf("iso_url or iso_volume_id is required")
+	if sourceType == "iso" && in.ISOVolumeID == "" {
+		if strings.TrimSpace(in.Image) == "" {
+			return nil, fmt.Errorf("iso_url or iso_volume_id is required")
+		}
+		if err := s.validateISOImportURL(in.Image); err != nil {
+			return nil, err
+		}
 	}
 	for _, existing := range s.store.ListVMTemplates(false) {
 		if existing.TenantID == tenantID && existing.Name == name {
@@ -158,6 +163,15 @@ func (s *Service) UpdateVMTemplate(tenantID, id, displayName, description, image
 	}
 	t.Description = description
 	if image != "" {
+		effectiveSource := t.SourceType
+		if sourceType != "" {
+			effectiveSource = sourceType
+		}
+		if strings.EqualFold(effectiveSource, "iso") {
+			if err := s.validateISOImportURL(image); err != nil {
+				return nil, err
+			}
+		}
 		t.Image = strings.TrimSpace(image)
 	}
 	if sourceType != "" {

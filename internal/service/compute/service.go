@@ -10,6 +10,7 @@ import (
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/importurl"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
@@ -37,12 +38,14 @@ type Service struct {
 	windowsBootSizeGi int
 	windowsISOSizeGi  int
 	operatorReconcile bool
+	isoImport         *importurl.Policy
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub shared.EventBroadcaster) *Service {
 	return &Service{
 		store: st, k8s: k8s, kvBase: kv, hub: hub,
 		vmStates: make(map[vmStateKey]string), allowPodNetwork: true, defaultNetwork: "pod",
+		isoImport: importurl.NewPolicy(nil),
 	}
 }
 

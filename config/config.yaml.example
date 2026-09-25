@@ -23,6 +23,17 @@ security:
   #   ip_max_failures: 20
   #   window: 10m
   #   lockout: 5m
+  # Hosts CDI may download tenant-supplied ISO URLs from. HTTPS on port 443 is
+  # always required, and private / link-local / localhost / *.svc / *.internal
+  # targets are always refused (SSRF). Empty keeps the built-in list of public
+  # ISO mirrors and object storage endpoints — add your own mirror here.
+  # Env overrides: VIRTFOUNDRY_ISO_ALLOWED_HOSTS (comma separated),
+  # VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT=1.
+  # iso_import:
+  #   allowed_hosts:
+  #     - "iso.mylab.example.com"
+  #     - "*.blob.core.windows.net"
+  #   disable_http_import: false
 
 kubevirt:
   enabled: true
