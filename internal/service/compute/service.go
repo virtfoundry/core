@@ -13,6 +13,7 @@ import (
 	"github.com/virtfoundry/core/internal/platform/importurl"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -82,6 +83,7 @@ type DeployVMInput struct {
 	SecurityGroupIDs  []string
 	DisplayName       string
 	SSHKeyID          string
+	CloudInitPassword string // optional one-time guest password; enables password SSH
 	DataVolumeID      string
 	BootDiskSizeGi    int
 	ExposeSSH         bool
@@ -132,6 +134,11 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 			image = tmpl.Image
 			osType = tmpl.OSType
 			cloudInitExtra = tmpl.CloudInitUserData
+			if looksLikeInsecureDefaultUbuntuUserData(cloudInitExtra) {
+				// Do not append historical password:ubuntu seed payloads on top of
+				// deploy-time SSH keys (duplicate ssh_pwauth would re-enable password SSH).
+				cloudInitExtra = ""
+			}
 			tmplDisplay = tmpl.DisplayName
 		}
 	}
@@ -143,6 +150,21 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	}
 	if image == "" {
 		image = "quay.io/kubevirt/cirros-container-disk-demo"
+	}
+
+	cloudInitPassword := strings.TrimSpace(in.CloudInitPassword)
+	var sshKeys []string
+	if in.SSHKeyID != "" {
+		k, ok := s.store.GetSSHKeyPair(in.SSHKeyID)
+		if !ok || k.TenantID != tenantID {
+			return nil, iaerrors.NewBadRequestError("ssh_key_id not found in this tenant")
+		}
+		sshKeys = []string{k.PublicKey}
+	}
+	if needsLinuxGuestAuth(osType, deployTmpl) {
+		if len(sshKeys) == 0 && cloudInitPassword == "" {
+			return nil, iaerrors.NewBadRequestError("linux VM requires ssh_key_id or cloud_init_password")
+		}
 	}
 
 	networkIDs, err := s.resolveDeployNetworks(tenantID, in.PublicIP, in.NetworkIDs)
@@ -164,15 +186,12 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	spec := hypervisor.VMDeploySpec{
 		Name: name, Namespace: ns,
 		CPU: cpu, MemoryMi: memMi, Image: image, OSType: osType, Start: true,
-		DedicatedCPU:   dedicated,
-		Networks:       netSpecs,
-		Labels:         sgLabels(in.SecurityGroupIDs),
-		CloudInitExtra: cloudInitExtra,
-	}
-	if in.SSHKeyID != "" {
-		if k, ok := s.store.GetSSHKeyPair(in.SSHKeyID); ok && k.TenantID == tenantID {
-			spec.CloudInitSSHKeys = []string{k.PublicKey}
-		}
+		DedicatedCPU:      dedicated,
+		Networks:          netSpecs,
+		Labels:            sgLabels(in.SecurityGroupIDs),
+		CloudInitExtra:    cloudInitExtra,
+		CloudInitPassword: cloudInitPassword,
+		CloudInitSSHKeys:  sshKeys,
 	}
 	if in.DataVolumeID != "" {
 		vol, err := s.validateUnattachedVolume(tenantID, in.DataVolumeID)
@@ -939,4 +958,22 @@ func sgLabels(sgIDs []string) map[string]string {
 		labels[branding.SGPodLabelKey(id)] = "true"
 	}
 	return labels
+}
+
+func needsLinuxGuestAuth(osType string, tmpl *platform.VMTemplate) bool {
+	if strings.EqualFold(osType, "windows") {
+		return false
+	}
+	if tmpl != nil && strings.EqualFold(tmpl.SourceType, "iso") {
+		return false
+	}
+	if tmpl != nil && strings.EqualFold(tmpl.OSType, "windows") {
+		return false
+	}
+	return true
+}
+
+func looksLikeInsecureDefaultUbuntuUserData(userData string) bool {
+	ud := strings.ToLower(userData)
+	return strings.Contains(ud, "password: ubuntu") && strings.Contains(ud, "ssh_pwauth")
 }

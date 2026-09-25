@@ -13,7 +13,7 @@ Free to use, modify, and self-host.
 | Compute | KubeVirt VMs, templates, offerings (shared + dedicated CPU), **VM** snapshots |
 | Network | VPCs, private subnets, public network profile, security groups |
 | Storage | Volumes; **volume** snapshots (requires CSI `VolumeSnapshot` + snapshot-capable StorageClass — not `local-path`) |
-| Access | SSH keys, noVNC console, REST API |
+| Access | SSH keys (required for Linux create), optional one-time `cloud_init_password`, noVNC console, REST API |
 | Packaging | Helm chart, optional sideload scripts |
 
 ## Enterprise (Thurler IT — separate license)

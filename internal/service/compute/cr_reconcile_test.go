@@ -23,4 +23,10 @@ func TestCanDeployViaOperator(t *testing.T) {
 	if s.canDeployViaOperator(linuxTmpl, DeployVMInput{}, []string{"net-1"}) {
 		t.Fatal("extra networks should use hypervisor path")
 	}
+	if s.canDeployViaOperator(linuxTmpl, DeployVMInput{SSHKeyID: "key-1"}, nil) {
+		t.Fatal("SSH key should use hypervisor path until Instance sshKeyRefs exists")
+	}
+	if s.canDeployViaOperator(linuxTmpl, DeployVMInput{CloudInitPassword: "x"}, nil) {
+		t.Fatal("cloud_init_password should use hypervisor path")
+	}
 }

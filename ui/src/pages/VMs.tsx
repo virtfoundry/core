@@ -195,6 +195,9 @@ export function VMs() {
     if (isPublic && form.security_group_ids.length === 0) {
       return;
     }
+    if (linux && !form.ssh_key_id) {
+      return;
+    }
 
     deployMutation.mutate({
       name: form.name,
@@ -205,7 +208,7 @@ export function VMs() {
       dedicated_cpu: form.dedicated_cpu || !!offering.dedicated_cpu,
       ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
       ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
-      ...(linux && form.ssh_key_id ? { ssh_key_id: form.ssh_key_id } : {}),
+      ...(linux ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
     });
   };
@@ -514,8 +517,9 @@ export function VMs() {
           {!isWindowsTemplate(selectedTemplate) && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1">{t('vms.sshKeyOptional')}</label>
+                <label className="block text-sm font-medium mb-1">{t('vms.sshKeyRequired')}</label>
                 <select
+                  required
                   value={form.ssh_key_id}
                   onChange={(e) => setForm({ ...form, ssh_key_id: e.target.value })}
                   className={formSelectClass}
@@ -526,7 +530,7 @@ export function VMs() {
                   ))}
                 </select>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  {t('ssh.deployHint')}{' '}
+                  {sshKeys.length === 0 ? t('vms.sshKeyMissing') : t('ssh.deployHint')}{' '}
                   <Link to="/ssh-keys" className="text-primary hover:text-primary-fixed-dim hover:underline">{t('vms.manageKeys')}</Link>
                 </p>
               </div>
@@ -556,7 +560,8 @@ export function VMs() {
               disabled={
                 deployMutation.isPending ||
                 !form.template_id ||
-                (form.network_mode === 'public' && form.security_group_ids.length === 0)
+                (form.network_mode === 'public' && form.security_group_ids.length === 0) ||
+                (!isWindowsTemplate(selectedTemplate) && !form.ssh_key_id)
               }
               className="btn-primary"
             >

@@ -43,9 +43,11 @@ kubevirt:
   kubeconfig: ""
   namespace: "default"
 
-# VM defaults applied during template seeding. The seed CloudInitNoCloud payload
-# marks the password as expired (chpasswd.expire: True), so PAM forces the user
-# to pick a new one on first login. Empty falls back to "ubuntu".
+# VM defaults applied during template seeding. When set, the seed CloudInitNoCloud
+# payload marks the password as expired (chpasswd.expire: True), so PAM forces the
+# user to pick a new one on first login. Empty (default) means no password is
+# seeded — Linux VM create requires ssh_key_id or cloud_init_password (issue #97).
+# Never leave this unset and expect a published default such as "ubuntu".
 # vm:
 #   default_password: ""
 

@@ -171,7 +171,11 @@ func (d *KubeVirtDriver) CreateVM(ctx context.Context, spec VMDeploySpec) error 
 		}
 		vmiSpec = buildWindowsVMISpec(spec, ifaces, cpu, memMi)
 	} else {
-		vmiSpec = buildLinuxVMISpec(spec, ifaces, image, cpu, memMi)
+		var err error
+		vmiSpec, err = buildLinuxVMISpec(spec, ifaces, image, cpu, memMi)
+		if err != nil {
+			return err
+		}
 	}
 	vmiSpec.Networks = networks
 
@@ -785,7 +789,11 @@ func strPtr(s string) *string { return &s }
 
 func boolPtr(b bool) *bool { return &b }
 
-func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image string, cpu int, memMi int64) kubevirtv1.VirtualMachineInstanceSpec {
+func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image string, cpu int, memMi int64) (kubevirtv1.VirtualMachineInstanceSpec, error) {
+	ci, err := buildCloudInitSource(spec)
+	if err != nil {
+		return kubevirtv1.VirtualMachineInstanceSpec{}, err
+	}
 	disks := []kubevirtv1.Disk{
 		{Name: "containerdisk", DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
 		{Name: "cloudinitdisk", DiskDevice: kubevirtv1.DiskDevice{Disk: &kubevirtv1.DiskTarget{Bus: "virtio"}}},
@@ -800,7 +808,7 @@ func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image s
 		{
 			Name: "cloudinitdisk",
 			VolumeSource: kubevirtv1.VolumeSource{
-				CloudInitNoCloud: buildCloudInitSource(spec),
+				CloudInitNoCloud: ci,
 			},
 		},
 	}
@@ -824,7 +832,7 @@ func buildLinuxVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, image s
 			Resources: vmResourceRequirements(memMi, cpu, spec.DedicatedCPU),
 		},
 		Volumes: volumes,
-	}
+	}, nil
 }
 
 func buildWindowsVMISpec(spec VMDeploySpec, ifaces []kubevirtv1.Interface, cpu int, memMi int64) kubevirtv1.VirtualMachineInstanceSpec {
@@ -1016,15 +1024,17 @@ func buildNetworks(specs []VMNetworkSpec) ([]kubevirtv1.Network, []kubevirtv1.In
 	return networks, ifaces, defaultNet
 }
 
-func buildCloudInitSource(spec VMDeploySpec) *kubevirtv1.CloudInitNoCloudSource {
-	src := &kubevirtv1.CloudInitNoCloudSource{
-		UserData: cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{
-			SSHPublicKeys:  spec.CloudInitSSHKeys,
-			Password:       spec.CloudInitPassword,
-			ExtraUserData:  spec.CloudInitExtra,
-			FormatDataDisk: spec.FormatDataDisk || spec.DataPVC != "",
-		}),
+func buildCloudInitSource(spec VMDeploySpec) (*kubevirtv1.CloudInitNoCloudSource, error) {
+	userData, err := cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{
+		SSHPublicKeys:  spec.CloudInitSSHKeys,
+		Password:       spec.CloudInitPassword,
+		ExtraUserData:  spec.CloudInitExtra,
+		FormatDataDisk: spec.FormatDataDisk || spec.DataPVC != "",
+	})
+	if err != nil {
+		return nil, err
 	}
+	src := &kubevirtv1.CloudInitNoCloudSource{UserData: userData}
 	var netIfaces []cloudinit.NetworkInterfaceConfig
 	for _, sn := range spec.Networks {
 		if sn.MACAddress == "" || sn.Default || sn.NADName == "" {
@@ -1042,7 +1052,7 @@ func buildCloudInitSource(spec VMDeploySpec) *kubevirtv1.CloudInitNoCloudSource 
 	if networkData := cloudinit.BuildNetworkData(netIfaces); networkData != "" {
 		src.NetworkData = networkData
 	}
-	return src
+	return src, nil
 }
 
 func buildMultusNetworksAnnotation(specs []VMNetworkSpec) string {

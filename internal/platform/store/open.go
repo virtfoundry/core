@@ -13,13 +13,9 @@ func Open(cfg config.Config) (Repository, error) {
 	if driver == "" {
 		driver = cfg.Database.Driver
 	}
-	// Password is safe to be a known default ("ubuntu") because the seed
-	// CloudInitNoCloud payload sets chpasswd.expire: True, forcing a password
-	// change on first login via PAM.
+	// Password for seed Linux templates is opt-in only. Never fall back to a
+	// published default such as "ubuntu" (issue #97).
 	defaultPassword := cfg.VM.DefaultPassword
-	if defaultPassword == "" {
-		defaultPassword = config.BuiltinDefaultVMPassword
-	}
 	if strings.EqualFold(driver, "kubernetes") {
 		kubeconfig := cfg.Database.Kubeconfig
 		if kubeconfig == "" {

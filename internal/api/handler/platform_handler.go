@@ -842,6 +842,7 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		PublicIP          bool     `json:"public_ip"`
 		SecurityGroupIDs  []string `json:"security_group_ids"`
 		SSHKeyID          string   `json:"ssh_key_id"`
+		CloudInitPassword string   `json:"cloud_init_password"`
 		DataVolumeID      string   `json:"data_volume_id"`
 		ExposeSSH         bool     `json:"expose_ssh"`
 		DedicatedCPU      bool     `json:"dedicated_cpu"`
@@ -856,8 +857,9 @@ func (h *PlatformHandler) DeployVM(w http.ResponseWriter, r *http.Request) {
 		CPU: req.CPU, MemoryMi: req.MemoryMi, Start: true,
 		ServiceOfferingID: req.ServiceOfferingID, TemplateID: req.TemplateID,
 		NetworkIDs: req.NetworkIDs, PublicIP: req.PublicIP, SecurityGroupIDs: req.SecurityGroupIDs,
-		SSHKeyID:     req.SSHKeyID,
-		DataVolumeID: req.DataVolumeID, ExposeSSH: req.ExposeSSH,
+		SSHKeyID:          req.SSHKeyID,
+		CloudInitPassword: req.CloudInitPassword,
+		DataVolumeID:      req.DataVolumeID, ExposeSSH: req.ExposeSSH,
 		DedicatedCPU: req.DedicatedCPU,
 	}
 	if req.Async {
