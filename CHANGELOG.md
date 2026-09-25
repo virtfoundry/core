@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-25
+
 ### Fixed
 
 - **VM deploy shows Error / 0 vCPU after operator 0.7.2** â€” Instance CRs written by the API for pod-network (or CR-first without Multus `spec.nics`) now set `virtfoundry.io/allow-pod-network=true`, matching the operator opt-in. `ListVMs` / `SyncAllVMStates` enrich CPU/memory/template from Offering/Template refs so the UI no longer shows `0 vCPU / 0 MiB` when the Instance status has no sizing fields (background sync no longer overwrites the list cache without enrichment).
@@ -270,4 +272,5 @@ Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`â
 [0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0
 
+[0.7.3]: https://github.com/virtfoundry/core/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/virtfoundry/core/compare/v0.7.1...v0.7.2
