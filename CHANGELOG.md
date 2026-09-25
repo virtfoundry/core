@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Fixed
+
+- **VM deploy shows Error / 0 vCPU after operator 0.7.2** — Instance CRs written by the API for pod-network (or CR-first without Multus `spec.nics`) now set `virtfoundry.io/allow-pod-network=true`, matching the operator opt-in. `ListVMs` also enriches CPU/memory/template from Offering/Template refs so the UI no longer shows `0 vCPU / 0 MiB` when the Instance status has no sizing fields.
+
 ## [0.7.2] - 2026-09-25
 
 Security release: cumulative product-security audit fixes since 0.7.1 (SSH defaults, console tickets, JWT/root secrets, CORS/WS Origin, ISO allowlist, CDI importer egress, non-root images, http(s) template→ISO).

@@ -75,6 +75,50 @@ func TestInstancePowerStateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestInstanceToUnstructuredAnnotatesPodNetworkWhenNoMultusNics(t *testing.T) {
+	vm := &platform.PlatformVM{
+		Name: "teste",
+		NICs: []platform.VMNic{{Name: "default", Type: "pod"}},
+	}
+	obj := InstanceToUnstructured(vm, "default", "small", "ubuntu-2204", nil)
+	if got := obj.GetAnnotations()[AnnAllowPodNetwork]; got != "true" {
+		t.Fatalf("allow-pod-network annotation: got %q want true", got)
+	}
+	if _, ok, _ := unstructured.NestedSlice(obj.Object, "spec", "nics"); ok {
+		t.Fatal("expected no Multus spec.nics for pod-only NICs")
+	}
+	if got := obj.GetAnnotations()[AnnLegacyID]; got != "" {
+		// SetLegacyID only when vm.ID set — ensure we did not wipe other anns when ID empty
+		t.Fatalf("unexpected legacy-id without vm.ID: %q", got)
+	}
+}
+
+func TestInstanceToUnstructuredKeepsLegacyIDWithPodNetworkAnnotation(t *testing.T) {
+	vm := &platform.PlatformVM{ID: "id-1", Name: "web"}
+	obj := InstanceToUnstructured(vm, "default", "small", "cirros", nil)
+	if obj.GetAnnotations()[AnnLegacyID] != "id-1" {
+		t.Fatalf("legacy-id lost: %#v", obj.GetAnnotations())
+	}
+	if obj.GetAnnotations()[AnnAllowPodNetwork] != "true" {
+		t.Fatalf("allow-pod-network missing: %#v", obj.GetAnnotations())
+	}
+}
+
+func TestInstanceToUnstructuredOmitsPodAnnotationWhenMultusNicsPresent(t *testing.T) {
+	vm := &platform.PlatformVM{
+		Name: "web",
+		NICs: []platform.VMNic{{Name: "eth0", NetworkID: "net-1", Type: "multus"}},
+	}
+	obj := InstanceToUnstructured(vm, "default", "small", "cirros", map[string]string{"net-1": "default"})
+	if _, ok := obj.GetAnnotations()[AnnAllowPodNetwork]; ok {
+		t.Fatalf("should not set allow-pod-network when Multus nics written: %#v", obj.GetAnnotations())
+	}
+	nics, ok, err := unstructured.NestedSlice(obj.Object, "spec", "nics")
+	if err != nil || !ok || len(nics) != 1 {
+		t.Fatalf("spec.nics: ok=%v len=%d err=%v", ok, len(nics), err)
+	}
+}
+
 func TestInstanceFromUnstructuredReturnsErrorForInvalidFieldType(t *testing.T) {
 	obj := newObject("Instance", "web-01", "ns")
 	obj.Object["spec"] = map[string]interface{}{"dedicatedCPU": "true"}
