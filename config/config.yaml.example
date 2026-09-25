@@ -9,6 +9,11 @@ logger:
 security:
   jwt_secret: "dev-secret-change-in-prod"
   jwt_expire: 86400
+  # Browser origins allowed to open the /ws/events WebSocket. The request host
+  # is always accepted (the UI is served same-origin), so this is only needed
+  # when the UI is hosted on a different origin than the API.
+  # allowed_origins:
+  #   - "https://console.example.com"
   # Login brute-force protection: failures within `window` beyond the max
   # temporarily block the username / client IP for `lockout` (HTTP 429).
   # login_throttle:

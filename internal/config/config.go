@@ -101,9 +101,14 @@ type LoggerConfig struct {
 }
 
 type SecurityConfig struct {
-	JWTSecret     string              `mapstructure:"jwt_secret"`
-	JWTExpire     int                 `mapstructure:"jwt_expire"`
-	LoginThrottle LoginThrottleConfig `mapstructure:"login_throttle"`
+	JWTSecret string `mapstructure:"jwt_secret"`
+	JWTExpire int    `mapstructure:"jwt_expire"`
+	// AllowedOrigins lists the browser origins allowed to open the
+	// /ws/events WebSocket, e.g. "https://console.example.com". The request
+	// host itself is always accepted because the UI is served same-origin;
+	// this is only needed when the UI runs on a different origin than the API.
+	AllowedOrigins []string            `mapstructure:"allowed_origins"`
+	LoginThrottle  LoginThrottleConfig `mapstructure:"login_throttle"`
 }
 
 // LoginThrottleConfig tunes login brute-force protection. Zero values fall

@@ -237,7 +237,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		}
 	}
 	s.invalidateVMListCache(tenantID)
-	s.broadcastVM("vm.created", vm)
+	s.broadcastVM(tenantID, "vm.created", vm)
 	return vm, nil
 }
 
@@ -297,10 +297,10 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 	s.invalidateVMListCache(tenantID)
 	merged, _ := s.GetVM(ctx, tenantID, name)
 	if merged != nil {
-		s.broadcastVM("vm.updated", merged)
+		s.broadcastVM(tenantID, "vm.updated", merged)
 		return merged, nil
 	}
-	s.broadcastVM("vm.updated", vm)
+	s.broadcastVM(tenantID, "vm.updated", vm)
 	return vm, nil
 }
 
@@ -382,7 +382,7 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 				s.vmStates[key] = sig
 				s.vmStateMu.Unlock()
 				if ok {
-					s.broadcastVM("vm.updated", vm)
+					s.broadcastVM(tenant.ID, "vm.updated", vm)
 				}
 				continue
 			}
@@ -403,7 +403,7 @@ func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platfo
 	if err != nil {
 		return nil, err
 	}
-	s.broadcastVM("vm.updated", vm)
+	s.broadcastVM(tenantID, "vm.updated", vm)
 	return vm, nil
 }
 
@@ -419,7 +419,7 @@ func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platfor
 	if err != nil {
 		return nil, err
 	}
-	s.broadcastVM("vm.updated", vm)
+	s.broadcastVM(tenantID, "vm.updated", vm)
 	return vm, nil
 }
 
@@ -465,7 +465,7 @@ func (s *Service) DeleteVM(ctx context.Context, tenantID, vmName string) error {
 	delete(s.vmStates, key)
 	s.vmStateMu.Unlock()
 	s.invalidateVMListCache(tenantID)
-	s.broadcastVM("vm.deleted", map[string]string{"tenant_id": tenantID, "name": vmName})
+	s.broadcastVMDeleted(tenantID, vmName)
 	return nil
 }
 
@@ -606,17 +606,34 @@ func (s *Service) ReconcileAll(ctx context.Context) {
 				stored.State = "Destroyed"
 				stored.UpdatedAt = store.Now()
 				s.store.SaveVM(stored)
-				s.broadcastVM("vm.updated", stored)
+				s.broadcastVM(tenant.ID, "vm.updated", stored)
 			}
 		}
 		s.invalidateVMListCache(tenant.ID)
 	}
 }
 
-func (s *Service) broadcastVM(eventType string, payload interface{}) {
-	if s.hub != nil {
-		s.hub.Broadcast(eventType, payload)
+// vmEvent is the realtime payload for VM events. It carries only what the UI
+// needs to invalidate its caches — namespace, IPs, host and NICs stay out of
+// the stream so a subscriber never receives inventory detail over WebSocket.
+type vmEvent struct {
+	ID    string `json:"id,omitempty"`
+	Name  string `json:"name"`
+	State string `json:"state,omitempty"`
+}
+
+func (s *Service) broadcastVM(tenantID, eventType string, vm *platform.PlatformVM) {
+	if s.hub == nil || vm == nil {
+		return
 	}
+	s.hub.BroadcastTenant(tenantID, eventType, vmEvent{ID: vm.ID, Name: vm.Name, State: vm.State})
+}
+
+func (s *Service) broadcastVMDeleted(tenantID, vmName string) {
+	if s.hub == nil {
+		return
+	}
+	s.hub.BroadcastTenant(tenantID, "vm.deleted", vmEvent{Name: vmName})
 }
 
 func (s *Service) applyVMInfo(vm *platform.PlatformVM, info hypervisor.VMInfo, tenant *platform.Tenant) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { authService } from '../lib/auth';
 import {
   invalidateConnectivityFallback,
   invalidateForPlatformEvent,
@@ -10,6 +11,17 @@ const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${wi
 
 /** Safety poll only when WebSocket is disconnected (not a global refetch). */
 const WS_DOWN_FALLBACK_MS = 45_000;
+
+/** /ws/events is authenticated and tenant-scoped; the browser cannot set headers on a WebSocket. */
+function eventsWsUrl(): string {
+  const params = new URLSearchParams();
+  const token = authService.getToken();
+  if (token) params.set('token', token);
+  const tenantId = localStorage.getItem('tenant_id');
+  if (tenantId) params.set('tenant_id', tenantId);
+  const query = params.toString();
+  return query ? `${WS_BASE}/ws/events?${query}` : `${WS_BASE}/ws/events`;
+}
 
 export function useRealtimeEvents() {
   const queryClient = useQueryClient();
@@ -29,7 +41,7 @@ export function useRealtimeEvents() {
     let fallbackTimer: ReturnType<typeof setInterval>;
 
     function connect() {
-      const ws = new WebSocket(`${WS_BASE}/ws/events`);
+      const ws = new WebSocket(eventsWsUrl());
       wsRef.current = ws;
 
       ws.onopen = () => {

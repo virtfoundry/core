@@ -122,10 +122,14 @@ Tenant ────────────────────────�
 
 **WebSockets**
 
-| Path | Purpose |
-|------|---------|
-| `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …) |
-| `/ws/console?name=&namespace=` | noVNC proxy |
+| Path | Purpose | Auth |
+|------|---------|------|
+| `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …), scoped to the caller's tenant. Root adds `all_tenants=true` to see every tenant. | JWT / API key (`?token=`) |
+| `/ws/console?name=&namespace=` | noVNC proxy | JWT / API key (`?token=`) |
+
+`/ws/events` rejects browser origins other than the request host and
+`security.allowed_origins`. `/ws/console` still uses the KubeVirt client
+upgrader, which does not check `Origin`.
 
 **Multi-tenancy:** root users send header `X-Tenant-ID` to operate inside a tenant.
 
