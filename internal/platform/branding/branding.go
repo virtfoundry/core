@@ -30,8 +30,12 @@ const (
 	VPCNamespacePrefix    = "virtfoundry-vpc-"
 
 	ResourceQuotaName  = "virtfoundry-quota"
-	BridgeName         = "virtfoundry-br0"
-	KubeVirtSecretName = "virtfoundry-kubevirt"
+	// CDIImporterEgressPolicyName is the egress NetworkPolicy applied in each
+	// tenant namespace so CDI HTTP importer pods cannot reach RFC1918 / link-local
+	// / CGNAT destinations (defense in depth after the ISO URL allowlist).
+	CDIImporterEgressPolicyName = "virtfoundry-cdi-importer-egress"
+	BridgeName                  = "virtfoundry-br0"
+	KubeVirtSecretName          = "virtfoundry-kubevirt"
 
 	DefaultRootPassword     = "virtfoundry"
 	DefaultTenantSlug       = "default"

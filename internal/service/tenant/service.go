@@ -58,6 +58,11 @@ func (s *Service) EnsureTenant(ctx context.Context, name, slug string) (*platfor
 		return nil, fmt.Errorf("invalid tenant slug")
 	}
 	if existing, ok := s.store.GetTenantBySlug(slug); ok {
+		// Upsert namespace resources (quota + CDI importer egress NP) for
+		// tenants created before this policy existed.
+		if _, err := s.k8s.EnsureTenantNamespace(ctx, existing.ID, slug, platformk8s.DefaultTenantQuota()); err != nil {
+			return nil, err
+		}
 		return existing, nil
 	}
 
