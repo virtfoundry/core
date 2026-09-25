@@ -104,10 +104,12 @@ type LoggerConfig struct {
 type SecurityConfig struct {
 	JWTSecret string `mapstructure:"jwt_secret"`
 	JWTExpire int    `mapstructure:"jwt_expire"`
-	// AllowedOrigins lists the browser origins allowed to open the
-	// /ws/events WebSocket, e.g. "https://console.example.com". The request
-	// host itself is always accepted because the UI is served same-origin;
-	// this is only needed when the UI runs on a different origin than the API.
+	// AllowedOrigins lists the browser origins allowed for CORS and for the
+	// /ws/events and /ws/console WebSockets, e.g. "https://console.example.com".
+	// The request host itself is always accepted because the UI is served
+	// same-origin via the nginx proxy; this list is only needed when the UI
+	// runs on a different origin than the API. Empty means fail closed for
+	// cross-origin (no Access-Control-Allow-Origin: *).
 	AllowedOrigins []string            `mapstructure:"allowed_origins"`
 	LoginThrottle  LoginThrottleConfig `mapstructure:"login_throttle"`
 	// ISOImport restricts where CDI may download tenant-supplied ISO URLs from.
@@ -198,6 +200,9 @@ const (
 	EnvISOAllowedHosts = "VIRTFOUNDRY_ISO_ALLOWED_HOSTS"
 	// EnvISODisableHTTPImport set to "1" refuses every URL-based ISO import.
 	EnvISODisableHTTPImport = "VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT"
+	// EnvAllowedOrigins overrides security.allowed_origins with a
+	// comma-separated list of browser origins for CORS and WebSocket checks.
+	EnvAllowedOrigins = "VIRTFOUNDRY_ALLOWED_ORIGINS"
 )
 
 // ApplyISOImportEnv lets operators set the ISO import allowlist via environment
@@ -216,6 +221,24 @@ func ApplyISOImportEnv(cfg *Config) {
 	}
 	if os.Getenv(EnvISODisableHTTPImport) == "1" {
 		cfg.Security.ISOImport.DisableHTTPImport = true
+	}
+}
+
+// ApplyAllowedOriginsEnv lets operators set the CORS / WebSocket origin
+// allowlist via environment, which takes precedence over the YAML config.
+func ApplyAllowedOriginsEnv(cfg *Config) {
+	raw := os.Getenv(EnvAllowedOrigins)
+	if raw == "" {
+		return
+	}
+	var origins []string
+	for _, origin := range strings.Split(raw, ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	if len(origins) > 0 {
+		cfg.Security.AllowedOrigins = origins
 	}
 }
 

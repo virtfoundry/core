@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/virtfoundry/core/internal/api/middleware"
+	"github.com/virtfoundry/core/internal/api/ws"
 	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/pkg/logger"
@@ -19,14 +20,15 @@ import (
 )
 
 type ConsoleHandler struct {
-	driver  *hypervisor.KubeVirtDriver
-	store   store.Repository
-	svc     *service.PlatformService
-	tickets *auth.ConsoleTicketStore
+	driver         *hypervisor.KubeVirtDriver
+	store          store.Repository
+	svc            *service.PlatformService
+	tickets        *auth.ConsoleTicketStore
+	allowedOrigins []string
 }
 
-func NewConsoleHandler(driver *hypervisor.KubeVirtDriver, st store.Repository, svc *service.PlatformService, tickets *auth.ConsoleTicketStore) *ConsoleHandler {
-	return &ConsoleHandler{driver: driver, store: st, svc: svc, tickets: tickets}
+func NewConsoleHandler(driver *hypervisor.KubeVirtDriver, st store.Repository, svc *service.PlatformService, tickets *auth.ConsoleTicketStore, allowedOrigins []string) *ConsoleHandler {
+	return &ConsoleHandler{driver: driver, store: st, svc: svc, tickets: tickets, allowedOrigins: allowedOrigins}
 }
 
 // resolveVMAccess authorizes the caller for an interactive console and returns
@@ -169,6 +171,9 @@ func (h *ConsoleHandler) VNCConsole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	upgrader := kvcorev1.NewUpgrader()
+	// KubeVirt's NewUpgrader hardcodes CheckOrigin: true; pin it to the same
+	// allowlist used by /ws/events and CORS now that console auth is ticket-based.
+	upgrader.CheckOrigin = ws.OriginChecker(h.allowedOrigins)
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return

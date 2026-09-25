@@ -128,9 +128,10 @@ Tenant ────────────────────────�
 | `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …), scoped to the caller's tenant. Root adds `all_tenants=true` to see every tenant. | JWT / API key (`?token=`) |
 | `/ws/console?ticket=` | noVNC proxy | Console ticket, or API key / JWT in the `Authorization` header. Requires `vms:console`. |
 
-`/ws/events` rejects browser origins other than the request host and
-`security.allowed_origins`. `/ws/console` still uses the KubeVirt client
-upgrader, which does not check `Origin`.
+`/ws/events` and `/ws/console` reject browser origins other than the request
+host and `security.allowed_origins` (same allowlist as CORS). A request with
+no `Origin` header is still allowed for non-browser clients that authenticate
+via ticket, JWT, or API key.
 
 **Console handshake:** the browser calls `POST /vms/{name}/console-ticket` with
 its normal `Authorization` header and receives a single-use ticket that expires
@@ -145,8 +146,6 @@ Non-browser clients can skip the ticket and send the header directly.
 - User CRUD (only root bootstrap + admin on tenant create)
 - Delete/update for VPC, network, volume, snapshot, security group
 - Async job status endpoint
-- Console WebSocket auth (today only `name` + `namespace`)
-
 ---
 
 ## Frontend (`ui/`)

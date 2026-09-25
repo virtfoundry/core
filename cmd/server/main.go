@@ -111,7 +111,7 @@ func main() {
 	router := mux.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
-	router.Use(middleware.CORS)
+	router.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -128,7 +128,7 @@ func main() {
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
 	consoleTickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL)
-	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc, consoleTickets)
+	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc, consoleTickets, cfg.Security.AllowedOrigins)
 	eventsHandler := handler.NewEventsHandler(hub, platformSvc, cfg.Security.AllowedOrigins)
 	authenticate := middleware.Authenticate(authSvc, repo, identitySvc)
 
@@ -275,6 +275,7 @@ func loadConfig() (*config.Config, string) {
 		cfg.Security.JWTSecret = v
 	}
 	config.ApplyISOImportEnv(cfg)
+	config.ApplyAllowedOriginsEnv(cfg)
 	if err := config.Validate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "insecure configuration rejected: %v\n", err)
 		os.Exit(1)

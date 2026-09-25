@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-// OriginChecker builds the CheckOrigin func for the events upgrader. It accepts
-// the request host itself (the UI is served same-origin) plus any origin listed
-// in security.allowed_origins, and rejects everything else so a third-party page
-// cannot open the socket (CSWSH).
+// OriginChecker builds the CheckOrigin func for WebSocket upgraders
+// (/ws/events and /ws/console). It accepts the request host itself (the UI is
+// served same-origin) plus any origin listed in security.allowed_origins, and
+// rejects everything else so a third-party page cannot open the socket (CSWSH).
 //
 // A request with no Origin header is allowed: only browsers set Origin, so its
 // absence means a non-browser client (CLI, API key consumer) that CSWSH does not
