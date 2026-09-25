@@ -17,6 +17,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Security
 
+- **UI/API images run non-root** (coordinates [helm-charts#42](https://github.com/virtfoundry/helm-charts/issues/42))
+  - UI nginx listens on **8080** (was 80) with an unprivileged main config and `USER nginx`. Helm Service stays `80→8080`.
+  - API image runs as UID `65532` (`nonroot`). Chart pod `securityContext` must match.
 - **CDI importer egress NetworkPolicy in each tenant namespace** (follow-up to [#95](https://github.com/virtfoundry/core/issues/95) / [helm-charts#49](https://github.com/virtfoundry/helm-charts/issues/49))
   - `EnsureTenantNamespace` creates/updates `virtfoundry-cdi-importer-egress`, selecting CDI pods labeled `cdi.kubevirt.io=importer`. DNS to kube-dns/CoreDNS is allowed; egress to `0.0.0.0/0` and `::/0` excludes private / link-local / CGNAT ranges so DNS rebinding of an allowlisted ISO host cannot reach cluster-internal or metadata addresses over the pod network.
   - Existing tenants pick up the policy on API bootstrap (`EnsureTenant` / `BootstrapDefaultSecurityGroups`) without recreating the tenant record.
