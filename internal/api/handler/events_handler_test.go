@@ -93,6 +93,8 @@ func readEvent(t *testing.T, conn *websocket.Conn) (ws.Event, error) {
 	}
 	_, raw, err := conn.ReadMessage()
 	if err != nil {
+		// gorilla/websocket forbids another Read after any error (including
+		// deadline). Callers must not retry ReadMessage on this conn.
 		return ws.Event{}, err
 	}
 	var ev ws.Event
@@ -104,17 +106,45 @@ func readEvent(t *testing.T, conn *websocket.Conn) (ws.Event, error) {
 
 // awaitSubscription blocks until the tenant's client is registered, so a later
 // negative assertion cannot pass just because the broadcast raced the upgrade.
+//
+// Probes are broadcast from a goroutine while we do a single continuous read
+// with one deadline. Looping ReadMessage after a timeout panics with
+// "repeated read on failed websocket connection" (gorilla marks the conn dead).
 func (f *eventsFixture) awaitSubscription(t *testing.T, conn *websocket.Conn, tenantID string) {
 	t.Helper()
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
 		f.hub.BroadcastTenant(tenantID, "subscription.probe", nil)
-		if ev, err := readEvent(t, conn); err == nil && ev.Type == "subscription.probe" {
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				f.hub.BroadcastTenant(tenantID, "subscription.probe", nil)
+			}
+		}
+	}()
+
+	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	for {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("client for tenant %s never received its own events: %v", tenantID, err)
+		}
+		var ev ws.Event
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			t.Fatalf("unmarshal event: %v", err)
+		}
+		if ev.Type == "subscription.probe" {
 			return
 		}
 	}
-	t.Fatalf("client for tenant %s never received its own events", tenantID)
 }
 
 func TestEventsRejectsUnauthenticatedUpgrade(t *testing.T) {
