@@ -27,9 +27,12 @@ import (
 )
 
 func main() {
-	cfg := loadConfig()
+	cfg, jwtSecret := loadConfig()
 	logger.Init(cfg.Logger.Level, cfg.Logger.Format != "json")
 	log := logger.Get()
+	if config.AllowInsecureDefaults() {
+		log.Warn("VF_ALLOW_INSECURE_DEFAULTS=1: JWT/root password validation is skipped; do NOT use this in production")
+	}
 	log.Info("starting VirtFoundry", zap.Int("port", cfg.Server.Port))
 
 	hub := ws.NewHub()
@@ -57,10 +60,6 @@ func main() {
 	}
 	defer repo.Close()
 
-	jwtSecret := cfg.Security.JWTSecret
-	if v := os.Getenv("JWT_SECRET"); v != "" {
-		jwtSecret = v
-	}
 	authSvc := auth.NewService(jwtSecret, cfg.Security.JWTExpire)
 	platformSvc := service.NewPlatformService(repo, k8sMgr, kvDriver, hub)
 	if cfg.Observability.VelasExploreURL != "" {
@@ -70,15 +69,21 @@ func main() {
 		compute.SetVelasConfig(compute.VelasConfig{ExploreURLTemplate: v})
 	}
 
+	rootPass, rootPassGenerated, err := resolveRootPassword(repo)
+	if err != nil {
+		log.Fatal("resolve root password", zap.Error(err))
+	}
 	if !repo.HasRootUser() {
-		rootPass := os.Getenv("ROOT_PASSWORD")
-		if rootPass == "" {
-			rootPass = branding.DefaultRootPassword
-		}
 		if _, err := platformSvc.BootstrapRoot("root", rootPass); err != nil {
 			log.Fatal("bootstrap root", zap.Error(err))
 		}
-		log.Info("root user bootstrapped", zap.String("username", "root"))
+		if rootPassGenerated {
+			log.Warn("root user bootstrapped with a one-time generated password; save it now, it will not be shown again",
+				zap.String("username", "root"),
+				zap.String("one_time_root_password", rootPass))
+		} else {
+			log.Info("root user bootstrapped", zap.String("username", "root"))
+		}
 	}
 
 	if tenant, err := platformSvc.BootstrapRootDefaultTenant(context.Background()); err != nil {
@@ -240,14 +245,45 @@ func main() {
 	log.Info("shutdown complete")
 }
 
-func loadConfig() *config.Config {
+func loadConfig() (*config.Config, string) {
 	cfgPath := os.Getenv("CONFIG_PATH")
 	if cfgPath == "" {
 		cfgPath = config.DefaultConfigPath
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		return config.DefaultConfig()
+		fmt.Fprintf(os.Stderr, "failed to load config %q: %v\n", cfgPath, err)
+		os.Exit(1)
 	}
-	return cfg
+	if v := os.Getenv("JWT_SECRET"); v != "" {
+		cfg.Security.JWTSecret = v
+	}
+	if err := config.Validate(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "insecure configuration rejected: %v\n", err)
+		os.Exit(1)
+	}
+	return cfg, cfg.Security.JWTSecret
+}
+
+func resolveRootPassword(repo store.Repository) (string, bool, error) {
+	rootPass := os.Getenv("ROOT_PASSWORD")
+	if rootPass != "" {
+		if err := config.ValidateRootPassword(rootPass); err != nil {
+			return "", false, err
+		}
+		return rootPass, false, nil
+	}
+	if config.AllowInsecureDefaults() {
+		logger.Get().Warn("ROOT_PASSWORD not set; using known default because VF_ALLOW_INSECURE_DEFAULTS=1 (dev only)",
+			zap.String("default_username", "root"))
+		return branding.DefaultRootPassword, false, nil
+	}
+	if repo.HasRootUser() {
+		return "", false, nil
+	}
+	generated, err := config.GenerateRootPassword()
+	if err != nil {
+		return "", false, err
+	}
+	return generated, true, nil
 }

@@ -132,7 +132,7 @@ func DefaultConfig() *Config {
 			Format: "json",
 		},
 		Security: SecurityConfig{
-			JWTSecret: getEnv("JWT_SECRET", "change-me-in-production"),
+			JWTSecret: getEnv("JWT_SECRET", ""),
 			JWTExpire: 86400,
 		},
 		KubeVirt: KubeVirtConfig{
