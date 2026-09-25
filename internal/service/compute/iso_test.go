@@ -96,6 +96,31 @@ func TestCreateVMTemplateSkipsURLPolicyForContainerDisks(t *testing.T) {
 	}
 }
 
+func TestCreateVMTemplateHTTPURLWithoutSourceTypeUsesISOPolicy(t *testing.T) {
+	s, tenantID := newISOTestService(t, []string{"iso.example.com"})
+
+	// Omitting source_type used to default to container and skip the allowlist.
+	tmpl, err := s.CreateVMTemplate(context.Background(), tenantID, CreateVMTemplateInput{
+		Name: "metadata-ssrf", Image: "https://169.254.169.254/latest/meta-data/",
+	})
+	assertBadRequest(t, err)
+	if tmpl != nil {
+		t.Fatal("template was created for link-local URL without source_type=iso")
+	}
+}
+
+func TestCreateVMTemplateRejectsHTTPURLWithContainerSourceType(t *testing.T) {
+	s, tenantID := newISOTestService(t, []string{"iso.example.com"})
+
+	tmpl, err := s.CreateVMTemplate(context.Background(), tenantID, CreateVMTemplateInput{
+		Name: "fake-container", SourceType: "container", Image: "https://iso.example.com/win.iso",
+	})
+	assertBadRequest(t, err)
+	if tmpl != nil {
+		t.Fatal("http(s) URL must not be stored as a container disk")
+	}
+}
+
 func TestUpdateVMTemplateRejectsSSRFISOURL(t *testing.T) {
 	s, tenantID := newISOTestService(t, []string{"iso.example.com"})
 	tmpl := &platform.VMTemplate{

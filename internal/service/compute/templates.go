@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"strings"
 
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
+
+func looksLikeHTTPURL(image string) bool {
+	lower := strings.ToLower(strings.TrimSpace(image))
+	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
+}
 
 // CreateVMTemplateInput registers a tenant OS image (container disk or ISO).
 type CreateVMTemplateInput struct {
@@ -87,22 +93,36 @@ func (s *Service) CreateVMTemplate(ctx context.Context, tenantID string, in Crea
 	if name == "" {
 		return nil, fmt.Errorf("invalid template name")
 	}
+	image := strings.TrimSpace(in.Image)
 	sourceType := in.SourceType
 	if sourceType == "" {
-		sourceType = "container"
+		// http(s) URLs are CDI imports, not container disks — defaulting them to
+		// "container" would skip the ISO SSRF allowlist (core#95).
+		if looksLikeHTTPURL(image) {
+			sourceType = "iso"
+		} else {
+			sourceType = "container"
+		}
 	}
 	osType := in.OSType
 	if osType == "" {
 		osType = "linux"
 	}
-	if sourceType == "container" && strings.TrimSpace(in.Image) == "" && in.ISOVolumeID == "" {
-		return nil, fmt.Errorf("image is required")
+	if sourceType == "container" {
+		if image == "" && in.ISOVolumeID == "" {
+			return nil, fmt.Errorf("image is required")
+		}
+		// Container disks are registry references pulled by the kubelet. An
+		// http(s) URL here would be a confused-deputy path into CDI later.
+		if looksLikeHTTPURL(image) {
+			return nil, iaerrors.NewBadRequestError("http(s) image URLs require source_type=iso")
+		}
 	}
 	if sourceType == "iso" && in.ISOVolumeID == "" {
-		if strings.TrimSpace(in.Image) == "" {
+		if image == "" {
 			return nil, fmt.Errorf("iso_url or iso_volume_id is required")
 		}
-		if err := s.validateISOImportURL(in.Image); err != nil {
+		if err := s.validateISOImportURL(image); err != nil {
 			return nil, err
 		}
 	}
@@ -123,7 +143,7 @@ func (s *Service) CreateVMTemplate(ctx context.Context, tenantID string, in Crea
 
 	t := &platform.VMTemplate{
 		ID: store.NewID(), TenantID: tenantID, Name: name, DisplayName: displayName,
-		Description: in.Description, Image: strings.TrimSpace(in.Image), SourceType: sourceType,
+		Description: in.Description, Image: image, SourceType: sourceType,
 		OSType: osType, CloudInitUserData: strings.TrimSpace(in.CloudInitUserData),
 		ISOVolumeID: in.ISOVolumeID, ISOSizeGi: in.ISOSizeGi, BootDiskSizeGi: in.BootDiskSizeGi,
 		StorageClass: in.StorageClass, Hypervisor: "KubeVirt", CreatedAt: store.Now(),
@@ -163,16 +183,20 @@ func (s *Service) UpdateVMTemplate(tenantID, id, displayName, description, image
 	}
 	t.Description = description
 	if image != "" {
+		trimmed := strings.TrimSpace(image)
 		effectiveSource := t.SourceType
 		if sourceType != "" {
 			effectiveSource = sourceType
 		}
+		if looksLikeHTTPURL(trimmed) && !strings.EqualFold(effectiveSource, "iso") {
+			return nil, iaerrors.NewBadRequestError("http(s) image URLs require source_type=iso")
+		}
 		if strings.EqualFold(effectiveSource, "iso") {
-			if err := s.validateISOImportURL(image); err != nil {
+			if err := s.validateISOImportURL(trimmed); err != nil {
 				return nil, err
 			}
 		}
-		t.Image = strings.TrimSpace(image)
+		t.Image = trimmed
 	}
 	if sourceType != "" {
 		t.SourceType = sourceType
