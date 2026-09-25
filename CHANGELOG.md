@@ -31,6 +31,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Security
 
+- **Restrict CORS and pin console WebSocket Origin** (issue [#98](https://github.com/virtfoundry/core/issues/98))
+  - API CORS no longer emits `Access-Control-Allow-Origin: *`. Responses reflect only the request host (same-origin UI proxy) or an origin listed in `security.allowed_origins` / `VIRTFOUNDRY_ALLOWED_ORIGINS`. Cross-origin preflight from a disallowed origin is `403`.
+  - `/ws/console` overrides the KubeVirt upgrader's allow-all `CheckOrigin` with the same allowlist already used by `/ws/events` (ticket auth from [#94](https://github.com/virtfoundry/core/issues/94) / [#111](https://github.com/virtfoundry/core/pull/111) made this safe).
+  - UI nginx (`docker/nginx-ui.conf`) adds `Content-Security-Policy: frame-ancestors 'self'`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` without changing `/api/` or `/ws/` proxy behaviour.
+
 - **Allowlist ISO HTTP import URLs** (issue [#95](https://github.com/virtfoundry/core/issues/95))
   - A tenant-supplied ISO URL used to become `spec.source.http.url` verbatim, so `vms:write` was enough to make the in-cluster CDI importer fetch cloud metadata (`169.254.169.254`), in-cluster services (`https://kubernetes.default.svc`), the node, or any RFC1918 host.
   - ISO URLs now require `https` on port 443, must not embed credentials, and may not target loopback, link-local, private/shared/reserved ranges (including their NAT64 re-encoding) or internal names (`*.svc`, `*.local`, `*.internal`, `*.localdomain`, `*.home.arpa`, single labels). Rejected URLs answer `400` and nothing is persisted.
