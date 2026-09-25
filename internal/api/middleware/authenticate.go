@@ -11,11 +11,26 @@ import (
 	"github.com/virtfoundry/core/internal/service/identity"
 )
 
-// Authenticate accepts JWT or VirtFoundry API keys (vfd_live_...).
+// Authenticate accepts JWT or VirtFoundry API keys (vfd_live_...) from request
+// headers only. Credentials are never read from the URL.
 func Authenticate(authSvc *auth.Service, st store.Repository, ident *identity.Service) func(http.Handler) http.Handler {
+	return authenticate(authSvc, st, ident, false)
+}
+
+// AuthenticateWS additionally accepts ?token=, which a browser WebSocket needs
+// because it cannot set request headers. Mount it only on endpoints that have
+// no ticket-based handshake; /ws/console must not use it.
+func AuthenticateWS(authSvc *auth.Service, st store.Repository, ident *identity.Service) func(http.Handler) http.Handler {
+	return authenticate(authSvc, st, ident, true)
+}
+
+func authenticate(authSvc *auth.Service, st store.Repository, ident *identity.Service, allowQueryToken bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := extractBearer(r)
+			if token == "" && allowQueryToken {
+				token = r.URL.Query().Get("token")
+			}
 			if token == "" {
 				http.Error(w, `{"error":"missing token"}`, http.StatusUnauthorized)
 				return
@@ -73,6 +88,9 @@ func actorToClaims(a *auth.Actor) *auth.Claims {
 	}
 }
 
+// extractBearer reads the caller credential from headers. It deliberately does
+// not look at the query string: tokens in URLs end up in access logs,
+// reverse-proxy logs and browser history.
 func extractBearer(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if strings.HasPrefix(h, "Bearer ") {
@@ -81,5 +99,5 @@ func extractBearer(r *http.Request) string {
 	if k := r.Header.Get("X-API-Key"); k != "" {
 		return k
 	}
-	return r.URL.Query().Get("token")
+	return ""
 }

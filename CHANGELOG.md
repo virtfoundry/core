@@ -8,6 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Security (BREAKING)
 
+- **VNC console requires `vms:console` and no longer accepts a JWT in the URL** (issue [#94](https://github.com/virtfoundry/core/issues/94))
+  - `/ws/console` is mounted behind `RequirePermission(vms:console)`. A tenant viewer holding only `vms:read` can no longer open an interactive console; `tenant.operator` and `tenant.admin` still can. Cross-tenant access is unchanged — the VM is resolved inside the caller's own tenant.
+  - New `POST /api/v1/vms/{name}/console-ticket` returns a single-use ticket that expires in 30 seconds and is bound to one VM and tenant. The browser opens `wss://…/ws/console?ticket=…`, so a long-lived JWT never reaches access logs, reverse-proxy logs or browser history. The endpoint is authorized on `vms:console` alone, so a custom role can grant console access without `vms:write`.
+  - Credentials are read from headers only (`Authorization`, `X-API-Key`). The previous `?token=` fallback is gone from the REST API and from `/ws/console`. It remains on `/ws/events`, which has no ticket handshake and where a browser cannot set headers.
+  - Clients that relied on `?token=` for REST calls or for the console must move to the `Authorization` header or to the ticket handshake.
+
 - **Refuse to start with default `JWT_SECRET` or `ROOT_PASSWORD`** (issue [#93](https://github.com/virtfoundry/core/issues/93))
   - `JWT_SECRET` must be provided via env / Kubernetes Secret: empty, shorter than 32 characters, or equal to the historical defaults (`change-me-in-production`, `dev-secret-change-in-prod`) cause the server to exit non-zero with a clear error.
   - `ROOT_PASSWORD` is enforced only when set via env / Kubernetes Secret: at least 12 characters and not the historical default `virtfoundry` (case-insensitive).

@@ -29,7 +29,7 @@ type eventsFixture struct {
 }
 
 // newEventsFixture wires /ws/events exactly as cmd/server does — behind
-// middleware.Authenticate — so the tests exercise the real auth path.
+// middleware.AuthenticateWS — so the tests exercise the real auth path.
 func newEventsFixture(t *testing.T) *eventsFixture {
 	t.Helper()
 
@@ -46,7 +46,7 @@ func newEventsFixture(t *testing.T) *eventsFixture {
 	h := NewEventsHandler(hub, platformSvc, nil)
 
 	router := http.NewServeMux()
-	router.Handle("/ws/events", middleware.Authenticate(authSvc, st, identitySvc)(http.HandlerFunc(h.Events)))
+	router.Handle("/ws/events", middleware.AuthenticateWS(authSvc, st, identitySvc)(http.HandlerFunc(h.Events)))
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)
 

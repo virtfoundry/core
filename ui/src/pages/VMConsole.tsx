@@ -60,10 +60,19 @@ export function VMConsole() {
       setLowResWarning(!isHdResolution(fb.width, fb.height));
     };
 
-    const frame = requestAnimationFrame(() => {
+    const connect = async () => {
+      let wsUrl: string;
+      try {
+        wsUrl = await consoleWsUrl(name);
+      } catch (e) {
+        if (cancelled) return;
+        setStatus('error');
+        setError(e instanceof Error ? e.message : t('console.ticketFailed'));
+        return;
+      }
       if (cancelled || !containerRef.current) return;
 
-      const rfb = new RFB(containerRef.current, consoleWsUrl(name));
+      const rfb = new RFB(containerRef.current, wsUrl);
       configureConsoleRfb(rfb);
       rfbRef.current = rfb;
 
@@ -92,6 +101,11 @@ export function VMConsole() {
         setStatus('error');
         setError(e.detail?.reason || t('console.vncAuthFailed'));
       });
+    };
+
+    const frame = requestAnimationFrame(() => {
+      if (cancelled) return;
+      void connect();
     });
 
     const pollFb = window.setInterval(updateResolution, 1500);
