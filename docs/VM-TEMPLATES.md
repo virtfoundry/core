@@ -77,7 +77,7 @@ ISO templates are used for Windows (or other OS installs from ISO). VirtFoundry 
 **Requirements:**
 
 - CDI installed on the cluster (included in the [VirtFoundry Helm chart](https://github.com/virtfoundry/helm-charts))
-- HTTP(S) URL to the ISO file
+- HTTPS URL to the ISO file, on a host the admin allows (see [Allowed ISO URLs](#allowed-iso-urls))
 - StorageClass with ReadWriteOnce support (default: `local-path`)
 
 **Flow:**
@@ -116,6 +116,44 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 ```
 
 VMs cannot be deployed from an ISO template until `import_state` is `ready`.
+
+## Allowed ISO URLs
+
+CDI downloads the ISO from **inside the cluster**, so the URL a tenant submits is fetched by a cluster pod. VirtFoundry therefore validates it before creating the DataVolume and answers `400` when it is not acceptable.
+
+Always refused, regardless of configuration:
+
+| Refused | Examples |
+|---------|----------|
+| Any scheme other than `https`, or a port other than 443 | `http://…`, `file:///…`, `https://host:9200/…` |
+| URLs with embedded credentials | `https://user:pass@host/iso` |
+| Loopback and localhost | `127.0.0.1`, `[::1]`, `localhost`, `*.localhost` |
+| Link-local (cloud metadata) | `169.254.169.254`, `fe80::/10` |
+| Private and shared address space | `10/8`, `172.16/12`, `192.168/16`, `fc00::/7`, `100.64/10` |
+| Reserved ranges, incl. NAT64 re-encoding of the above | `0.0.0.0/8`, `240.0.0.0/4`, `64:ff9b::/96` |
+| In-cluster, node and LAN names | `*.svc`, `*.local` (incl. `*.svc.cluster.local`), `*.internal`, `*.localdomain`, `*.home.arpa`, single labels such as `kubernetes` |
+
+On top of that, the host must be on the admin **allowlist**. With no configuration, the built-in list covers the public sources used by this guide: Microsoft evaluation downloads (`go.microsoft.com`, `*.prss.microsoft.com`), Ubuntu / Debian / Fedora / Rocky / AlmaLinux install media, and object storage for pre-signed URLs (`s3.amazonaws.com`, `*.s3.amazonaws.com`, `*.blob.core.windows.net`, `storage.googleapis.com`, `*.r2.cloudflarestorage.com`).
+
+To publish ISOs from your own mirror, list it explicitly — configuring `allowed_hosts` **replaces** the built-in list:
+
+```yaml
+security:
+  iso_import:
+    allowed_hosts:
+      - "iso.mylab.example.com"      # exact host
+      - "*.blob.core.windows.net"    # subdomains, not the apex
+    disable_http_import: false       # true refuses every URL import
+```
+
+Equivalent environment variables, for a read-only ConfigMap:
+
+```bash
+VIRTFOUNDRY_ISO_ALLOWED_HOSTS="iso.mylab.example.com,*.blob.core.windows.net"
+VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT=1
+```
+
+The effective allowlist is logged at startup (`iso import allowlist`). With `disable_http_import: true`, tenants can still register an ISO template from an existing volume (`iso_volume_id`), which is the path to use for ISOs uploaded to a PVC.
 
 ## Deploying VMs with templates
 

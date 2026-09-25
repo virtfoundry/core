@@ -22,6 +22,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
   - `docker/Dockerfile` no longer bakes `config/config.yaml.example` into the image; the Helm chart (`virtfoundry/helm-charts`) must mount or render the config (tracked separately).
   - MINOR bump for 0.x per [RELEASES.md](./RELEASES.md).
 
+### Security
+
+- **Allowlist ISO HTTP import URLs** (issue [#95](https://github.com/virtfoundry/core/issues/95))
+  - A tenant-supplied ISO URL used to become `spec.source.http.url` verbatim, so `vms:write` was enough to make the in-cluster CDI importer fetch cloud metadata (`169.254.169.254`), in-cluster services (`https://kubernetes.default.svc`), the node, or any RFC1918 host.
+  - ISO URLs now require `https` on port 443, must not embed credentials, and may not target loopback, link-local, private/shared/reserved ranges (including their NAT64 re-encoding) or internal names (`*.svc`, `*.local`, `*.internal`, `*.localdomain`, `*.home.arpa`, single labels). Rejected URLs answer `400` and nothing is persisted.
+  - The host must also be on an allowlist: `security.iso_import.allowed_hosts` (or `VIRTFOUNDRY_ISO_ALLOWED_HOSTS`), defaulting to the public ISO mirrors and object storage endpoints documented in [docs/VM-TEMPLATES.md](docs/VM-TEMPLATES.md#allowed-iso-urls). `security.iso_import.disable_http_import` (or `VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT=1`) refuses URL imports entirely; `iso_volume_id` still works.
+  - Defense in depth: `CreateHTTPImportDataVolume` re-checks the target, so no caller can reach CDI with a private or in-cluster URL.
+
 ### Changed
 
 - `cmd/server` exits with a clear error on YAML load failure (was: silent fallback to defaults).

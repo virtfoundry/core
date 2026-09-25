@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/virtfoundry/core/internal/platform/importurl"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,6 +40,12 @@ func (m *Manager) CreateBlankDataVolume(ctx context.Context, namespace, name, st
 }
 
 func (m *Manager) CreateHTTPImportDataVolume(ctx context.Context, namespace, name, url, storageClass string, sizeGi int) error {
+	// CDI fetches this URL from inside the cluster, so refuse private,
+	// link-local and in-cluster targets here as well: the tenant-facing
+	// allowlist lives in the compute service and must not be the only gate.
+	if _, err := importurl.CheckSafeTarget(url); err != nil {
+		return fmt.Errorf("create iso datavolume %s: %w", name, err)
+	}
 	if storageClass == "" {
 		storageClass = "local-path"
 	}

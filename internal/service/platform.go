@@ -11,6 +11,7 @@ import (
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
+	"github.com/virtfoundry/core/internal/platform/importurl"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/compute"
@@ -147,6 +148,17 @@ func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.Ne
 func (s *PlatformService) BootstrapStorage(cfg config.StorageConfig) {
 	s.compute.ConfigureStorage(cfg.DefaultClass, cfg.WindowsBootSizeGi, cfg.WindowsISOSizeGi)
 	s.storage.ConfigureStorage(cfg.DefaultClass, cfg.SnapshotClass)
+}
+
+// BootstrapISOImport applies the ISO import allowlist and returns the effective
+// hosts, so startup can log what tenants are allowed to import from.
+func (s *PlatformService) BootstrapISOImport(cfg config.ISOImportConfig) []string {
+	policy := importurl.NewPolicy(cfg.AllowedHosts)
+	if cfg.DisableHTTPImport {
+		policy = importurl.DenyAllPolicy()
+	}
+	s.compute.ConfigureISOImport(policy)
+	return policy.AllowedHosts()
 }
 
 // --- tenant ---

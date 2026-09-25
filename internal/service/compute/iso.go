@@ -6,12 +6,37 @@ import (
 	"strings"
 	"time"
 
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/importurl"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 const isoImportTimeout = 45 * time.Minute
+
+// ConfigureISOImport installs the admin allowlist applied to tenant-supplied ISO
+// URLs. A nil policy keeps the built-in defaults.
+func (s *Service) ConfigureISOImport(policy *importurl.Policy) {
+	if policy == nil {
+		return
+	}
+	s.isoImport = policy
+}
+
+// validateISOImportURL rejects ISO URLs that CDI must not fetch. It runs on the
+// synchronous create path so the tenant gets a 400 instead of a background
+// import that reaches into the cluster network.
+func (s *Service) validateISOImportURL(raw string) error {
+	policy := s.isoImport
+	if policy == nil {
+		policy = importurl.NewPolicy(nil)
+	}
+	if err := policy.Validate(raw); err != nil {
+		return iaerrors.NewBadRequestError(err.Error())
+	}
+	return nil
+}
 
 func (s *Service) resolveISOPVC(tenantID string, tmpl *platform.VMTemplate) (string, error) {
 	if tmpl.ISOVolumeID != "" {
@@ -88,6 +113,10 @@ func (s *Service) startISOImport(tenantID, templateID, ns string, tmpl *platform
 		t.ImportState = "importing"
 		s.store.SaveVMTemplate(t)
 
+		if err := s.validateISOImportURL(tmpl.Image); err != nil {
+			s.markISOImportFailed(templateID, err)
+			return
+		}
 		if err := s.k8s.CreateHTTPImportDataVolume(ctx, ns, dvName, tmpl.Image, storageClass, isoSize); err != nil {
 			s.markISOImportFailed(templateID, err)
 			return

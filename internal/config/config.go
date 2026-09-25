@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -109,6 +110,21 @@ type SecurityConfig struct {
 	// this is only needed when the UI runs on a different origin than the API.
 	AllowedOrigins []string            `mapstructure:"allowed_origins"`
 	LoginThrottle  LoginThrottleConfig `mapstructure:"login_throttle"`
+	// ISOImport restricts where CDI may download tenant-supplied ISO URLs from.
+	ISOImport ISOImportConfig `mapstructure:"iso_import"`
+}
+
+// ISOImportConfig is the admin allowlist for tenant-supplied ISO download URLs.
+// HTTPS is always required and private, link-local and in-cluster targets are
+// always refused, regardless of these settings. See docs/VM-TEMPLATES.md.
+type ISOImportConfig struct {
+	// AllowedHosts lists the hostnames CDI may fetch ISOs from; entries may be
+	// wildcards ("*.blob.core.windows.net") matching subdomains. Empty keeps the
+	// built-in defaults (importurl.DefaultAllowedHosts).
+	AllowedHosts []string `mapstructure:"allowed_hosts"`
+	// DisableHTTPImport refuses every URL-based ISO import. Tenants can still
+	// register ISO templates from an existing volume (iso_volume_id).
+	DisableHTTPImport bool `mapstructure:"disable_http_import"`
 }
 
 // LoginThrottleConfig tunes login brute-force protection. Zero values fall
@@ -173,6 +189,34 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+const (
+	// EnvISOAllowedHosts overrides security.iso_import.allowed_hosts with a
+	// comma-separated list, for deployments whose config file is a read-only
+	// ConfigMap.
+	EnvISOAllowedHosts = "VIRTFOUNDRY_ISO_ALLOWED_HOSTS"
+	// EnvISODisableHTTPImport set to "1" refuses every URL-based ISO import.
+	EnvISODisableHTTPImport = "VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT"
+)
+
+// ApplyISOImportEnv lets operators set the ISO import allowlist via environment
+// variables, which take precedence over the YAML config.
+func ApplyISOImportEnv(cfg *Config) {
+	if raw := os.Getenv(EnvISOAllowedHosts); raw != "" {
+		var hosts []string
+		for _, host := range strings.Split(raw, ",") {
+			if host = strings.TrimSpace(host); host != "" {
+				hosts = append(hosts, host)
+			}
+		}
+		if len(hosts) > 0 {
+			cfg.Security.ISOImport.AllowedHosts = hosts
+		}
+	}
+	if os.Getenv(EnvISODisableHTTPImport) == "1" {
+		cfg.Security.ISOImport.DisableHTTPImport = true
+	}
 }
 
 func getEnv(key, defaultVal string) string {
