@@ -77,7 +77,7 @@ func (s *Service) deployVMViaOperator(
 	}
 	s.store.SaveVM(vm)
 	s.invalidateVMListCache(tenantID)
-	s.broadcastVM("vm.created", vm)
+	s.broadcastVM(tenantID, "vm.created", vm)
 	return vm, nil
 }
 
@@ -98,10 +98,10 @@ func (s *Service) setVMPowerState(ctx context.Context, tenantID, vmName, power s
 	s.invalidateVMListCache(tenantID)
 	merged, err := s.GetVM(ctx, tenantID, vmName)
 	if err != nil {
-		s.broadcastVM("vm.updated", vm)
+		s.broadcastVM(tenantID, "vm.updated", vm)
 		return vm, nil
 	}
-	s.broadcastVM("vm.updated", merged)
+	s.broadcastVM(tenantID, "vm.updated", merged)
 	return merged, nil
 }
 
@@ -125,6 +125,6 @@ func (s *Service) deleteVMViaOperator(ctx context.Context, tenantID, vmName stri
 	delete(s.vmStates, key)
 	s.vmStateMu.Unlock()
 	s.invalidateVMListCache(tenantID)
-	s.broadcastVM("vm.deleted", map[string]string{"tenant_id": tenantID, "name": vmName})
+	s.broadcastVMDeleted(tenantID, vmName)
 	return nil
 }

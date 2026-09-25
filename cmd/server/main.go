@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/virtfoundry/core/internal/api/handler"
 	"github.com/virtfoundry/core/internal/api/middleware"
 	"github.com/virtfoundry/core/internal/api/ws"
@@ -112,17 +111,6 @@ func main() {
 		w.Write([]byte(`{"status":"ok","service":"virtfoundry-iaas","hypervisor":"kubevirt"}`))
 	}).Methods("GET")
 
-	router.HandleFunc("/ws/events", func(w http.ResponseWriter, r *http.Request) {
-		up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-		conn, err := up.Upgrade(w, r, nil)
-		if err != nil {
-			return
-		}
-		client := hub.Register(conn)
-		go client.WritePump()
-		client.ReadPump()
-	})
-
 	loginThrottle := auth.NewLoginThrottle(auth.ThrottleParams{
 		UserMaxFailures: cfg.Security.LoginThrottle.UserMaxFailures,
 		IPMaxFailures:   cfg.Security.LoginThrottle.IPMaxFailures,
@@ -133,7 +121,10 @@ func main() {
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
 	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc)
-	router.Handle("/ws/console", middleware.Authenticate(authSvc, repo, identitySvc)(http.HandlerFunc(consoleHandler.VNCConsole)))
+	eventsHandler := handler.NewEventsHandler(hub, platformSvc, cfg.Security.AllowedOrigins)
+	authenticate := middleware.Authenticate(authSvc, repo, identitySvc)
+	router.Handle("/ws/console", authenticate(http.HandlerFunc(consoleHandler.VNCConsole)))
+	router.Handle("/ws/events", authenticate(http.HandlerFunc(eventsHandler.Events)))
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/auth/login", platformHandler.Login).Methods("POST")

@@ -10,16 +10,34 @@ import (
 	"github.com/virtfoundry/core/internal/pkg/logger"
 )
 
-// Hub broadcasts real-time events to connected UI clients.
+// Scope decides which tenants' events a client receives. Every client must
+// carry a scope: there is no unscoped subscription.
+type Scope struct {
+	// TenantID restricts delivery to a single tenant.
+	TenantID string
+	// AllTenants receives every tenant's events and is only granted to platform root.
+	AllTenants bool
+}
+
+func (s Scope) allows(tenantID string) bool {
+	if s.AllTenants {
+		return true
+	}
+	return s.TenantID != "" && s.TenantID == tenantID
+}
+
+// Hub broadcasts real-time events to connected UI clients, filtered by the
+// tenant each client is scoped to.
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[*Client]struct{}
 }
 
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan []byte
+	hub   *Hub
+	conn  *websocket.Conn
+	send  chan []byte
+	scope Scope
 }
 
 type Event struct {
@@ -31,7 +49,15 @@ func NewHub() *Hub {
 	return &Hub{clients: make(map[*Client]struct{})}
 }
 
-func (h *Hub) Broadcast(eventType string, payload interface{}) {
+// BroadcastTenant delivers an event to clients scoped to tenantID, plus root
+// clients subscribed to all tenants. An empty tenantID is dropped rather than
+// fanned out, so a caller that forgets to scope an event cannot leak it.
+func (h *Hub) BroadcastTenant(tenantID, eventType string, payload interface{}) {
+	if tenantID == "" {
+		logger.Get().Warn("ws broadcast dropped: missing tenant scope", zap.String("event", eventType))
+		return
+	}
+
 	msg, err := json.Marshal(Event{Type: eventType, Payload: payload})
 	if err != nil {
 		logger.Get().Error("ws broadcast marshal", zap.Error(err))
@@ -41,6 +67,9 @@ func (h *Hub) Broadcast(eventType string, payload interface{}) {
 	h.mu.RLock()
 	slow := make([]*Client, 0)
 	for client := range h.clients {
+		if !client.scope.allows(tenantID) {
+			continue
+		}
 		select {
 		case client.send <- msg:
 		default:
@@ -61,8 +90,14 @@ func (h *Hub) Broadcast(eventType string, payload interface{}) {
 	}
 }
 
-func (h *Hub) Register(conn *websocket.Conn) *Client {
-	client := &Client{hub: h, conn: conn, send: make(chan []byte, 64)}
+// Register attaches a connection to the hub under scope. A scope that matches
+// no tenant is rejected so an unauthenticated or unresolved caller cannot
+// subscribe.
+func (h *Hub) Register(conn *websocket.Conn, scope Scope) *Client {
+	if !scope.AllTenants && scope.TenantID == "" {
+		return nil
+	}
+	client := &Client{hub: h, conn: conn, send: make(chan []byte, 64), scope: scope}
 	h.mu.Lock()
 	h.clients[client] = struct{}{}
 	h.mu.Unlock()

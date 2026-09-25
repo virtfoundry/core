@@ -8,9 +8,10 @@ import (
 	"github.com/virtfoundry/core/internal/platform/store"
 )
 
-// EventBroadcaster pushes realtime events to WebSocket clients.
+// EventBroadcaster pushes realtime events to WebSocket clients. Every event
+// carries the owning tenant so the hub can keep streams tenant-isolated.
 type EventBroadcaster interface {
-	Broadcast(eventType string, payload interface{})
+	BroadcastTenant(tenantID, eventType string, payload interface{})
 }
 
 // TenantNamespace resolves the K8s namespace for a tenant ID.
