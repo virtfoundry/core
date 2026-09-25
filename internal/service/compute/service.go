@@ -443,6 +443,7 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 	if s.operatorReconcile {
 		for _, tenant := range s.store.ListTenants() {
 			vms := clonePlatformVMs(s.store.ListVMs(tenant.ID))
+			s.enrichVMsFromCatalog(vms)
 			s.setVMListCache(tenant.ID, vms)
 		}
 		return
@@ -452,6 +453,7 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 		if err != nil {
 			continue
 		}
+		s.enrichVMsFromCatalog(vms)
 		s.setVMListCache(tenant.ID, vms)
 		for _, vm := range vms {
 			key := vmStateKey{tenantID: tenant.ID, name: vm.Name}
