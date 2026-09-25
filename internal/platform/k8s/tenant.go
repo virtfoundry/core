@@ -53,6 +53,16 @@ func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug stri
 	if err != nil && !isAlreadyExists(err) {
 		return nil, fmt.Errorf("create quota: %w", err)
 	}
+	if isAlreadyExists(err) {
+		createdRQ, err = m.Clientset.CoreV1().ResourceQuotas(nsName).Get(ctx, branding.ResourceQuotaName, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("get quota: %w", err)
+		}
+	}
+
+	if err := m.ensureCDIImporterEgressPolicy(ctx, nsName); err != nil {
+		return nil, err
+	}
 
 	return &TenantResources{Namespace: nsName, Quota: createdRQ}, nil
 }

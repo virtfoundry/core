@@ -155,6 +155,18 @@ VIRTFOUNDRY_ISO_DISABLE_HTTP_IMPORT=1
 
 The effective allowlist is logged at startup (`iso import allowlist`). With `disable_http_import: true`, tenants can still register an ISO template from an existing volume (`iso_volume_id`), which is the path to use for ISOs uploaded to a PVC.
 
+### CDI importer egress NetworkPolicy
+
+The allowlist is **name-based**. CDI resolves the hostname itself, so DNS rebinding of an allowlisted host (or a redirect that lands on a private address) can still make the importer fetch cluster-internal or metadata targets if the network path exists.
+
+Defense in depth: on every tenant namespace ensure, VirtFoundry creates/updates `virtfoundry-cdi-importer-egress` — an **Egress** NetworkPolicy in the **tenant** namespace (where CDI importer pods run), not in the chart release namespace. It selects pods labeled `cdi.kubevirt.io=importer` and:
+
+- Allows DNS to `kube-system` pods labeled `k8s-app=kube-dns` (UDP/TCP 53)
+- Allows egress to `0.0.0.0/0` except RFC1918, link-local, and CGNAT (`10/8`, `172.16/12`, `192.168/16`, `169.254/16`, `100.64/10`)
+- Allows egress to `::/0` except ULA / link-local / loopback (`fc00::/7`, `fe80::/10`, `::1/128`) for dual-stack clusters
+
+Private ISO mirrors on RFC1918 need an extra allow rule on that NetworkPolicy (or a second policy) — see the [helm-charts templates guide](https://virtfoundry.github.io/helm-charts/docs/guide/features/templates/#cdi-importer-egress). The CNI must enforce NetworkPolicy for this to take effect. DNS rebinding to a *public* malicious IP remains an app-layer concern; keep the allowlist tight.
+
 ## Deploying VMs with templates
 
 On the **VMs** page, pick a template from the dropdown (fedora from tenant catalog, ubuntu/cirros from platform). Link to `/templates` is provided to register more images.

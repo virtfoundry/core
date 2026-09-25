@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Security
+
+- **CDI importer egress NetworkPolicy in each tenant namespace** (follow-up to [#95](https://github.com/virtfoundry/core/issues/95) / [helm-charts#49](https://github.com/virtfoundry/helm-charts/issues/49))
+  - `EnsureTenantNamespace` creates/updates `virtfoundry-cdi-importer-egress`, selecting CDI pods labeled `cdi.kubevirt.io=importer`. DNS to kube-dns/CoreDNS is allowed; egress to `0.0.0.0/0` and `::/0` excludes private / link-local / CGNAT ranges so DNS rebinding of an allowlisted ISO host cannot reach cluster-internal or metadata addresses over the pod network.
+  - Existing tenants pick up the policy on API bootstrap (`EnsureTenant` / `BootstrapDefaultSecurityGroups`) without recreating the tenant record.
+  - Docs: [VM-TEMPLATES.md](docs/VM-TEMPLATES.md#cdi-importer-egress-networkpolicy). Chart docs and operator notes live in helm-charts.
+
 ### Security (BREAKING)
 
 - **VNC console requires `vms:console` and no longer accepts a JWT in the URL** (issue [#94](https://github.com/virtfoundry/core/issues/94))

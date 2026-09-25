@@ -74,6 +74,11 @@ func (s *PlatformService) BootstrapRootDefaultTenant(ctx context.Context) (*plat
 
 func (s *PlatformService) BootstrapDefaultSecurityGroups(ctx context.Context) error {
 	for _, t := range s.tenant.ListTenants() {
+		// Re-ensure NS resources so existing tenants pick up the CDI importer
+		// egress NetworkPolicy without recreating the tenant record.
+		if _, err := s.tenant.EnsureTenant(ctx, t.Name, t.Slug); err != nil {
+			return fmt.Errorf("ensure tenant namespace %s: %w", t.Slug, err)
+		}
 		if _, err := s.network.EnsureDefaultSecurityGroup(ctx, t.ID); err != nil {
 			return fmt.Errorf("default security group for tenant %s: %w", t.Slug, err)
 		}
