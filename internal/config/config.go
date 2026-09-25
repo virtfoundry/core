@@ -26,17 +26,17 @@ type Config struct {
 
 // VMConfig groups defaults applied at VM deploy time (used by template seeding).
 type VMConfig struct {
-	// DefaultPassword is the password set on seed Linux templates that have no
+	// DefaultPassword, when set, is baked into seed Linux templates that have no
 	// userData of their own. The seed CloudInitNoCloud payload marks this as
 	// expired (chpasswd.expire: True) so PAM forces the user to pick a new
-	// password on first login. Empty falls back to the built-in default
-	// ("ubuntu"); override via config or VIRTFOUNDRY_VM_DEFAULT_PASSWORD.
+	// password on first login. Empty means no password user-data is seeded —
+	// Linux deploys must supply an SSH key or cloud_init_password (issue #97).
+	// Override via config or VIRTFOUNDRY_VM_DEFAULT_PASSWORD.
 	DefaultPassword string `mapstructure:"default_password"`
 }
 
-// BuiltinDefaultVMPassword is the in-code fallback when no value is configured.
-// Kept short on purpose — it is only valid for the first login because
-// cloud-init expires it.
+// BuiltinDefaultVMPassword is retained only for docs/tests that assert we no
+// longer fall back to it. Do not use as a runtime default.
 const BuiltinDefaultVMPassword = "ubuntu"
 
 type StorageConfig struct {
@@ -171,7 +171,8 @@ func DefaultConfig() *Config {
 			WindowsISOSizeGi:  8,
 		},
 		VM: VMConfig{
-			DefaultPassword: getEnv("VIRTFOUNDRY_VM_DEFAULT_PASSWORD", BuiltinDefaultVMPassword),
+			// Empty by default — never invent "ubuntu" (issue #97).
+			DefaultPassword: getEnv("VIRTFOUNDRY_VM_DEFAULT_PASSWORD", ""),
 		},
 	}
 }

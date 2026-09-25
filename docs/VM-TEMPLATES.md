@@ -18,6 +18,18 @@ Tenants see **both** platform and their own templates when listing or deploying 
 
 KubeVirt runs container disks as ephemeral root volumes. Use images with cloud-init support for Linux.
 
+### Guest access (Linux)
+
+Linux create is **fail-closed** on guest credentials (issue [#97](https://github.com/virtfoundry/core/issues/97)):
+
+| Input | Effect |
+|-------|--------|
+| `ssh_key_id` | Required in the UI. Injects the key via cloud-init; **password SSH is off**. |
+| `cloud_init_password` | Optional API/TF one-time password. Enables `ssh_pwauth` and expires the password on first login. |
+| Neither | API returns `400` — VirtFoundry never invents a default such as `ubuntu`. |
+
+Seeded platform templates (`ubuntu-2204`) no longer bake `password: ubuntu` into `cloud_init_user_data`. To opt into password user-data on seed only, set `vm.default_password` / `VIRTFOUNDRY_VM_DEFAULT_PASSWORD` explicitly (lab use). On upgrade, API bootstrap strips historical `password: ubuntu` seed payloads from `ubuntu-2204`.
+
 **Recommended sources:**
 
 - [quay.io/containerdisks](https://quay.io/organization/containerdisks) — maintained OS images (Ubuntu, Fedora, CentOS, …)

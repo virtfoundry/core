@@ -10,13 +10,11 @@ import (
 // SeedCatalog inserts default service offerings and VM templates when empty,
 // then ensures platform-specific catalog entries (e.g. Windows) exist.
 //
-// defaultPassword is the password baked into seed Linux templates that lack
-// their own userData. Callers should resolve it from configuration
-// (config.VM.DefaultPassword or VIRTFOUNDRY_VM_DEFAULT_PASSWORD), falling
-// back to config.BuiltinDefaultVMPassword ("ubuntu") when unset. The seed
-// CloudInitNoCloud payload marks this password as expired (chpasswd.expire:
-// True inside BuildLinuxUserData), so PAM forces the user to pick a new one
-// on first login.
+// defaultPassword is only baked into seed Linux templates when the caller
+// supplies a non-empty value (config.VM.DefaultPassword /
+// VIRTFOUNDRY_VM_DEFAULT_PASSWORD). There is no built-in fallback: an empty
+// password leaves CloudInitUserData empty so deploy must supply an SSH key
+// (or an explicit one-time password). See issue #97.
 func SeedCatalog(r Repository, defaultPassword string) error {
 	if len(r.ListServiceOfferings(false)) == 0 {
 		now := Now()
@@ -62,12 +60,20 @@ func SeedCatalog(r Repository, defaultPassword string) error {
 		Name: "windows-server-2022", DisplayName: "Windows Server 2022 Eval",
 		Image: "windows-server-2022-eval", OSType: "windows", SourceType: "iso", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
 	})
-	// Backfill CloudInitUserData on pre-existing ubuntu-2204 templates so the operator
-	// (which propagates the Template CR's cloudInitUserData verbatim into
-	// cloudInitNoCloud.userData) does not boot the guest without credentials.
-	// Preserves all other fields the operator may have customised (Image, etc.).
+	// Strip the historical insecure default (password: ubuntu) from ubuntu-2204
+	// templates. Only re-seed password user-data when the operator explicitly
+	// configured VIRTFOUNDRY_VM_DEFAULT_PASSWORD / vm.default_password.
 	for _, t := range r.ListVMTemplates(false) {
-		if t.Name == "ubuntu-2204" && strings.TrimSpace(t.CloudInitUserData) == "" {
+		if t.Name != "ubuntu-2204" {
+			continue
+		}
+		ud := strings.TrimSpace(t.CloudInitUserData)
+		if isInsecureDefaultUbuntuUserData(ud) {
+			t.CloudInitUserData = ubuntuDefaultUserData(defaultPassword)
+			r.SaveVMTemplate(t)
+			continue
+		}
+		if ud == "" && strings.TrimSpace(defaultPassword) != "" {
 			t.CloudInitUserData = ubuntuDefaultUserData(defaultPassword)
 			r.SaveVMTemplate(t)
 		}
@@ -75,13 +81,26 @@ func SeedCatalog(r Repository, defaultPassword string) error {
 	return nil
 }
 
+// isInsecureDefaultUbuntuUserData detects the pre-#97 seed payload that baked
+// password: ubuntu with ssh_pwauth and NOPASSWD sudo.
+func isInsecureDefaultUbuntuUserData(userData string) bool {
+	ud := strings.ToLower(userData)
+	return strings.Contains(ud, "password: ubuntu") && strings.Contains(ud, "ssh_pwauth")
+}
+
 // ubuntuDefaultUserData returns a #cloud-config payload that creates the `ubuntu`
-// user (the only account baked into the quay.io/containerdisks/ubuntu:22.04 image)
-// with the supplied password. Mirrors the runtime default used by the hypervisor
-// path in internal/platform/cloudinit/build.go so behaviour is consistent
-// regardless of which deploy path is taken.
+// user with an explicit one-time password, or "" when password is empty (no
+// default). Deploy must then supply an SSH key or cloud_init_password.
 func ubuntuDefaultUserData(password string) string {
-	return cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{Password: password})
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return ""
+	}
+	out, err := cloudinit.BuildLinuxUserData(cloudinit.LinuxConfig{Password: password})
+	if err != nil {
+		return ""
+	}
+	return out
 }
 
 func ensureOffering(r Repository, want platform.ServiceOffering) {

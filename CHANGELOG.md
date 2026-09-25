@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Security (BREAKING)
+
+- **Do not default Linux guest SSH password to `ubuntu`** (issue [#97](https://github.com/virtfoundry/core/issues/97))
+  - `BuildLinuxUserData` no longer invents `password: ubuntu` with `ssh_pwauth: true` and NOPASSWD sudo when no SSH keys are provided. Linux cloud-init requires an SSH public key **or** an explicit one-time password; otherwise create fails with a clear `400`.
+  - Password SSH (`ssh_pwauth`) is enabled only when `cloud_init_password` is supplied on deploy (or an explicit `vm.default_password` / `VIRTFOUNDRY_VM_DEFAULT_PASSWORD` is configured for seed templates). SSH-key-only deploys keep `ssh_pwauth: false` and `lock_passwd: true`.
+  - Seeded `ubuntu-2204` templates no longer bake a published default password. On startup, catalog seed strips historical `password: ubuntu` user-data from that template.
+  - UI: SSH key is required for Linux VM create. API: optional `cloud_init_password` for lab/automation paths that cannot use keys.
+  - Deploys that supply an SSH key or one-time password use the hypervisor cloud-init path (Instance CR does not yet carry `sshKeyRefs`).
+
 ### Security
 
 - **CDI importer egress NetworkPolicy in each tenant namespace** (follow-up to [#95](https://github.com/virtfoundry/core/issues/95) / [helm-charts#49](https://github.com/virtfoundry/helm-charts/issues/49))

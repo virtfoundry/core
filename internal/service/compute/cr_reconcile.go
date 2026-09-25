@@ -30,6 +30,11 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 	if in.DataVolumeID != "" || in.PublicIP || len(networkIDs) > 0 {
 		return false
 	}
+	// Instance CR does not yet carry sshKeyRefs / one-time passwords. Prefer the
+	// hypervisor path so guest credentials from this request are actually injected.
+	if in.SSHKeyID != "" || strings.TrimSpace(in.CloudInitPassword) != "" {
+		return false
+	}
 	return true
 }
 

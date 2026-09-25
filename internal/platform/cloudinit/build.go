@@ -1,14 +1,20 @@
 package cloudinit
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
+// ErrNoGuestAuth is returned when Linux user-data would have neither an SSH
+// public key nor an explicit one-time password. Callers must not invent a
+// default password (historically "ubuntu").
+var ErrNoGuestAuth = errors.New("linux guest requires an SSH public key or an explicit one-time password")
+
 // LinuxConfig drives cloud-init user-data for KubeVirt Linux VMs.
 type LinuxConfig struct {
 	SSHPublicKeys  []string
-	Password       string // optional; ignored when SSH keys are set
+	Password       string // optional; when set, enables password SSH (ssh_pwauth)
 	ExtraUserData  string // optional #cloud-config fragment appended
 	FormatDataDisk bool   // mkfs + mount /dev/vdb at /mnt/iops
 }
@@ -66,41 +72,61 @@ func (nic NetworkInterfaceConfig) prefixLenOrDefault() int {
 	return 24
 }
 
+func normalizeSSHKeys(keys []string) []string {
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		k = strings.TrimSpace(k)
+		if k != "" {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
 // BuildLinuxUserData returns a #cloud-config payload for Ubuntu/Cirros-style images.
-func BuildLinuxUserData(cfg LinuxConfig) string {
+//
+// Auth policy (fail-closed):
+//   - At least one SSH public key OR an explicit Password is required.
+//   - Password SSH (ssh_pwauth) is enabled only when Password is non-empty.
+//   - Never invents a default password (e.g. "ubuntu").
+func BuildLinuxUserData(cfg LinuxConfig) (string, error) {
+	keys := normalizeSSHKeys(cfg.SSHPublicKeys)
+	pass := strings.TrimSpace(cfg.Password)
+	if len(keys) == 0 && pass == "" {
+		return "", ErrNoGuestAuth
+	}
+
 	var b strings.Builder
 	b.WriteString("#cloud-config\n")
-	if len(cfg.SSHPublicKeys) > 0 {
-		b.WriteString("ssh_pwauth: false\n")
-		b.WriteString("users:\n")
-		b.WriteString("  - name: ubuntu\n")
-		b.WriteString("    sudo: ALL=(ALL) NOPASSWD:ALL\n")
-		b.WriteString("    shell: /bin/bash\n")
-		b.WriteString("    lock_passwd: true\n")
-		b.WriteString("    ssh_authorized_keys:\n")
-		for _, k := range cfg.SSHPublicKeys {
-			k = strings.TrimSpace(k)
-			if k != "" {
-				fmt.Fprintf(&b, "      - %s\n", k)
-			}
-		}
-	} else {
-		pass := cfg.Password
-		if pass == "" {
-			pass = "ubuntu"
-		}
+
+	enablePasswordSSH := pass != ""
+	if enablePasswordSSH {
 		fmt.Fprintf(&b, "password: %s\n", pass)
 		// Force password change at first login. PAM enforces the prompt on
 		// both TTY and SSH password auth; SSH-key-only logins are unaffected
-		// because lock_passwd is set above in the SSH-key branch.
+		// when lock_passwd is set below.
 		b.WriteString("chpasswd: { expire: True }\n")
 		b.WriteString("ssh_pwauth: true\n")
-		b.WriteString("users:\n")
-		b.WriteString("  - name: ubuntu\n")
-		b.WriteString("    sudo: ALL=(ALL) NOPASSWD:ALL\n")
-		b.WriteString("    shell: /bin/bash\n")
-		b.WriteString("    lock_passwd: false\n")
+	} else {
+		b.WriteString("ssh_pwauth: false\n")
 	}
+
+	b.WriteString("users:\n")
+	b.WriteString("  - name: ubuntu\n")
+	b.WriteString("    sudo: ALL=(ALL) NOPASSWD:ALL\n")
+	b.WriteString("    shell: /bin/bash\n")
+	if enablePasswordSSH {
+		b.WriteString("    lock_passwd: false\n")
+	} else {
+		b.WriteString("    lock_passwd: true\n")
+	}
+	if len(keys) > 0 {
+		b.WriteString("    ssh_authorized_keys:\n")
+		for _, k := range keys {
+			fmt.Fprintf(&b, "      - %s\n", k)
+		}
+	}
+
 	b.WriteString("runcmd:\n")
 	b.WriteString("  - [ systemctl, enable, --now, getty@tty1 ]\n")
 	if cfg.FormatDataDisk {
@@ -115,5 +141,5 @@ func BuildLinuxUserData(cfg LinuxConfig) string {
 			b.WriteString("\n")
 		}
 	}
-	return b.String()
+	return b.String(), nil
 }
