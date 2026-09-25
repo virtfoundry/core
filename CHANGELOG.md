@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-25
+
+Security release: cumulative product-security audit fixes since 0.7.1 (SSH defaults, console tickets, JWT/root secrets, CORS/WS Origin, ISO allowlist, CDI importer egress, non-root images, http(s) templateâ†’ISO).
+
 ### Security (BREAKING)
 
 - **Do not default Linux guest SSH password to `ubuntu`** (issue [#97](https://github.com/virtfoundry/core/issues/97))
@@ -261,3 +265,5 @@ Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`â
 [1.0.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0
+
+[0.8.0]: https://github.com/virtfoundry/core/compare/v0.7.1...v0.8.0
