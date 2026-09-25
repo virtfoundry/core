@@ -334,6 +334,7 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 	stored := s.store.ListVMs(tenantID)
 	if s.operatorReconcile || storeVMsHaveObservedState(stored) {
 		vms := clonePlatformVMs(stored)
+		s.enrichVMsFromCatalog(vms)
 		s.setVMListCache(tenantID, vms)
 		return vms, nil
 	}
@@ -341,12 +342,69 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 	vms, err := s.listVMsFromKubeVirt(ctx, tenantID)
 	if err != nil {
 		if len(stored) > 0 {
-			return clonePlatformVMs(stored), nil
+			fallback := clonePlatformVMs(stored)
+			s.enrichVMsFromCatalog(fallback)
+			return fallback, nil
 		}
 		return nil, err
 	}
+	s.enrichVMsFromCatalog(vms)
 	s.setVMListCache(tenantID, vms)
 	return vms, nil
+}
+
+// enrichVMsFromCatalog fills CPU/memory/template display from Offering/Template
+// refs. Instance CRs store offeringRef/templateRef names but not guest sizing,
+// so operator-reconcile ListVMs would otherwise show 0 vCPU / 0 MiB.
+func (s *Service) enrichVMsFromCatalog(vms []*platform.PlatformVM) {
+	for _, vm := range vms {
+		if vm == nil {
+			continue
+		}
+		if (vm.CPU == 0 || vm.MemoryMi == 0) && vm.ServiceOfferingID != "" {
+			if off := s.lookupOffering(vm.ServiceOfferingID); off != nil {
+				if vm.CPU == 0 {
+					vm.CPU = off.CPU
+				}
+				if vm.MemoryMi == 0 {
+					vm.MemoryMi = off.MemoryMi
+				}
+			}
+		}
+		if vm.Template == "" && vm.TemplateRef != "" {
+			if tmpl := s.lookupTemplate(vm.TemplateRef); tmpl != nil {
+				if tmpl.DisplayName != "" {
+					vm.Template = tmpl.DisplayName
+				} else {
+					vm.Template = tmpl.Name
+				}
+			} else {
+				vm.Template = vm.TemplateRef
+			}
+		}
+	}
+}
+
+func (s *Service) lookupOffering(idOrName string) *platform.ServiceOffering {
+	if off, ok := s.store.GetServiceOffering(idOrName); ok {
+		return off
+	}
+	if off, ok := s.store.GetServiceOfferingByName(idOrName); ok {
+		return off
+	}
+	return nil
+}
+
+func (s *Service) lookupTemplate(idOrName string) *platform.VMTemplate {
+	if tmpl, ok := s.store.GetVMTemplate(idOrName); ok {
+		return tmpl
+	}
+	for _, tmpl := range s.store.ListVMTemplates(false) {
+		if tmpl != nil && (tmpl.Name == idOrName || tmpl.ID == idOrName) {
+			return tmpl
+		}
+	}
+	return nil
 }
 
 func (s *Service) listVMsFromKubeVirt(ctx context.Context, tenantID string) ([]*platform.PlatformVM, error) {

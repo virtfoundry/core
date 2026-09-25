@@ -82,6 +82,7 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 	if templateCR != "" {
 		spec["templateRef"] = localRef(templateCR)
 	}
+	nicsWritten := false
 	if len(vm.NICs) > 0 {
 		nics := make([]interface{}, 0, len(vm.NICs))
 		for _, nic := range vm.NICs {
@@ -96,6 +97,7 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 		}
 		if len(nics) > 0 {
 			spec["nics"] = nics
+			nicsWritten = true
 		}
 	}
 	if vm.PowerState != "" {
@@ -108,6 +110,17 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 		spec["import"] = imp
 	}
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+	// Operator ≥0.7.2 refuses Instances with neither Multus nics nor this
+	// annotation. Hypervisor/pod-network deploys (and CR-first without nics)
+	// must opt in explicitly.
+	if !nicsWritten {
+		ann := obj.GetAnnotations()
+		if ann == nil {
+			ann = map[string]string{}
+		}
+		ann[AnnAllowPodNetwork] = "true"
+		obj.SetAnnotations(ann)
+	}
 	return obj
 }
 

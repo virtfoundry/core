@@ -7,7 +7,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-const AnnLegacyID = "virtfoundry.io/legacy-id"
+const (
+	AnnLegacyID = "virtfoundry.io/legacy-id"
+	// AnnAllowPodNetwork opts an Instance into the KubeVirt pod network
+	// (masquerade). Must match operator annotationAllowPodNetwork — Instances
+	// without Multus spec.nics need this after operator 0.7.2.
+	AnnAllowPodNetwork = "virtfoundry.io/allow-pod-network"
+)
 
 var slugRe = regexp.MustCompile(`[^a-z0-9-]+`)
 
