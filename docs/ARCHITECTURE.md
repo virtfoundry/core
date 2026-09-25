@@ -118,6 +118,7 @@ Tenant ────────────────────────�
 | `/vm-templates/{id}` | PATCH, DELETE | JWT |
 | `/vms` | GET, POST | JWT |
 | `/vms/{name}` | GET, PATCH | JWT |
+| `/vms/{name}/console-ticket` | POST | JWT, requires `vms:console` |
 | `/vms/start`, `/stop`, `/delete` | POST | JWT |
 
 **WebSockets**
@@ -125,11 +126,17 @@ Tenant ────────────────────────�
 | Path | Purpose | Auth |
 |------|---------|------|
 | `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …), scoped to the caller's tenant. Root adds `all_tenants=true` to see every tenant. | JWT / API key (`?token=`) |
-| `/ws/console?name=&namespace=` | noVNC proxy | JWT / API key (`?token=`) |
+| `/ws/console?ticket=` | noVNC proxy | Console ticket, or API key / JWT in the `Authorization` header. Requires `vms:console`. |
 
 `/ws/events` rejects browser origins other than the request host and
 `security.allowed_origins`. `/ws/console` still uses the KubeVirt client
 upgrader, which does not check `Origin`.
+
+**Console handshake:** the browser calls `POST /vms/{name}/console-ticket` with
+its normal `Authorization` header and receives a single-use ticket that expires
+in 30 seconds and is bound to that VM and tenant. The ticket is the only
+credential allowed in a console URL; `/ws/console` does not accept `?token=`.
+Non-browser clients can skip the ticket and send the header directly.
 
 **Multi-tenancy:** root users send header `X-Tenant-ID` to operate inside a tenant.
 

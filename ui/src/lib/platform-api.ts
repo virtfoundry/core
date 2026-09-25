@@ -236,6 +236,18 @@ export async function getVM(name: string) {
   return platformFetch<{ vm: PlatformVM; velas_url?: string }>(`/vms/${encodeURIComponent(name)}`);
 }
 
+export interface ConsoleTicket {
+  ticket: string;
+  expires_at: string;
+}
+
+/** Single-use, short-lived credential for /ws/console. Requires vms:console. */
+export async function createConsoleTicket(name: string) {
+  return platformFetch<ConsoleTicket>(`/vms/${encodeURIComponent(name)}/console-ticket`, {
+    method: 'POST',
+  });
+}
+
 export async function fetchVMLogs(name: string, tail = 200) {
   const token = localStorage.getItem('jwt_token') || '';
   const tenantId = localStorage.getItem('tenant_id');

@@ -125,14 +125,28 @@ func main() {
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc, loginThrottle)
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
-	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc)
+	consoleTickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL)
+	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc, consoleTickets)
 	eventsHandler := handler.NewEventsHandler(hub, platformSvc, cfg.Security.AllowedOrigins)
 	authenticate := middleware.Authenticate(authSvc, repo, identitySvc)
-	router.Handle("/ws/console", authenticate(http.HandlerFunc(consoleHandler.VNCConsole)))
-	router.Handle("/ws/events", authenticate(http.HandlerFunc(eventsHandler.Events)))
+
+	// The browser cannot set headers on a WebSocket, so /ws/console is entered
+	// with a single-use ticket instead of a long-lived JWT in the URL. Header
+	// auth still works for non-browser clients.
+	router.Handle("/ws/console", middleware.ConsoleTicketAuth(consoleTickets, authenticate)(
+		middleware.RequirePermission(auth.PermVMsConsole)(http.HandlerFunc(consoleHandler.VNCConsole))))
+	router.Handle("/ws/events", middleware.AuthenticateWS(authSvc, repo, identitySvc)(http.HandlerFunc(eventsHandler.Events)))
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/auth/login", platformHandler.Login).Methods("POST")
+
+	// Registered before the generic protected subrouter so it keeps its own
+	// authorization: vms:console alone is enough, vms:write is not required.
+	consoleAPI := v1.NewRoute().Subrouter()
+	consoleAPI.Use(middleware.Authenticate(authSvc, repo, identitySvc))
+	consoleAPI.Use(middleware.AuditRootImpersonation(repo))
+	consoleAPI.Use(middleware.RequirePermission(auth.PermVMsConsole))
+	consoleAPI.HandleFunc("/vms/{name}/console-ticket", consoleHandler.IssueConsoleTicket).Methods("POST")
 
 	protected := v1.NewRoute().Subrouter()
 	protected.Use(middleware.Authenticate(authSvc, repo, identitySvc))
