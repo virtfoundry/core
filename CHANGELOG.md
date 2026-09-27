@@ -87,6 +87,14 @@ Security release: cumulative product-security audit fixes since 0.7.1 (SSH defau
 
 ## [0.7.0] - 2026-09-02
 
+First tagged release of the CRD-store / operator line (no separate `v0.6.0` tag was ever published).
+
+### Added
+
+- Kubernetes `Repository` store (`virtfoundry.io` CRDs) as the only persistence backend
+- [virtfoundry/operator](https://github.com/virtfoundry/operator): `v1alpha1` CRDs, Tenant namespace reconciler, Instance status sync from KubeVirt
+- VM list performance improvements (CR fast path, reduced writes on list)
+
 ### Removed
 
 - MySQL store (`mysql.go`, migrations, `go-sql-driver/mysql`)
@@ -95,23 +103,11 @@ Security release: cumulative product-security audit fixes since 0.7.1 (SSH defau
 
 ### Changed
 
+- **Breaking (0.x):** MySQL store, embedded MySQL chart resources, and `cmd/worker` removed
 - Store backends: **kubernetes** (production) or **memory** (local dev/tests) only
+- Helm chart defaults to CRD store; install **virtfoundry-operator** before API/UI
 - Docs: [Platform prerequisites](https://virtfoundry.github.io/helm-charts/docs/guide/prerequisites/) with KubeVirt, Multus, CDI, Longhorn, MetalLB links
 - UI and docs advertise `0.7.0`
-
-## [0.6.0] - 2026-09-01
-
-### Added
-
-- Kubernetes `Repository` store (`virtfoundry.io` CRDs) as the only persistence backend
-- [virtfoundry/operator](https://github.com/virtfoundry/operator): `v1alpha1` CRDs, Tenant namespace reconciler, Instance status sync from KubeVirt
-- VM list performance improvements (CR fast path, reduced writes on list)
-
-### Changed
-
-- **Breaking (0.x):** MySQL store, embedded MySQL chart resources, and `cmd/worker` removed
-- Helm chart defaults to CRD store; install **virtfoundry-operator** before API/UI
-- UI and docs advertise `0.6.0`
 
 ### Fixed
 
@@ -120,114 +116,17 @@ Security release: cumulative product-security audit fixes since 0.7.1 (SSH defau
 
 ## [0.5.0] - 2026-08-16
 
-Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`–`v1.5.0` remain for history; they are not a SemVer 1.0 contract. UI/Helm advertise `0.5.0`.
+Pre-1.0 release line (project is **not** SemVer 1.0). Premature `v1.0.0`–`v1.5.0` tags/releases were deleted in the 2026-09-27 version cleanup; their shipped features are recorded here under `0.5.0`. UI/Helm advertise `0.5.0`.
 
-## [1.5.0] - 2026-08-11
+### Added (absorbed from deleted premature 1.x line)
 
-### Added
+- IAM: users, roles, API keys (`vfd_live_...`), permission middleware, tenant admin bootstrap, `/iam` UI
+- Default VPC per tenant; self-service API keys; volumes attach/detach; service offerings CRUD; template catalog + ISO import; root delete-tenant; dedicated CPU offerings; Features guide
+- UI: Redux client state, accordion nav, login redesign, version from `package.json`
 
-- Root-only `DELETE /tenants/{id}`: purge tenant data and delete the Kubernetes namespace (default tenant protected)
-- Tenants UI: delete action with confirmation (hidden for `default`)
-- Deploy flag `dedicated_cpu` for Guaranteed QoS (`requests.cpu = limits.cpu = cores`) when overcommit is not desired
-- Service offering field `dedicated_cpu` plus seeded `small-dedicated` / `medium-dedicated` / `large-dedicated`
-- UI deploy checkbox and Offerings admin toggle for dedicated CPU
-- Published Features guide (tenancy, IAM, offerings, templates, VMs, access, storage, networking, security groups, API)
+### Fixed (absorbed)
 
-### Fixed
-
-- VM deploy CPU scheduling: set guest `domain.cpu.cores` and omit CPU request by default so KubeVirt `cpuAllocationRatio` can overcommit (fixes `Insufficient cpu` when VMs are idle)
-- Tenant create UX: show admin username (`{slug}-admin`) after create; clearer login guidance
-- Default public bridge name `vf-pub0` (Linux IFNAMSIZ ≤15 chars)
-- CI image builds: disable Buildx provenance/SBOM attestations (containerd 2.x CreateContainerError on attestation OCI indexes)
-
-### Changed
-
-- CI required checks documented; go test coverage broadened on PRs
-
-## [1.4.1] - 2026-08-05
-
-### Fixed
-
-- Volume delete while attached to a VM returns **409 Conflict** instead of HTTP 500
-- Volume delete for missing ID returns **404 Not Found** via typed API errors
-- Login and settings UI show app version from `ui/package.json` at build time (was hardcoded v1.1.1)
-
-## [1.4.0] - 2026-08-05
-
-### Added
-
-- `docs/VM-TEMPLATES.md`: container disks, ISO import (CDI), platform vs tenant scope, UI and API registration
-- Templates UI polls every 5s during ISO import with spinner/failed badges on template cards
-
-### Changed
-
-- Template seed deduplication: platform catalog keeps global templates (cirros, ubuntu-2204, windows); tenant bootstrap only adds fedora-39 and skips names already in platform catalog
-- Updated `docs/ARCHITECTURE.md`, `TODO.md`, and README docs section for current templates API and UI
-
-## [1.3.0] - 2026-08-05
-
-### Added
-
-- Service offerings CRUD API for root users (`POST/PATCH/DELETE /service-offerings`) with validation and soft-delete (state → Inactive)
-- Admin UI at `/offerings` to list, create, edit, and deactivate offerings
-- VM resize persists `service_offering_id` via `PATCH /vms/{name}`; VM detail overview shows offering name
-
-## [1.2.0] - 2026-08-05
-
-### Added
-
-- Volume attach and detach API (`POST/GET/DELETE /vms/{name}/volumes`) with KubeVirt hot-plug
-- Volume delete endpoint (`DELETE /volumes/{id}`) with guard when still attached to a VM
-- VM Detail **Storage** tab: list attached volumes, attach unattached volumes, detach
-- Volumes page: show attached VM; deploy dropdown lists only unattached volumes
-- `platform.storage.defaultClass` from Helm wired to tenant volume PVC creation
-- `volume.vm_id` tracked on deploy, attach, and detach
-
-## [1.1.1] - 2026-08-04
-
-### Fixed
-
-- VM create with pod network: pod NIC renamed from `default` to `pod` to avoid KubeVirt duplicate network name conflict with the default VPC subnet
-- Login page: full-width navbar, theme-aware light/dark hero panels, logo rendering, and pointer-event handling on desktop
-- VirtFoundry logo PNG assets optimized (~3 MB → ~65 KB)
-
-### Changed
-
-- Login layout: split hero and sign-in panel with edge-to-edge header
-
-## [1.1.0] - 2026-08-04
-
-### Added
-
-- Default VPC per tenant (`10.0.0.0/16` + `default` subnet) on bootstrap; VMs without explicit subnet use it automatically
-- Public VM deploy attaches private (default VPC) + public NIC for bastion-style access on the same tenant network
-- Self-service API keys: any authenticated user can create and revoke their own keys (no `users:write` required)
-- Redux Toolkit for UI client state (auth, theme, sidebar, tenant selection)
-- Sidebar accordion navigation (Compute, Storage, Network, Platform)
-- Header user menu and settings popover (theme, language, docs, about)
-- Bundled JetBrains Mono fonts; `favicon.svg` (V monogram)
-- Targeted React Query invalidation from WebSocket events (reduced full-page refresh noise)
-
-### Changed
-
-- VM deploy UI: removed SSH NodePort exposure; access via public-network SSH or noVNC console
-- IAM UI: API Keys tab for all users; Users/Roles tabs limited to tenant admins
-- Dashboard: removed compute allocation chart; centered resource stat cards
-- VirtFoundry logo: light/dark PNG stack for instant theme swap
-- Header layout: tenant selector, notifications, settings, and user avatar grouped on the right
-
-### Fixed
-
-- Circular import between Redux store and `platform-api` causing blank UI on load
-- Dark mode sidebar lag (scoped CSS transitions off theme-sensitive surfaces)
-- Background polling no longer triggers visible full-page refresh overlays
-
-## [1.0.0] - 2026-08-03
-
-### Added
-
-- IAM: users, roles, API keys (`vfd_live_...`), permission middleware
-- Tenant admin bootstrap, `/iam` UI for users and roles
+- Volume delete 409 when attached; VM pod NIC naming; CPU overcommit scheduling; IFNAMSIZ-safe public bridge default; CI attestation fix for containerd 2.x
 
 ## [0.2.0] - 2026-08-02
 
@@ -259,18 +158,10 @@ Pre-1.0 release line. Same product as the former `1.5.0` tag. Git tags `v1.0.0`�
 - KubeVirt VM lifecycle, Multus networking, NetworkPolicy security groups
 - MySQL persistence, JWT auth, Gateway-compatible deployment
 
-[0.6.0]: https://github.com/virtfoundry/core/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/virtfoundry/core/compare/v1.5.0...v0.5.0
-[1.5.0]: https://github.com/virtfoundry/core/compare/v1.4.1...v1.5.0
-[1.4.1]: https://github.com/virtfoundry/core/compare/v1.4.0...v1.4.1
-[1.4.0]: https://github.com/virtfoundry/core/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/virtfoundry/core/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/virtfoundry/core/compare/v1.1.1...v1.2.0
-[1.1.1]: https://github.com/virtfoundry/core/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/virtfoundry/core/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v1.0.0
-[0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0
-
 [0.7.3]: https://github.com/virtfoundry/core/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/virtfoundry/core/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/virtfoundry/core/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/virtfoundry/core/compare/v0.5.0...v0.7.0
+[0.5.0]: https://github.com/virtfoundry/core/compare/v0.2.0...v0.5.0
+[0.2.0]: https://github.com/virtfoundry/core/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/virtfoundry/core/releases/tag/v0.1.0

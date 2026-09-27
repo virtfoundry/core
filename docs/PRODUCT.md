@@ -45,4 +45,4 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 - **0.6.0** — CRD store default, operator chart, homelab cutover
 - **0.5.0** — IAM, Helm install, public network, Kind lab
 - **1.0.0** — not declared yet; freeze of public API and Helm chart contract
-- Git tags `v1.0.0`–`v1.5.0` are historical; they do not mean SemVer 1.0
+- Premature tags `v1.0.0`–`v1.5.0` were deleted (2026-09-27); they never meant SemVer 1.0
