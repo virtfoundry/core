@@ -6,6 +6,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-28
+
+### Added
+
+- **UI day-2 polish** — deploy wizard em steps (compute → disco → rede → acesso → review), feedback de progresso no deploy, pré-checagens, Activity/Retry em Error, filtros por estado, confirm delete com digitar nome.
+- **Operação na lista/detalhe** — ⌘K (command palette), clone (“Deploy like this”), bulk start/stop/delete, tags/pin/favorites (local), split view, gallery de templates, SSH one-liner, rename de display name sem Stopped, error catalog, onboarding checklist no dashboard, banner de impersonate (root), export CSV, tema “seguir sistema”.
+- **Cloud-init editor local** na VM (validação YAML leve + secrets mascarados; não aplica no guest sem API).
+
+### Fixed
+
+- Select de chave SSH no wizard não mostra `()` quando `fingerprint` vem vazio.
+
 ## [0.7.3] - 2026-09-25
 
 ### Fixed
