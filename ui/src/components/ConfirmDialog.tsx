@@ -1,7 +1,8 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../lib/i18n';
+import { formInputClass } from './shell';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -10,6 +11,8 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   resourceName?: string;
+  /** When set, user must type this exact name before confirm is enabled. */
+  requireTypedName?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
@@ -23,6 +26,7 @@ export function ConfirmDialog({
   title,
   message,
   resourceName,
+  requireTypedName,
   confirmLabel,
   cancelLabel,
   loading = false,
@@ -30,11 +34,16 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const { t } = useI18n();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const [typed, setTyped] = useState('');
   const resolvedConfirmLabel = confirmLabel ?? t('common.delete');
   const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
+  const nameOk = !requireTypedName || typed === requireTypedName;
 
   useEffect(() => {
-    if (open) cancelRef.current?.focus();
+    if (open) {
+      setTyped('');
+      cancelRef.current?.focus();
+    }
   }, [open]);
 
   useEffect(() => {
@@ -71,6 +80,22 @@ export function ConfirmDialog({
                     {resourceName}
                   </p>
                 )}
+                {requireTypedName && (
+                  <div className="mt-3">
+                    <label className="block text-xs text-on-surface-variant mb-1">
+                      {t('common.typeNameToConfirm')}{' '}
+                      <span className="font-data-mono text-on-surface">{requireTypedName}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={typed}
+                      onChange={(e) => setTyped(e.target.value)}
+                      className={formInputClass}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
                 {error && <p className="mt-2 text-sm text-error">{error}</p>}
               </div>
             </div>
@@ -88,7 +113,7 @@ export function ConfirmDialog({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={loading}
+              disabled={loading || !nameOk}
               className={clsx(
                 'inline-flex items-center justify-center gap-2 px-4 py-2 h-10 rounded-lg text-label-md font-mono font-medium transition-all',
                 'bg-error-container text-on-error-container hover:opacity-90 disabled:opacity-50 inner-glow',

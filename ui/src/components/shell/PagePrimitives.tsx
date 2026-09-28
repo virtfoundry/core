@@ -57,14 +57,16 @@ interface EmptyStateProps {
   icon: ReactNode;
   title: string;
   hint?: string;
+  action?: ReactNode;
 }
 
-export function EmptyState({ icon, title, hint }: EmptyStateProps) {
+export function EmptyState({ icon, title, hint, action }: EmptyStateProps) {
   return (
-    <div className="col-span-full text-center py-12">
+    <div className="col-span-full text-center py-12 px-4">
       <div className="mx-auto mb-4 text-on-surface-variant opacity-40">{icon}</div>
-      <p className="text-on-surface-variant">{title}</p>
-      {hint && <p className="text-sm text-on-surface-variant/70 mt-2 max-w-md mx-auto">{hint}</p>}
+      <p className="text-on-surface font-medium">{title}</p>
+      {hint && <p className="text-sm text-on-surface-variant mt-2 max-w-md mx-auto">{hint}</p>}
+      {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
   );
 }

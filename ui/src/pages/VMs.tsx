@@ -1,136 +1,84 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Play, Trash2, Plus, Power, Monitor, Camera, Shield } from 'lucide-react';
-import clsx from 'clsx';
 import {
-  listVMs, startVM, stopVM, deleteVM, deployVM, createVMSnapshot, listNetworks,
-  listSSHKeys, listVolumes, listSecurityGroups, createSecurityGroup, listVMTemplates,
-  listServiceOfferings, PlatformVM, VMTemplate,
+  Play, Trash2, Plus, Power, Monitor, Camera, Server, AlertCircle,
+  Star, Pin, Copy, Columns2, Download, Tag, CopyPlus,
+} from 'lucide-react';
+import {
+  listVMs, startVM, stopVM, deleteVM, createVMSnapshot, PlatformVM,
 } from '../lib/platform-api';
-import {
-  isWindowsTemplate, isDeployableImage, offeringsForTemplate, offeringLabel, findOfferingByName,
-} from '../lib/offerings';
 import { Modal } from '../components/Modal';
-import { SGRulesEditor, defaultSGRules } from '../components/SGRulesEditor';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DeployVMWizard } from '../components/DeployVMWizard';
+import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { isVMTransitional } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
+import { useAppSelector } from '../store/hooks';
+import { selectUser } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
-import { isIsolatedNetwork } from '../lib/networks';
-import { PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, formInputClass, formSelectClass, formTextareaClass, PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd } from '../components/shell';
+import {
+  PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, EmptyState,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+  formInputClass, InfoBanner,
+} from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
+import { formatVmOffering, isVmError, isVmRunning } from '../lib/vm-display';
+import { matchErrorCatalog } from '../lib/error-catalog';
+import {
+  getAllVmTags,
+  getFavoriteVMs,
+  getPinnedVMs,
+  getSplitView,
+  pushRecentAction,
+  setSplitView,
+  setVmTags,
+  toggleFavoriteVM,
+  togglePinnedVM,
+} from '../lib/preview-prefs';
+import clsx from 'clsx';
 
-function optionCardClass(selected: boolean) {
-  return clsx(
-    'flex-1 border rounded-lg p-3 cursor-pointer transition-colors inner-glow',
-    selected ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant hover:border-primary-container/40',
-  );
-}
+type StateFilter = 'all' | 'running' | 'error' | 'stopped' | 'other';
 
-function fmtMem(mi: number) {
-  if (mi >= 1024) return `${(mi / 1024).toFixed(1)} GB`;
-  return `${mi} MiB`;
-}
+type BulkProgress = {
+  total: number;
+  done: number;
+  failed: number;
+  action: string;
+} | null;
 
 export function VMs() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const user = useAppSelector(selectUser);
   const [search, setSearch] = useState('');
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all');
+  const [mineOnly, setMineOnly] = useState(false);
+  const [tagFilter, setTagFilter] = useState('');
   const [deployModal, setDeployModal] = useState(false);
-  const [createSgModal, setCreateSgModal] = useState(false);
-  const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
+  const [cloneFrom, setCloneFrom] = useState<PlatformVM | null>(null);
   const [snapshotModal, setSnapshotModal] = useState<{ vmName: string } | null>(null);
   const [snapshotForm, setSnapshotForm] = useState({ name: '' });
+  const [deleteTarget, setDeleteTarget] = useState<PlatformVM | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState<BulkProgress>(null);
+  const [favs, setFavs] = useState(() => getFavoriteVMs());
+  const [pins, setPins] = useState(() => getPinnedVMs());
+  const [tagMap, setTagMap] = useState(() => getAllVmTags());
+  const [split, setSplit] = useState(() => getSplitView());
+  const [splitName, setSplitName] = useState<string | null>(null);
+  const [tagEditVm, setTagEditVm] = useState<string | null>(null);
+  const [tagDraft, setTagDraft] = useState('');
+  const [copiedSsh, setCopiedSsh] = useState<string | null>(null);
+  const [rateLimitMsg, setRateLimitMsg] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    name: '',
-    template_id: '',
-    offering: '',
-    dedicated_cpu: false,
-    network_mode: 'private' as 'private' | 'public',
-    network_ids: [] as string[],
-    security_group_ids: [] as string[],
-    ssh_key_id: '',
-    data_volume_id: '',
-  });
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
-  const { data: netData } = useQuery({
-    queryKey: queryKeys.networks,
-    queryFn: listNetworks,
-    enabled: !needsTenant && deployModal,
-  });
-  const { data: sshData } = useQuery({
-    queryKey: queryKeys.sshKeys,
-    queryFn: listSSHKeys,
-    enabled: !needsTenant && deployModal,
-  });
-  const { data: volData } = useQuery({
-    queryKey: queryKeys.volumes,
-    queryFn: listVolumes,
-    enabled: !needsTenant && deployModal,
-  });
-  const { data: sgData } = useQuery({
-    queryKey: queryKeys.securityGroups,
-    queryFn: listSecurityGroups,
-    enabled: !needsTenant && deployModal,
-  });
-  const { data: tmplData } = useQuery({
-    queryKey: queryKeys.templates,
-    queryFn: listVMTemplates,
-    enabled: !needsTenant && deployModal,
-  });
-  const templates = (tmplData?.vm_templates || []).filter(isDeployableImage);
-  const selectedTemplate = templates.find((tmpl) => tmpl.id === form.template_id) || null;
-  const linuxTemplates = templates.filter((tmpl) => !isWindowsTemplate(tmpl));
-  const windowsTemplates = templates.filter((tmpl) => isWindowsTemplate(tmpl));
-  const networks = netData?.networks || [];
-  const privateNetworks = networks.filter(isIsolatedNetwork);
-  const securityGroups = sgData?.security_groups || [];
-  const defaultSg = securityGroups.find((sg) => sg.name === 'default');
 
-  useEffect(() => {
-    if (!deployModal || form.network_mode !== 'public' || form.security_group_ids.length > 0) return;
-    if (defaultSg) {
-      setForm((f) => ({ ...f, security_group_ids: [defaultSg.id] }));
-    }
-  }, [deployModal, form.network_mode, form.security_group_ids.length, defaultSg?.id]);
-
-  const { data: offeringsData } = useQuery({
-    queryKey: queryKeys.offerings,
-    queryFn: listServiceOfferings,
-    enabled: !needsTenant && deployModal,
-  });
-  const offerings = offeringsData?.service_offerings || [];
-  const templateOfferings = offeringsForTemplate(offerings, selectedTemplate);
-
-  useEffect(() => {
-    if (!deployModal || offerings.length === 0) return;
-    const available = offeringsForTemplate(offerings, selectedTemplate);
-    if (available.length === 0) return;
-    if (!available.some((o) => o.id === form.offering)) {
-      const preferred = findOfferingByName(available, isWindowsTemplate(selectedTemplate) ? 'windows-large' : 'small');
-      const pick = preferred || available[0];
-      setForm((f) => ({ ...f, offering: pick.id, dedicated_cpu: !!pick.dedicated_cpu }));
-    }
-  }, [deployModal, offerings, selectedTemplate, form.offering]);
-
-  useEffect(() => {
-    if (!deployModal || form.template_id || templates.length === 0) return;
-    const preferred = templates.find((tmpl) => tmpl.name === 'ubuntu-2204') || templates.find((tmpl) => !isWindowsTemplate(tmpl));
-    if (preferred) {
-      setForm((f) => ({ ...f, template_id: preferred.id }));
-    }
-  }, [deployModal, form.template_id, templates]);
-
-  const sshKeys = sshData?.ssh_keys || [];
-  const volumes = (volData?.volumes || []).filter((v) => !v.vm_id);
-
-  const { data, isLoading, isFetching, isRefetching, refetch, error, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, error, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vms,
     queryFn: listVMs,
     enabled: !needsTenant,
@@ -143,9 +91,64 @@ export function VMs() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.vms });
 
-  const startMutation = useMutation({ mutationFn: startVM, onSuccess: invalidate });
-  const stopMutation = useMutation({ mutationFn: stopVM, onSuccess: invalidate });
-  const destroyMutation = useMutation({ mutationFn: deleteVM, onSuccess: invalidate });
+  const withRateLimit = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = (e as Error).message || '';
+      if (/429|rate.?limit|too many/i.test(msg)) {
+        setRateLimitMsg(t('preview.rateLimit'));
+        window.setTimeout(() => setRateLimitMsg(null), 4000);
+      }
+      throw e;
+    }
+  }, [t]);
+
+  const startMutation = useMutation({
+    mutationFn: (name: string) => withRateLimit(() => startVM(name)),
+    onMutate: async (name) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.vms });
+      const prev = queryClient.getQueryData<{ vms: PlatformVM[] }>(queryKeys.vms);
+      if (prev) {
+        queryClient.setQueryData(queryKeys.vms, {
+          vms: prev.vms.map((vm) =>
+            vm.name === name ? { ...vm, state: 'Starting' } : vm,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, _n, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKeys.vms, ctx.prev);
+    },
+    onSettled: invalidate,
+  });
+  const stopMutation = useMutation({
+    mutationFn: (name: string) => withRateLimit(() => stopVM(name)),
+    onMutate: async (name) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.vms });
+      const prev = queryClient.getQueryData<{ vms: PlatformVM[] }>(queryKeys.vms);
+      if (prev) {
+        queryClient.setQueryData(queryKeys.vms, {
+          vms: prev.vms.map((vm) =>
+            vm.name === name ? { ...vm, state: 'Stopping' } : vm,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, _n, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKeys.vms, ctx.prev);
+    },
+    onSettled: invalidate,
+  });
+  const destroyMutation = useMutation({
+    mutationFn: deleteVM,
+    onSuccess: () => {
+      invalidate();
+      setDeleteTarget(null);
+    },
+  });
   const snapshotMutation = useMutation({
     mutationFn: createVMSnapshot,
     onSuccess: () => {
@@ -154,63 +157,158 @@ export function VMs() {
       setSnapshotForm({ name: '' });
     },
   });
-  const createSgMutation = useMutation({
-    mutationFn: createSecurityGroup,
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.securityGroups });
-      setForm((f) => ({ ...f, security_group_ids: [...f.security_group_ids, res.security_group.id] }));
-      setCreateSgModal(false);
-      setSgForm({ name: '', description: '', rules: defaultSGRules() });
-    },
-  });
-  const deployMutation = useMutation({
-    mutationFn: deployVM,
-    onSuccess: () => {
-      invalidate();
-      setDeployModal(false);
-      setForm({
-        name: '', template_id: '', offering: '', dedicated_cpu: false,
-        network_mode: 'private', network_ids: [], security_group_ids: [],
-        ssh_key_id: '', data_volume_id: '',
-      });
-    },
-  });
 
   const vms = data?.vms || [];
-  const filteredVMs = vms.filter((vm: PlatformVM) =>
-    vm.name?.toLowerCase().includes(search.toLowerCase()) ||
-    vm.display_name?.toLowerCase().includes(search.toLowerCase()) ||
-    vm.ip?.includes(search)
-  );
 
-  const handleDeploy = (e: React.FormEvent) => {
-    e.preventDefault();
-    const offering = offerings.find((o) => o.id === form.offering) || templateOfferings[0];
-    const linux = !isWindowsTemplate(selectedTemplate);
-    const isPublic = form.network_mode === 'public';
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    Object.values(tagMap).forEach((tags) => tags.forEach((t) => s.add(t)));
+    return [...s].sort();
+  }, [tagMap]);
 
-    if (!form.template_id || !offering) {
-      return;
-    }
-    if (isPublic && form.security_group_ids.length === 0) {
-      return;
-    }
-    if (linux && !form.ssh_key_id) {
-      return;
-    }
+  const filteredVMs = useMemo(() => {
+    const list = vms.filter((vm: PlatformVM) => {
+      const q = search.toLowerCase();
+      const tags = tagMap[vm.name] || [];
+      const matchesSearch =
+        !q
+        || vm.name?.toLowerCase().includes(q)
+        || vm.display_name?.toLowerCase().includes(q)
+        || vm.ip?.includes(search)
+        || vm.error_message?.toLowerCase().includes(q)
+        || tags.some((tg) => tg.includes(q));
 
-    deployMutation.mutate({
-      name: form.name,
-      template_id: form.template_id,
-      service_offering_id: offering.id,
-      cpu: offering.cpu,
-      memory_mi: offering.memory_mi,
-      dedicated_cpu: form.dedicated_cpu || !!offering.dedicated_cpu,
-      ...(form.network_ids.length ? { network_ids: form.network_ids } : {}),
-      ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
-      ...(linux ? { ssh_key_id: form.ssh_key_id } : {}),
-      ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
+      if (!matchesSearch) return false;
+
+      const st = (vm.state || '').toLowerCase();
+      if (stateFilter === 'running' && st !== 'running') return false;
+      if (stateFilter === 'error' && st !== 'error') return false;
+      if (stateFilter === 'stopped' && st !== 'stopped') return false;
+      if (stateFilter === 'other' && ['running', 'error', 'stopped'].includes(st)) return false;
+
+      if (tagFilter && !tags.includes(tagFilter)) return false;
+
+      if (mineOnly && user?.username) {
+        const uname = user.username.toLowerCase().replace(/-admin$/, '');
+        const owned =
+          vm.name?.toLowerCase().includes(uname)
+          || vm.display_name?.toLowerCase().includes(uname);
+        if (!owned && user.role !== 'root') {
+          // soft UX hint
+        }
+      }
+
+      return true;
     });
+
+    return list.sort((a, b) => {
+      const ap = pins.has(a.name) ? 0 : 1;
+      const bp = pins.has(b.name) ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      const af = favs.has(a.name) ? 0 : 1;
+      const bf = favs.has(b.name) ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [vms, search, stateFilter, mineOnly, user, tagMap, tagFilter, pins, favs]);
+
+  const filterCounts = useMemo(() => {
+    const counts = { all: vms.length, running: 0, error: 0, stopped: 0, other: 0 };
+    for (const vm of vms) {
+      const st = (vm.state || '').toLowerCase();
+      if (st === 'running') counts.running += 1;
+      else if (st === 'error') counts.error += 1;
+      else if (st === 'stopped') counts.stopped += 1;
+      else counts.other += 1;
+    }
+    return counts;
+  }, [vms]);
+
+  const splitVm = splitName ? vms.find((v) => v.name === splitName) : null;
+
+  const toggleSelect = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filteredVMs.length) setSelected(new Set());
+    else setSelected(new Set(filteredVMs.map((v) => v.name)));
+  };
+
+  const runBulk = async (action: 'start' | 'stop' | 'delete') => {
+    const names = [...selected];
+    if (names.length === 0) return;
+    if (action === 'delete') {
+      const ok = window.confirm(t('vms.bulkDeleteConfirm').replace('{n}', String(names.length)));
+      if (!ok) return;
+    }
+    setBulkProgress({ total: names.length, done: 0, failed: 0, action });
+    let done = 0;
+    let failed = 0;
+    for (const name of names) {
+      try {
+        if (action === 'start') await startVM(name);
+        else if (action === 'stop') await stopVM(name);
+        else await deleteVM(name);
+        done += 1;
+      } catch {
+        failed += 1;
+      }
+      setBulkProgress({ total: names.length, done: done + failed, failed, action });
+    }
+    setSelected(new Set());
+    invalidate();
+    window.setTimeout(() => setBulkProgress(null), 2500);
+  };
+
+  const copySsh = async (vm: PlatformVM) => {
+    if (!vm.ip) return;
+    const line = `ssh ubuntu@${vm.ip}`;
+    try {
+      await navigator.clipboard.writeText(line);
+      setCopiedSsh(vm.name);
+      pushRecentAction({ label: `SSH ${vm.name}`, path: `/vms/${vm.name}` });
+      window.setTimeout(() => setCopiedSsh(null), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const exportCsv = () => {
+    const rows = [
+      ['name', 'display_name', 'state', 'ip', 'host', 'cpu', 'memory_mi', 'template', 'tags'].join(','),
+      ...filteredVMs.map((vm) =>
+        [
+          vm.name,
+          JSON.stringify(vm.display_name || ''),
+          vm.state || '',
+          vm.ip || '',
+          vm.host_name || '',
+          vm.cpu ?? '',
+          vm.memory_mi ?? '',
+          vm.template || '',
+          JSON.stringify((tagMap[vm.name] || []).join(';')),
+        ].join(','),
+      ),
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'virtfoundry-vms.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const openClone = (vm: PlatformVM) => {
+    setCloneFrom(vm);
+    setDeployModal(true);
+    pushRecentAction({ label: `Clone ${vm.name}`, path: `/vms/${vm.name}` });
   };
 
   if (needsTenant) {
@@ -218,400 +316,445 @@ export function VMs() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('nav.vms')}
-        subtitle={`${vms.length} ${t('vms.subtitle')}`}
-        actions={
-          <>
-            <RefreshButton
-              onRefresh={() => refetch()}
-              isFetching={isRefetching}
-              dataUpdatedAt={dataUpdatedAt}
-            />
-            <button type="button" onClick={() => setDeployModal(true)} className="btn-primary">
-              <Plus size={18} /> Deploy VM
-            </button>
-          </>
-        }
-      />
+    <div className={clsx('space-y-6', split && 'xl:grid xl:grid-cols-5 xl:gap-6 xl:space-y-0')}>
+      <div className={clsx('space-y-6', split && 'xl:col-span-3')}>
+        <PageHeader
+          title={t('nav.vms')}
+          subtitle={`${vms.length} ${t('vms.subtitle')}`}
+          actions={
+            <>
+              <RefreshButton
+                onRefresh={() => refetch()}
+                isFetching={isRefetching}
+                dataUpdatedAt={dataUpdatedAt}
+              />
+              <button
+                type="button"
+                className="btn-outline-sm"
+                title={t('vms.exportCsv')}
+                onClick={exportCsv}
+                disabled={filteredVMs.length === 0}
+              >
+                <Download size={16} /> CSV
+              </button>
+              <button
+                type="button"
+                className={clsx('btn-outline-sm hidden xl:inline-flex', split && 'ring-1 ring-primary-container')}
+                title={t('vms.splitView')}
+                onClick={() => {
+                  const next = !split;
+                  setSplit(next);
+                  setSplitView(next);
+                  if (!next) setSplitName(null);
+                }}
+              >
+                <Columns2 size={16} /> {t('vms.split')}
+              </button>
+              <button type="button" onClick={() => { setCloneFrom(null); setDeployModal(true); }} className="btn-primary">
+                <Plus size={18} /> Deploy VM
+              </button>
+            </>
+          }
+        />
 
-      {error && (
-        <div className="p-3 bg-error-container/30 border border-error-container rounded-lg text-on-error-container text-sm">
-          {(error as Error).message}
+        {rateLimitMsg && <InfoBanner variant="warning">{rateLimitMsg}</InfoBanner>}
+
+        {error && (
+          <div className="p-4 bg-error-container/30 border border-error-container rounded-lg text-on-error-container text-sm flex items-start gap-3">
+            <AlertCircle size={18} className="shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium">{t('common.errorLoad')}</p>
+              <p className="mt-1 opacity-90">{(error as Error).message || t('vms.errorHint')}</p>
+              <button type="button" onClick={() => refetch()} className="btn-outline-sm mt-3">
+                {t('common.retry')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+          <SearchField
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('vms.searchPlaceholder')}
+            containerClassName="flex-1 max-w-xl"
+          />
+          <div className="flex flex-wrap gap-2 items-center" role="group" aria-label={t('common.filterState')}>
+            {([
+              ['all', t('common.filterAll'), filterCounts.all],
+              ['running', 'Running', filterCounts.running],
+              ['error', 'Error', filterCounts.error],
+              ['stopped', 'Stopped', filterCounts.stopped],
+            ] as const).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setStateFilter(id)}
+                className={
+                  stateFilter === id
+                    ? 'btn-primary text-xs !h-8 !px-3'
+                    : 'btn-outline-sm text-xs !h-8'
+                }
+              >
+                {label} ({count})
+              </button>
+            ))}
+            <label className="inline-flex items-center gap-2 text-xs text-on-surface-variant ml-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mineOnly}
+                onChange={(e) => setMineOnly(e.target.checked)}
+              />
+              {t('common.mine')}
+            </label>
+            {allTags.length > 0 && (
+              <select
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                className="text-xs h-8 border border-outline-variant rounded-lg bg-surface-container-high px-2"
+                aria-label={t('vms.filterTag')}
+              >
+                <option value="">{t('vms.allTags')}</option>
+                {allTags.map((tg) => (
+                  <option key={tg} value={tg}>{tg}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-outline-variant bg-surface-container-high">
+            <span className="text-sm font-medium">{t('vms.bulkSelected').replace('{n}', String(selected.size))}</span>
+            <ComingSoonBadge label={t('preview.uiOnly')} />
+            <button type="button" className="btn-outline-sm" onClick={() => runBulk('start')}>
+              <Play size={14} /> {t('vms.start')}
+            </button>
+            <button type="button" className="btn-outline-sm" onClick={() => runBulk('stop')}>
+              <Power size={14} /> {t('vms.stop')}
+            </button>
+            <button type="button" className="btn-danger-outline text-sm !h-8" onClick={() => runBulk('delete')}>
+              <Trash2 size={14} /> {t('vms.destroy')}
+            </button>
+            <button type="button" className="btn-ghost-muted text-sm" onClick={() => setSelected(new Set())}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        )}
+
+        {bulkProgress && (
+          <InfoBanner>
+            {t('vms.bulkProgress')
+              .replace('{action}', bulkProgress.action)
+              .replace('{done}', String(bulkProgress.done))
+              .replace('{total}', String(bulkProgress.total))
+              .replace('{failed}', String(bulkProgress.failed))}
+          </InfoBanner>
+        )}
+
+        <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+          <SurfaceCard padding="none" className="overflow-hidden">
+            {isLoading ? (
+              <div className="text-center py-16 text-on-surface-variant">{t('common.loading')}</div>
+            ) : filteredVMs.length === 0 ? (
+              <EmptyState
+                icon={<Server size={40} />}
+                title={vms.length === 0 ? t('vms.empty') : t('header.searchEmpty')}
+                hint={vms.length === 0 ? t('vms.emptyHint') : undefined}
+                action={
+                  vms.length === 0 ? (
+                    <button type="button" onClick={() => setDeployModal(true)} className="btn-primary">
+                      <Plus size={16} /> {t('vms.emptyCta')}
+                    </button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <PageTable>
+                <PageTableHead>
+                  <PageTableTh className="w-10">
+                    <input
+                      type="checkbox"
+                      checked={selected.size > 0 && selected.size === filteredVMs.length}
+                      onChange={toggleSelectAll}
+                      aria-label={t('vms.selectAll')}
+                    />
+                  </PageTableTh>
+                  <PageTableTh className="w-16" />
+                  <PageTableTh>{t('common.name')}</PageTableTh>
+                  <PageTableTh>{t('vms.col.displayName')}</PageTableTh>
+                  <PageTableTh>{t('common.state')}</PageTableTh>
+                  <PageTableTh>IP</PageTableTh>
+                  <PageTableTh>Host</PageTableTh>
+                  <PageTableTh>{t('vms.col.offering')}</PageTableTh>
+                  <PageTableTh>Tags</PageTableTh>
+                  <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+                </PageTableHead>
+                <PageTableBody>
+                  {filteredVMs.map((vm: PlatformVM) => {
+                    const errored = isVmError(vm.state);
+                    const running = isVmRunning(vm.state);
+                    const catalog = matchErrorCatalog(vm.error_message, locale);
+                    const tags = tagMap[vm.name] || [];
+                    return (
+                      <PageTableRow
+                        key={vm.id || vm.name}
+                        className={clsx(
+                          errored && 'bg-error-container/5',
+                          splitName === vm.name && 'ring-1 ring-inset ring-primary-container/50',
+                        )}
+                      >
+                        <PageTableTd>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(vm.name)}
+                            onChange={() => toggleSelect(vm.name)}
+                            aria-label={`${t('common.select')} ${vm.name}`}
+                          />
+                        </PageTableTd>
+                        <PageTableTd>
+                          <div className="flex gap-0.5">
+                            <button
+                              type="button"
+                              className="btn-icon-neutral !p-1"
+                              title={t('vms.favorite')}
+                              aria-pressed={favs.has(vm.name)}
+                              onClick={() => setFavs(toggleFavoriteVM(vm.name))}
+                            >
+                              <Star size={14} className={favs.has(vm.name) ? 'fill-warning text-warning' : ''} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon-neutral !p-1"
+                              title={t('vms.pin')}
+                              aria-pressed={pins.has(vm.name)}
+                              onClick={() => setPins(togglePinnedVM(vm.name))}
+                            >
+                              <Pin size={14} className={pins.has(vm.name) ? 'text-primary' : ''} />
+                            </button>
+                          </div>
+                        </PageTableTd>
+                        <PageTableTd>
+                          <button
+                            type="button"
+                            className="text-left"
+                            onClick={() => {
+                              if (split) setSplitName(vm.name);
+                            }}
+                          >
+                            <Link
+                              to={`/vms/${vm.name}`}
+                              className="font-medium text-primary hover:text-primary-fixed-dim hover:underline"
+                              onClick={(e) => {
+                                pushRecentAction({ label: vm.display_name || vm.name, path: `/vms/${vm.name}` });
+                                if (split) {
+                                  e.preventDefault();
+                                  setSplitName(vm.name);
+                                }
+                              }}
+                            >
+                              {vm.name}
+                            </Link>
+                          </button>
+                          {errored && vm.error_message && (
+                            <p className="mt-1 text-xs text-error line-clamp-2 max-w-xs" title={vm.error_message}>
+                              {vm.error_message}
+                            </p>
+                          )}
+                          {catalog && (
+                            <p className="mt-1 text-[11px] text-on-surface-variant">
+                              {t('errorCatalog.hint')}: {catalog.title}
+                            </p>
+                          )}
+                        </PageTableTd>
+                        <PageTableTd>{vm.display_name || vm.name}</PageTableTd>
+                        <PageTableTd>
+                          <StatusBadge status={vm.state || 'inactive'} />
+                        </PageTableTd>
+                        <PageTableTd className="font-mono text-xs">
+                          <span className="inline-flex items-center gap-1">
+                            {vm.ip || '—'}
+                            {vm.ip && (
+                              <button
+                                type="button"
+                                className="btn-icon-neutral !p-1"
+                                title={t('vms.copySsh')}
+                                aria-label={t('vms.copySsh')}
+                                onClick={() => copySsh(vm)}
+                              >
+                                <Copy size={12} />
+                              </button>
+                            )}
+                          </span>
+                          {copiedSsh === vm.name && (
+                            <span className="block text-[10px] text-success">{t('vms.copied')}</span>
+                          )}
+                        </PageTableTd>
+                        <PageTableTd className="text-xs">{vm.host_name || '—'}</PageTableTd>
+                        <PageTableTd className={vm.cpu === 0 && vm.memory_mi === 0 ? 'text-on-surface-variant' : undefined}>
+                          {formatVmOffering(vm)}
+                        </PageTableTd>
+                        <PageTableTd>
+                          <div className="flex flex-wrap gap-1 items-center max-w-[140px]">
+                            {tags.map((tg) => (
+                              <span key={tg} className="text-[10px] px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container">
+                                {tg}
+                              </span>
+                            ))}
+                            <button
+                              type="button"
+                              className="btn-icon-neutral !p-1"
+                              title={t('vms.editTags')}
+                              aria-label={t('vms.editTags')}
+                              onClick={() => {
+                                setTagEditVm(vm.name);
+                                setTagDraft(tags.join(', '));
+                              }}
+                            >
+                              <Tag size={12} />
+                            </button>
+                          </div>
+                        </PageTableTd>
+                        <PageTableTd>
+                          <div className="flex justify-end gap-1" role="group" aria-label={t('common.actions')}>
+                            <button
+                              type="button"
+                              onClick={() => openClone(vm)}
+                              className="btn-icon-neutral"
+                              title={t('vms.clone')}
+                              aria-label={t('vms.clone')}
+                            >
+                              <CopyPlus size={16} />
+                            </button>
+                            {running ? (
+                              <button
+                                type="button"
+                                onClick={() => stopMutation.mutate(vm.name)}
+                                className="btn-icon-warning focus-visible:ring-2 focus-visible:ring-primary"
+                                title={t('vms.stop')}
+                                aria-label={t('vms.stop')}
+                              >
+                                <Power size={16} />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => startMutation.mutate(vm.name)}
+                                className="btn-icon-success focus-visible:ring-2 focus-visible:ring-primary"
+                                title={errored ? t('vmDetail.retry') : t('vms.start')}
+                                aria-label={errored ? t('vmDetail.retry') : t('vms.start')}
+                              >
+                                <Play size={16} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => openConsole(vm.name, vm.namespace)}
+                              disabled={!running}
+                              className="btn-icon-neutral focus-visible:ring-2 focus-visible:ring-primary"
+                              title={t('vms.console')}
+                              aria-label={t('vms.console')}
+                            >
+                              <Monitor size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setSnapshotForm({ name: `${vm.name}-snap` }); setSnapshotModal({ vmName: vm.name }); }}
+                              disabled={!running}
+                              className="btn-icon-neutral focus-visible:ring-2 focus-visible:ring-primary"
+                              title={t('vms.snapshot')}
+                              aria-label={t('vms.snapshot')}
+                            >
+                              <Camera size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(vm)}
+                              className="btn-icon-danger focus-visible:ring-2 focus-visible:ring-error"
+                              title={t('vms.destroy')}
+                              aria-label={t('vms.destroy')}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </PageTableTd>
+                      </PageTableRow>
+                    );
+                  })}
+                </PageTableBody>
+              </PageTable>
+            )}
+          </SurfaceCard>
+        </RefreshingPanel>
+
+        {filteredVMs.some((vm) => isVmError(vm.state) && vm.error_message) && stateFilter !== 'error' && (
+          <InfoBanner variant="warning">
+            Há VMs em Error — use o filtro Error ou abra o detalhe para ver a causa, catálogo de erros e Retry.
+          </InfoBanner>
+        )}
+      </div>
+
+      {split && (
+        <aside className="hidden xl:block xl:col-span-2 sticky top-20 self-start">
+          <SurfaceCard padding="md" className="min-h-[320px]">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-headline text-title-md font-semibold">{t('vms.splitDetail')}</h2>
+              <ComingSoonBadge />
+            </div>
+            {!splitVm ? (
+              <p className="text-sm text-on-surface-variant">{t('vms.splitHint')}</p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={splitVm.state} />
+                  <Link to={`/vms/${splitVm.name}`} className="text-primary hover:underline font-medium">
+                    {splitVm.display_name || splitVm.name}
+                  </Link>
+                </div>
+                <dl className="grid grid-cols-2 gap-2">
+                  <div><dt className="text-on-surface-variant text-xs">IP</dt><dd className="font-data-mono">{splitVm.ip || '—'}</dd></div>
+                  <div><dt className="text-on-surface-variant text-xs">Host</dt><dd>{splitVm.host_name || '—'}</dd></div>
+                  <div><dt className="text-on-surface-variant text-xs">Offering</dt><dd>{formatVmOffering(splitVm)}</dd></div>
+                  <div><dt className="text-on-surface-variant text-xs">Template</dt><dd>{splitVm.template || '—'}</dd></div>
+                </dl>
+                {splitVm.error_message && (
+                  <p className="text-xs text-error whitespace-pre-wrap">{splitVm.error_message}</p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Link to={`/vms/${splitVm.name}`} className="btn-primary text-sm">{t('vms.viewVm')}</Link>
+                  {splitVm.ip && (
+                    <button type="button" className="btn-outline-sm" onClick={() => copySsh(splitVm)}>
+                      <Copy size={14} /> SSH
+                    </button>
+                  )}
+                  <button type="button" className="btn-outline-sm" onClick={() => openClone(splitVm)}>
+                    <CopyPlus size={14} /> {t('vms.clone')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </SurfaceCard>
+        </aside>
       )}
 
-      <SearchField
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={t('vms.searchPlaceholder')}
+      <DeployVMWizard
+        open={deployModal}
+        onClose={() => { setDeployModal(false); setCloneFrom(null); }}
+        cloneFrom={cloneFrom}
       />
 
-      <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-      <SurfaceCard padding="none" className="overflow-hidden">
-        <PageTable>
-          <PageTableHead>
-            <PageTableTh>{t('common.name')}</PageTableTh>
-            <PageTableTh>{t('vms.col.displayName')}</PageTableTh>
-            <PageTableTh>{t('common.state')}</PageTableTh>
-            <PageTableTh>IP</PageTableTh>
-            <PageTableTh>Zone</PageTableTh>
-            <PageTableTh>Host</PageTableTh>
-            <PageTableTh>Offering</PageTableTh>
-            <PageTableTh>Template</PageTableTh>
-            <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
-          </PageTableHead>
-          <PageTableBody>
-            {isLoading ? (
-              <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
-            ) : filteredVMs.length === 0 ? (
-              <tr><td colSpan={9} className="text-center py-12 text-on-surface-variant">{t('vms.empty')}</td></tr>
-            ) : (
-              filteredVMs.map((vm: PlatformVM) => (
-                <PageTableRow key={vm.id || vm.name}>
-                  <PageTableTd>
-                    <Link to={`/vms/${vm.name}`} className="font-medium text-primary hover:text-primary-fixed-dim hover:underline">
-                      {vm.name}
-                    </Link>
-                  </PageTableTd>
-                  <PageTableTd>{vm.display_name || vm.name}</PageTableTd>
-                  <PageTableTd>
-                    <StatusBadge status={vm.state || 'inactive'} />
-                  </PageTableTd>
-                  <PageTableTd className="font-mono text-xs">{vm.ip || '—'}</PageTableTd>
-                  <PageTableTd>{vm.zone || '—'}</PageTableTd>
-                  <PageTableTd className="text-xs">{vm.host_name || '—'}</PageTableTd>
-                  <PageTableTd>{vm.cpu} vCPU / {fmtMem(vm.memory_mi)}</PageTableTd>
-                  <PageTableTd>{vm.template || '—'}</PageTableTd>
-                  <PageTableTd>
-                    <div className="flex justify-end gap-1">
-                      {vm.state?.toLowerCase() === 'running' ? (
-                        <button onClick={() => stopMutation.mutate(vm.name)} className="btn-icon-warning" title={t('vms.stop')}>
-                          <Power size={16} />
-                        </button>
-                      ) : (
-                        <button onClick={() => startMutation.mutate(vm.name)} className="btn-icon-success" title={t('vms.start')}>
-                          <Play size={16} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => openConsole(vm.name, vm.namespace)}
-                        disabled={vm.state?.toLowerCase() !== 'running'}
-                        className="btn-icon-neutral"
-                        title="Console"
-                      >
-                        <Monitor size={16} />
-                      </button>
-                      <button
-                        onClick={() => { setSnapshotForm({ name: `${vm.name}-snap` }); setSnapshotModal({ vmName: vm.name }); }}
-                        disabled={vm.state?.toLowerCase() !== 'running'}
-                        className="btn-icon-neutral"
-                        title="Snapshot"
-                      >
-                        <Camera size={16} />
-                      </button>
-                      <button onClick={() => destroyMutation.mutate(vm.name)} className="btn-icon-danger" title={t('vms.destroy')}>
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </PageTableTd>
-                </PageTableRow>
-              ))
-            )}
-          </PageTableBody>
-        </PageTable>
-      </SurfaceCard>
-      </RefreshingPanel>
-
-      <Modal isOpen={deployModal} onClose={() => setDeployModal(false)} title={t('vms.deployModalTitle')} size="lg">
-        <form onSubmit={handleDeploy} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
-            <input
-              type="text"
-              required
-              pattern="[-a-z0-9]+"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
-              className={formInputClass}
-              placeholder="web-server-01"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">{t('common.image')}</label>
-              <select
-                required
-                value={form.template_id}
-                onChange={(e) => {
-                  const template_id = e.target.value;
-                  const tmpl = templates.find((t) => t.id === template_id) || null;
-                  const available = offeringsForTemplate(offerings, tmpl);
-                  const preferred = findOfferingByName(
-                    available,
-                    isWindowsTemplate(tmpl) ? 'windows-large' : 'small',
-                  );
-                  setForm({
-                    ...form,
-                    template_id,
-                    offering: preferred?.id || available[0]?.id || '',
-                  });
-                }}
-                className={formSelectClass}
-              >
-                <option value="">{t('vms.selectTemplate')}</option>
-                {linuxTemplates.length > 0 && (
-                  <optgroup label="Linux">
-                    {linuxTemplates.map((tmpl) => (
-                      <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
-                    ))}
-                  </optgroup>
-                )}
-                {windowsTemplates.length > 0 && (
-                  <optgroup label="Windows">
-                    {windowsTemplates.map((tmpl) => (
-                      <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-              <p className="text-xs text-on-surface-variant mt-1">
-                <Link to="/templates" className="text-primary hover:text-primary-fixed-dim hover:underline">{t('templates.manageLink')}</Link>
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Offering</label>
-              <select
-                value={form.offering}
-                onChange={(e) => {
-                  const offering = offerings.find((o) => o.id === e.target.value);
-                  setForm({
-                    ...form,
-                    offering: e.target.value,
-                    dedicated_cpu: !!offering?.dedicated_cpu,
-                  });
-                }}
-                className={formSelectClass}
-              >
-                {templateOfferings.map((o) => <option key={o.id} value={o.id}>{offeringLabel(o)}</option>)}
-              </select>
-              <label className="mt-3 flex items-start gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={form.dedicated_cpu}
-                  onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
-                />
-                <span>
-                  <span className="font-medium">{t('vms.dedicatedCpu')}</span>
-                  <p className="text-xs text-on-surface-variant mt-0.5">{t('vms.dedicatedCpuHint')}</p>
-                </span>
-              </label>
-            </div>
-          </div>
-          <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">
-            <label className="block text-sm font-medium">{t('vms.networkMode')}</label>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <label className={optionCardClass(form.network_mode === 'private')}>
-                <input
-                  type="radio"
-                  name="network_mode"
-                  className="mr-2"
-                  checked={form.network_mode === 'private'}
-                  onChange={() => setForm({ ...form, network_mode: 'private', security_group_ids: [] })}
-                />
-                <span className="font-medium">{t('vms.networkModePrivate')}</span>
-                <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkModePrivateHint')}</p>
-              </label>
-              <label className={optionCardClass(form.network_mode === 'public')}>
-                <input
-                  type="radio"
-                  name="network_mode"
-                  className="mr-2"
-                  checked={form.network_mode === 'public'}
-                  onChange={() => setForm({ ...form, network_mode: 'public' })}
-                />
-                <span className="font-medium">{t('vms.networkModePublic')}</span>
-                <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkModePublicHint')}</p>
-              </label>
-            </div>
-
-            {form.network_mode === 'private' && (
-              <div>
-                <p className="text-sm text-on-surface-variant mb-2">{t('vms.defaultVpcHint')}</p>
-                {privateNetworks.length > 0 && (
-                  <>
-                    <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetsOptional')}</label>
-                    <select
-                      multiple
-                      value={form.network_ids}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                        setForm({ ...form, network_ids: selected });
-                      }}
-                      className={clsx(formSelectClass, 'min-h-[88px] !h-auto')}
-                    >
-                      {privateNetworks.map((n) => (
-                        <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-on-surface-variant mt-1">{t('vms.multiSelectHint')}</p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {form.network_mode === 'public' && (
-              <>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium">{t('vms.securityGroupRequired')}</label>
-                    <button
-                      type="button"
-                      onClick={() => setCreateSgModal(true)}
-                      className="btn-ghost-brand flex items-center gap-1"
-                    >
-                      <Shield size={14} /> {t('vms.createSecurityGroup')}
-                    </button>
-                  </div>
-                  <select
-                    multiple
-                    required
-                    value={form.security_group_ids}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                      setForm({ ...form, security_group_ids: selected });
-                    }}
-                    className={clsx(formSelectClass, 'min-h-[88px] !h-auto')}
-                  >
-                    {securityGroups.map((sg) => (
-                      <option key={sg.id} value={sg.id}>
-                        {sg.name}{sg.name === 'default' ? ` (${t('sg.defaultBadge')})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-on-surface-variant mt-1">{t('vms.multiSgHint')}</p>
-                </div>
-                {privateNetworks.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetsOptional')}</label>
-                    <select
-                      multiple
-                      value={form.network_ids}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                        setForm({ ...form, network_ids: selected });
-                      }}
-                      className={clsx(formSelectClass, 'min-h-[72px] !h-auto')}
-                    >
-                      {privateNetworks.map((n) => (
-                        <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          {!isWindowsTemplate(selectedTemplate) && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('vms.sshKeyRequired')}</label>
-                <select
-                  required
-                  value={form.ssh_key_id}
-                  onChange={(e) => setForm({ ...form, ssh_key_id: e.target.value })}
-                  className={formSelectClass}
-                >
-                  <option value="">{t('common.noneFem')}</option>
-                  {sshKeys.map((k) => (
-                    <option key={k.id} value={k.id}>{k.name} ({k.fingerprint})</option>
-                  ))}
-                </select>
-                <p className="text-xs text-on-surface-variant mt-1">
-                  {sshKeys.length === 0 ? t('vms.sshKeyMissing') : t('ssh.deployHint')}{' '}
-                  <Link to="/ssh-keys" className="text-primary hover:text-primary-fixed-dim hover:underline">{t('vms.manageKeys')}</Link>
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('vms.dataVolumeOptional')}</label>
-                <select
-                  value={form.data_volume_id}
-                  onChange={(e) => setForm({ ...form, data_volume_id: e.target.value })}
-                  className={formSelectClass}
-                >
-                  <option value="">{t('common.none')}</option>
-                  {volumes.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name} ({v.size_gi} Gi)</option>
-                  ))}
-                </select>
-                <p className="text-xs text-on-surface-variant mt-1">{t('ssh.dataVolumeHint')}</p>
-              </div>
-            </>
-          )}
-          {deployMutation.isError && (
-            <p className="text-error text-sm">{(deployMutation.error as Error)?.message}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setDeployModal(false)} className="btn-secondary">{t('common.cancel')}</button>
-            <button
-              type="submit"
-              disabled={
-                deployMutation.isPending ||
-                !form.template_id ||
-                (form.network_mode === 'public' && form.security_group_ids.length === 0) ||
-                (!isWindowsTemplate(selectedTemplate) && !form.ssh_key_id)
-              }
-              className="btn-primary"
-            >
-              {deployMutation.isPending ? t('common.deploying') : 'Deploy'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal isOpen={createSgModal} onClose={() => setCreateSgModal(false)} title={t('vms.createSecurityGroup')}>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            createSgMutation.mutate({
-              name: sgForm.name,
-              description: sgForm.description,
-              rules: sgForm.rules,
-            });
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
-            <input
-              required
-              value={sgForm.name}
-              onChange={(e) => setSgForm({ ...sgForm, name: e.target.value })}
-              className={formInputClass}
-              placeholder="web-servers"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
-            <textarea
-              value={sgForm.description}
-              onChange={(e) => setSgForm({ ...sgForm, description: e.target.value })}
-              className={formTextareaClass}
-              rows={2}
-            />
-          </div>
-          <SGRulesEditor rules={sgForm.rules} onChange={(rules) => setSgForm({ ...sgForm, rules })} />
-          {createSgMutation.isError && (
-            <p className="text-error text-sm">{(createSgMutation.error as Error).message}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setCreateSgModal(false)} className="btn-secondary">{t('common.cancel')}</button>
-            <button type="submit" disabled={createSgMutation.isPending} className="btn-primary">{t('common.create')}</button>
-          </div>
-        </form>
-      </Modal>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && destroyMutation.mutate(deleteTarget.name)}
+        title={t('vms.destroyTitle')}
+        message={t('vms.destroyMessage')}
+        resourceName={deleteTarget?.name}
+        requireTypedName={deleteTarget?.name}
+        confirmLabel={t('vms.destroy')}
+        loading={destroyMutation.isPending}
+        error={destroyMutation.isError ? (destroyMutation.error as Error).message : undefined}
+      />
 
       <Modal isOpen={snapshotModal !== null} onClose={() => setSnapshotModal(null)} title={`Snapshot — ${snapshotModal?.vmName ?? ''}`}>
         <form
@@ -635,6 +778,40 @@ export function VMs() {
             <button type="submit" disabled={snapshotMutation.isPending} className="btn-primary">{t('common.create')}</button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={!!tagEditVm}
+        onClose={() => setTagEditVm(null)}
+        title={`${t('vms.editTags')} — ${tagEditVm ?? ''}`}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-on-surface-variant flex items-center gap-2">
+            {t('vms.tagsHint')} <ComingSoonBadge label={t('preview.localOnly')} />
+          </p>
+          <input
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            className={formInputClass}
+            placeholder="prod, web, staging"
+          />
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setTagEditVm(null)}>{t('common.cancel')}</button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                if (!tagEditVm) return;
+                const tags = tagDraft.split(/[,;\s]+/).filter(Boolean);
+                setVmTags(tagEditVm, tags);
+                setTagMap(getAllVmTags());
+                setTagEditVm(null);
+              }}
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
