@@ -9,10 +9,16 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { useI18n } from '../lib/i18n';
 import { PageHeader, SurfaceCard } from '../components/shell';
 
+import { OnboardingChecklist } from '../components/OnboardingChecklist';
+import { getRecentActions } from '../lib/preview-prefs';
+import { ComingSoonBadge } from '../components/ComingSoonBadge';
+import { useMemo } from 'react';
+
 export function Dashboard() {
   const { t } = useI18n();
   const needsTenant = useNeedsTenant();
   const enabled = !needsTenant;
+  const localRecent = useMemo(() => getRecentActions(), []);
 
   const { data: summary, isFetching, isLoading } = useQuery({
     queryKey: queryKeys.dashboardSummary,
@@ -67,6 +73,8 @@ export function Dashboard() {
           </>
         }
       />
+
+      <OnboardingChecklist />
 
       <RefreshingPanel isLoading={isLoading}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-gutter">
@@ -145,6 +153,22 @@ export function Dashboard() {
 
           <SurfaceCard className="md:col-span-5 flex flex-col overflow-hidden min-h-[280px]" padding="md" title="Recent activity">
             <div className="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
+              {localRecent.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-label uppercase text-on-surface-variant mb-1 flex items-center gap-2">
+                    Local · ⌘K <ComingSoonBadge label={t('preview.localOnly')} />
+                  </p>
+                  {localRecent.map((r) => (
+                    <Link
+                      key={r.id}
+                      to={r.path}
+                      className="block bg-surface-container p-2 rounded-lg border border-outline-variant mb-1 text-sm hover:bg-surface-variant"
+                    >
+                      {r.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
               {recentVms.length === 0 ? (
                 <p className="text-on-surface-variant text-sm">{t('dashboard.subtitle')}</p>
               ) : (
@@ -192,3 +216,4 @@ export function Dashboard() {
     </div>
   );
 }
+

@@ -161,6 +161,9 @@ async function platformFetch<T>(path: string, options: RequestInit = {}): Promis
     dispatchUnauthorized();
     throw new Error('Session expired');
   }
+  if (res.status === 429) {
+    throw new Error('429 Too Many Requests — rate limited');
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = body.error || body.errortext || body.errorText || res.statusText;

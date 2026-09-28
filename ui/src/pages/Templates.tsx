@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, LayoutGrid, List, Rocket } from 'lucide-react';
 import {
   listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
 import type { VMTemplate } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DeployVMWizard } from '../components/DeployVMWizard';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { ResourceActions } from '../components/ResourceActions';
@@ -19,6 +20,7 @@ import {
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, formTextareaClass,
 } from '../components/shell';
+import clsx from 'clsx';
 
 type TemplateForm = {
   name: string;
@@ -53,10 +55,12 @@ const emptyForm = (): TemplateForm => ({
 export function Templates() {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'gallery' | 'list'>('gallery');
   const [createModal, setCreateModal] = useState(false);
   const [editTmpl, setEditTmpl] = useState<VMTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [deployOpen, setDeployOpen] = useState(false);
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
@@ -117,6 +121,22 @@ export function Templates() {
         subtitle={`${templates.length} ${t('templates.subtitle')}`}
         actions={
           <>
+            <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
+              <button
+                type="button"
+                className={clsx('px-3 py-1.5 text-sm inline-flex items-center gap-1', view === 'gallery' ? 'bg-primary-container/25 text-primary' : 'text-on-surface-variant')}
+                onClick={() => setView('gallery')}
+              >
+                <LayoutGrid size={14} /> {t('templates.gallery')}
+              </button>
+              <button
+                type="button"
+                className={clsx('px-3 py-1.5 text-sm inline-flex items-center gap-1', view === 'list' ? 'bg-primary-container/25 text-primary' : 'text-on-surface-variant')}
+                onClick={() => setView('list')}
+              >
+                <List size={14} /> {t('templates.list')}
+              </button>
+            </div>
             <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
             <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
               <Plus size={18} /> {t('templates.create')}
@@ -130,6 +150,38 @@ export function Templates() {
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
+        {view === 'gallery' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {isLoading && <p className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</p>}
+            {!isLoading && filtered.length === 0 && (
+              <p className="col-span-full text-center py-12 text-on-surface-variant">{t('templates.empty')}</p>
+            )}
+            {filtered.map((tmpl) => (
+              <SurfaceCard key={tmpl.id} padding="md" className="flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-xl border border-outline-variant bg-surface-container-high flex items-center justify-center font-mono text-xs text-primary shrink-0">
+                    {(tmpl.os_type || 'linux').slice(0, 3).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-on-surface truncate">{tmpl.display_name || tmpl.name}</h3>
+                    <p className="text-xs font-data-mono text-on-surface-variant truncate">{tmpl.name}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-on-surface-variant line-clamp-2 mb-2">{tmpl.description || tmpl.image}</p>
+                <p className="text-[11px] text-on-surface-variant mb-3">
+                  {t('templates.minOffering')}: {tmpl.boot_disk_size_gi ? `${tmpl.boot_disk_size_gi} Gi` : 'small+'}
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary mt-auto justify-center text-sm"
+                  onClick={() => setDeployOpen(true)}
+                >
+                  <Rocket size={14} /> {t('templates.deploy')}
+                </button>
+              </SurfaceCard>
+            ))}
+          </div>
+        ) : (
         <SurfaceCard padding="none" className="overflow-hidden">
           <PageTable>
             <PageTableHead>
@@ -198,7 +250,10 @@ export function Templates() {
             </PageTableBody>
           </PageTable>
         </SurfaceCard>
+        )}
       </RefreshingPanel>
+
+      <DeployVMWizard open={deployOpen} onClose={() => setDeployOpen(false)} />
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -40,9 +40,9 @@ type SettingsMenuProps = {
 
 export function SettingsMenu({ open, onToggle, onClose }: SettingsMenuProps) {
   const { t, locale, setLocale } = useI18n();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const rootRef = useRef<HTMLDivElement>(null);
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   useClickOutside(rootRef, open, onClose);
 
@@ -53,7 +53,7 @@ export function SettingsMenu({ open, onToggle, onClose }: SettingsMenuProps) {
         onClick={onToggle}
         aria-expanded={open}
         title={t('sidebar.settings')}
-        className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-full transition-colors"
+        className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Settings size={20} />
       </button>
@@ -64,7 +64,7 @@ export function SettingsMenu({ open, onToggle, onClose }: SettingsMenuProps) {
           <span className="font-label text-sm">{t('sidebar.settings')}</span>
         </div>
 
-        <div className="px-4 py-3 border-b border-card-border">
+        <div className="px-4 py-3 border-b border-card-border space-y-1">
           <p className="text-xs font-label text-on-surface-variant mb-2">{t('sidebar.theme')}</p>
           <button
             type="button"
@@ -73,6 +73,16 @@ export function SettingsMenu({ open, onToggle, onClose }: SettingsMenuProps) {
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
             {isDark ? t('sidebar.themeLight') : t('sidebar.themeDark')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('system')}
+            className={clsx(
+              'flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-surface-variant transition-colors',
+              theme === 'system' ? 'text-primary' : 'text-on-surface',
+            )}
+          >
+            {t('sidebar.themeSystem')}
           </button>
         </div>
 
@@ -162,7 +172,11 @@ export function UserMenu({ open, onToggle, onClose, onLogout }: UserMenuProps) {
             <div className="min-w-0">
               <p className="font-medium text-sm text-on-surface truncate">{user?.username}</p>
               {user?.email && <p className="text-xs text-on-surface-variant truncate">{user.email}</p>}
-              <p className="text-xs text-on-surface-variant capitalize mt-0.5">{user?.role}</p>
+              {user?.role && (
+                <span className="inline-flex mt-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wide border border-outline-variant bg-surface-container-high text-on-surface-variant">
+                  {user.role}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Play, Power, Trash2, Monitor, Camera, Save, HardDrive, Unlink, Plus,
-  AlertCircle,
+  AlertCircle, RefreshCw, Activity, Copy, CopyPlus, Terminal,
 } from 'lucide-react';
 import {
   getVM, updateVM, startVM, stopVM, deleteVM, createVMSnapshot,
@@ -13,15 +13,18 @@ import {
   type PlatformVM,
 } from '../lib/platform-api';
 import {
-  offeringsForTemplate, offeringLabel, findOfferingBySpec, findOfferingByName,
+  offeringLabel, findOfferingBySpec, findOfferingByName,
 } from '../lib/offerings';
 import { Modal } from '../components/Modal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DeployVMWizard } from '../components/DeployVMWizard';
+import { ComingSoonBadge } from '../components/ComingSoonBadge';
+import { CloudInitEditor } from '../components/CloudInitEditor';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { isVMTransitional } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
@@ -30,19 +33,25 @@ import {
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
+import {
+  DEPLOY_PHASE_ORDER,
+  deployPhaseFromVm,
+  formatVmOffering,
+  fmtMem,
+  isVmError,
+  isVmRunning,
+  isVmStopped,
+} from '../lib/vm-display';
+import { matchErrorCatalog } from '../lib/error-catalog';
+import { pushRecentAction } from '../lib/preview-prefs';
 
-function fmtMem(mi: number) {
-  if (mi >= 1024) return `${(mi / 1024).toFixed(1)} GB`;
-  return `${mi} MiB`;
-}
-
-type Tab = 'overview' | 'networking' | 'storage' | 'logs' | 'snapshots';
+type Tab = 'overview' | 'activity' | 'networking' | 'storage' | 'cloudinit' | 'logs' | 'snapshots';
 
 export function VMDetail() {
   const { name = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, locale } = useI18n();
   const [tab, setTab] = useState<Tab>('overview');
   const [snapshotModal, setSnapshotModal] = useState(false);
   const [snapshotName, setSnapshotName] = useState('');
@@ -52,6 +61,9 @@ export function VMDetail() {
   const [logError, setLogError] = useState<string | null>(null);
   const [attachVolumeId, setAttachVolumeId] = useState('');
   const [logLoading, setLogLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [sshCopied, setSshCopied] = useState(false);
 
   const needsTenant = useNeedsTenant();
 
@@ -80,8 +92,9 @@ export function VMDetail() {
     queryFn: () => getVM(name),
     enabled: !needsTenant && !!name,
     refetchInterval: (q) => {
-      const vm = q.state.data?.vm;
-      if (vm && isVMTransitional(vm.state)) return 3_000;
+      const current = q.state.data?.vm;
+      if (current && isVMTransitional(current.state)) return 3_000;
+      if (current && isVmError(current.state)) return 5_000;
       return false;
     },
   });
@@ -120,13 +133,20 @@ export function VMDetail() {
     onSuccess: () => navigate('/vms'),
   });
   const updateMutation = useMutation({
-    mutationFn: () => updateVM(name, {
-      display_name: editForm.display_name,
-      service_offering_id: editForm.offering,
-    }),
+    mutationFn: () => {
+      const payload: { display_name?: string; service_offering_id?: string } = {
+        display_name: editForm.display_name,
+      };
+      // Offering resize only when stopped; display_name always allowed.
+      if (isVmStopped(data?.vm?.state) && editForm.offering) {
+        payload.service_offering_id = editForm.offering;
+      }
+      return updateVM(name, payload);
+    },
     onSuccess: () => {
       invalidate();
       setEditMode(false);
+      pushRecentAction({ label: `Rename ${name}`, path: `/vms/${name}` });
     },
   });
   const snapshotMutation = useMutation({
@@ -172,11 +192,16 @@ export function VMDetail() {
             {t('vmDetail.notFoundTitle')}
           </h1>
           <p className="mt-2 text-sm text-on-surface-variant">
-            {t('vmDetail.notFoundMessage')}
+            {(error as Error)?.message || t('vmDetail.notFoundMessage')}
           </p>
-          <Link to="/vms" className="btn-outline-sm mx-auto mt-5">
-            <ArrowLeft size={16} /> {t('nav.vms')}
-          </Link>
+          <div className="mt-5 flex justify-center gap-2">
+            <button type="button" onClick={() => refetch()} className="btn-outline-sm">
+              {t('common.retry')}
+            </button>
+            <Link to="/vms" className="btn-outline-sm">
+              <ArrowLeft size={16} /> {t('nav.vms')}
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -212,19 +237,23 @@ export function VMDetail() {
     }
     const matched = findOfferingBySpec(offerings, v.cpu, v.memory_mi);
     if (matched) return offeringLabel(matched);
-    return `${v.cpu} vCPU, ${fmtMem(v.memory_mi)}`;
+    return formatVmOffering(v);
   };
 
-  const stopped = vm.state?.toLowerCase() === 'stopped';
-  const running = vm.state?.toLowerCase() === 'running';
+  const stopped = isVmStopped(vm.state);
+  const running = isVmRunning(vm.state);
+  const errored = isVmError(vm.state);
+  const phase = deployPhaseFromVm(vm);
 
   const vmVolumes = vmVolData?.volumes || [];
   const availableVolumes = (allVolData?.volumes || []).filter((v) => !v.vm_id);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: t('vmDetail.overview') },
+    { id: 'activity', label: t('vmDetail.activity') },
     { id: 'networking', label: t('vmDetail.networking') },
     { id: 'storage', label: t('vmDetail.storage') },
+    { id: 'cloudinit', label: 'Cloud-init' },
     { id: 'logs', label: 'Logs' },
     { id: 'snapshots', label: 'Snapshots' },
   ];
@@ -248,22 +277,34 @@ export function VMDetail() {
                 isFetching={isRefetching}
                 dataUpdatedAt={dataUpdatedAt}
               />
+              {errored && (
+                <button
+                  type="button"
+                  onClick={() => startMutation.mutate()}
+                  disabled={startMutation.isPending}
+                  className="btn-primary"
+                  title={t('vmDetail.retryHint')}
+                >
+                  <RefreshCw size={16} /> {t('vmDetail.retry')}
+                </button>
+              )}
               {running ? (
                 <button type="button" onClick={() => stopMutation.mutate()} className="btn-danger-soft">
                   <Power size={16} /> {t('vms.stop')}
                 </button>
-              ) : (
+              ) : !errored ? (
                 <button type="button" onClick={() => startMutation.mutate()} className="btn-success-soft">
                   <Play size={16} /> {t('vms.start')}
                 </button>
-              )}
+              ) : null}
               <button
                 type="button"
                 onClick={() => openConsole(name!, vm.namespace)}
                 disabled={!running}
-                className="btn-outline-sm"
+                className={running ? 'btn-primary' : 'btn-outline-sm'}
+                title={t('vmDetail.consoleHint')}
               >
-                <Monitor size={16} /> Console
+                <Monitor size={16} /> {t('vmDetail.openConsole')}
               </button>
               <button
                 type="button"
@@ -275,7 +316,15 @@ export function VMDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => deleteMutation.mutate()}
+                onClick={() => setCloneOpen(true)}
+                className="btn-outline-sm"
+                title={t('vmDetail.clone')}
+              >
+                <CopyPlus size={16} /> {t('vmDetail.clone')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
                 className="btn-danger-outline"
               >
                 <Trash2 size={16} /> {t('vms.destroy')}
@@ -286,7 +335,66 @@ export function VMDetail() {
       </div>
 
       {vm.error_message && (
-        <InfoBanner variant="warning">{vm.error_message}</InfoBanner>
+        <InfoBanner variant="warning">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span>{vm.error_message}</span>
+              <div className="flex gap-2 shrink-0">
+                <button type="button" className="btn-outline-sm" onClick={() => setTab('activity')}>
+                  <Activity size={14} /> {t('vmDetail.activity')}
+                </button>
+                {errored && (
+                  <button type="button" className="btn-primary text-sm" onClick={() => startMutation.mutate()}>
+                    {t('vmDetail.retry')}
+                  </button>
+                )}
+              </div>
+            </div>
+            {(() => {
+              const catalog = matchErrorCatalog(vm.error_message, locale);
+              if (!catalog) return null;
+              return (
+                <div className="rounded-lg border border-outline-variant/60 bg-surface/40 p-3 text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium">{t('errorCatalog.title')}: {catalog.title}</span>
+                    <ComingSoonBadge />
+                  </div>
+                  <p className="text-on-surface-variant">{t('errorCatalog.fix')}: {catalog.fix}</p>
+                  <p className="text-xs text-on-surface-variant mt-1 font-data-mono">{catalog.docsHint}</p>
+                </div>
+              );
+            })()}
+          </div>
+        </InfoBanner>
+      )}
+
+      {running && (
+        <InfoBanner>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>{t('vmDetail.consoleHint')}</span>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-primary text-sm" onClick={() => openConsole(name!, vm.namespace)}>
+                <Monitor size={14} /> {t('vmDetail.openConsole')}
+              </button>
+              {vm.ip && (
+                <button
+                  type="button"
+                  className="btn-outline-sm"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(`ssh ubuntu@${vm.ip}`);
+                    setSshCopied(true);
+                    window.setTimeout(() => setSshCopied(false), 2000);
+                  }}
+                >
+                  <Copy size={14} /> {sshCopied ? t('vms.copied') : t('vmDetail.copySsh')}
+                </button>
+              )}
+              <button type="button" className="btn-outline-sm opacity-70" disabled title={t('preview.uiOnly')}>
+                <Terminal size={14} /> {t('vmDetail.serialConsole')} <ComingSoonBadge className="ml-1" />
+              </button>
+            </div>
+          </div>
+        </InfoBanner>
       )}
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
@@ -314,9 +422,9 @@ export function VMDetail() {
                   <button onClick={() => setEditMode(false)} className="btn-ghost-muted">{t('common.cancel')}</button>
                   <button
                     onClick={() => updateMutation.mutate()}
-                    disabled={updateMutation.isPending || !stopped}
+                    disabled={updateMutation.isPending}
                     className="btn-ghost-brand flex items-center gap-1 disabled:opacity-40"
-                    title={!stopped ? t('vmDetail.stopToResize') : undefined}
+                    title={t('vmDetail.renameHint')}
                   >
                     <Save size={14} /> {t('common.save')}
                   </button>
@@ -348,6 +456,7 @@ export function VMDetail() {
                   {!stopped && (
                     <p className="text-xs text-warning mt-1">{t('vmDetail.resizeRequiresStopped')}</p>
                   )}
+                  <p className="text-xs text-on-surface-variant mt-2">{t('vmDetail.renameHint')}</p>
                 </div>
               </div>
             ) : (
@@ -362,9 +471,17 @@ export function VMDetail() {
                 <div><dt className="text-on-surface-variant">Template</dt><dd className="text-on-surface">{vm.template || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('common.image')}</dt><dd className="font-data-mono text-xs break-all text-on-surface">{vm.image || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.serviceOffering')}</dt><dd className="text-on-surface">{resolveOfferingLabel(vm)}</dd></div>
-                <div><dt className="text-on-surface-variant">vCPUs</dt><dd className="text-on-surface">{vm.cpu}</dd></div>
-                <div><dt className="text-on-surface-variant">RAM</dt><dd className="text-on-surface">{fmtMem(vm.memory_mi)}</dd></div>
+                <div><dt className="text-on-surface-variant">vCPUs</dt><dd className="text-on-surface">{vm.cpu > 0 ? vm.cpu : '—'}</dd></div>
+                <div><dt className="text-on-surface-variant">RAM</dt><dd className="text-on-surface">{fmtMem(vm.memory_mi) || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.primaryIp')}</dt><dd className="font-data-mono text-on-surface">{vm.ip || '—'}</dd></div>
+                <div>
+                  <dt className="text-on-surface-variant flex items-center gap-2">
+                    {t('vmDetail.guestAgent')} <ComingSoonBadge />
+                  </dt>
+                  <dd className="text-on-surface">
+                    {running ? t('vmDetail.guestAgentOk') : t('vmDetail.guestAgentMissing')}
+                  </dd>
+                </div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.createdAt')}</dt><dd className="text-on-surface">{formatDate(vm.created_at)}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.updatedAt')}</dt><dd className="text-on-surface">{formatDate(vm.updated_at)}</dd></div>
               </dl>
@@ -372,14 +489,131 @@ export function VMDetail() {
           </SurfaceCard>
           <SurfaceCard>
             <h2 className="font-headline text-headline-md font-semibold text-on-surface mb-4">{t('vmDetail.quickActions')}</h2>
-            <p className="text-sm text-on-surface-variant">
+            <p className="text-sm text-on-surface-variant mb-4">
               {t('vmDetail.syncHint')}
             </p>
+            <button
+              type="button"
+              disabled={!running}
+              onClick={() => openConsole(name!, vm.namespace)}
+              className="btn-primary w-full justify-center mb-2"
+            >
+              <Monitor size={16} /> {t('vmDetail.openConsole')}
+            </button>
+            {vm.ip && (
+              <button
+                type="button"
+                className="btn-outline-sm w-full justify-center mb-2"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(`ssh ubuntu@${vm.ip}`);
+                  setSshCopied(true);
+                  window.setTimeout(() => setSshCopied(false), 2000);
+                }}
+              >
+                <Copy size={14} /> {sshCopied ? t('vms.copied') : t('vmDetail.copySsh')}
+              </button>
+            )}
+            <button type="button" className="btn-outline-sm w-full justify-center mb-2" onClick={() => setCloneOpen(true)}>
+              <CopyPlus size={14} /> {t('vmDetail.clone')}
+            </button>
+            {errored && (
+              <button
+                type="button"
+                onClick={() => startMutation.mutate()}
+                className="btn-outline-sm w-full justify-center mb-2"
+              >
+                <RefreshCw size={14} /> {t('vmDetail.retry')}
+              </button>
+            )}
+            <div className="mt-4 space-y-2 border-t border-outline-variant pt-3">
+              {[
+                t('vmDetail.migrate'),
+                t('vmDetail.passwordRotate'),
+                t('vmDetail.yamlDiff'),
+                t('vmDetail.isoBoot'),
+              ].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled
+                  className="btn-ghost-muted w-full justify-between text-sm opacity-70"
+                >
+                  {label} <ComingSoonBadge />
+                </button>
+              ))}
+            </div>
+          </SurfaceCard>
+        </div>
+      )}
+
+      {tab === 'activity' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SurfaceCard>
+            <h2 className="font-headline text-headline-md font-semibold mb-2">{t('vms.deployProgress')}</h2>
+            <p className="text-sm text-on-surface-variant mb-4">{t('vmDetail.activityHint')}</p>
+            <ol className="space-y-2">
+              {DEPLOY_PHASE_ORDER.map((p, idx) => {
+                const currentIdx = DEPLOY_PHASE_ORDER.indexOf(
+                  phase === 'error' || phase === 'unknown' ? 'creating' : phase,
+                );
+                const done = phase === 'running' || (phase !== 'error' && idx < currentIdx);
+                const active = phase === p;
+                return (
+                  <li
+                    key={p}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
+                      done
+                        ? 'border-success/30 bg-success-muted/40'
+                        : active
+                          ? 'border-primary-container bg-primary-container/10'
+                          : 'border-outline-variant text-on-surface-variant'
+                    }`}
+                  >
+                    <span className="font-data-mono text-xs w-5">{idx + 1}</span>
+                    {p === 'creating' && t('vms.phaseCreating')}
+                    {p === 'scheduling' && t('vms.phaseScheduling')}
+                    {p === 'networking' && t('vms.phaseNetworking')}
+                    {p === 'running' && t('vms.phaseRunning')}
+                  </li>
+                );
+              })}
+            </ol>
+          </SurfaceCard>
+          <SurfaceCard>
+            <h2 className="font-headline text-headline-md font-semibold mb-2">{t('vmDetail.conditions')}</h2>
+            {vm.error_message ? (
+              <div className="rounded-lg border border-error/30 bg-error-container/15 p-3 text-sm text-error whitespace-pre-wrap">
+                {vm.error_message}
+              </div>
+            ) : (
+              <p className="text-sm text-on-surface-variant">
+                {t('vmDetail.noActivity')} <StatusBadge status={vm.state} />
+              </p>
+            )}
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-on-surface-variant">{t('vmDetail.createdAt')}</dt>
+                <dd>{formatDate(vm.created_at)}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">{t('vmDetail.updatedAt')}</dt>
+                <dd>{formatDate(vm.updated_at)}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">{t('common.host')}</dt>
+                <dd>{vm.host_name || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">IP</dt>
+                <dd className="font-data-mono">{vm.ip || '—'}</dd>
+              </div>
+            </dl>
           </SurfaceCard>
         </div>
       )}
 
       {tab === 'networking' && (
+        <>
         <SurfaceCard padding="none">
           <PageTable>
             <PageTableHead>
@@ -400,12 +634,33 @@ export function VMDetail() {
             </PageTableBody>
           </PageTable>
         </SurfaceCard>
+        <SurfaceCard className="mt-4" padding="md">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-sm font-medium">{t('vmDetail.networkMap')}</h3>
+            <ComingSoonBadge />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-data-mono text-on-surface-variant">
+            <span className="px-2 py-1 rounded border border-outline-variant bg-surface-container">{vm.name}</span>
+            <span>→</span>
+            {(vm.nics?.length ? vm.nics : [{ name: 'default', ip: vm.ip }]).map((nic) => (
+              <span key={nic.name} className="px-2 py-1 rounded border border-outline-variant bg-surface-container">
+                {nic.name}{nic.ip ? ` (${nic.ip})` : ''}
+              </span>
+            ))}
+            <span>→</span>
+            <span className="px-2 py-1 rounded border border-dashed border-outline-variant">VPC / subnet</span>
+          </div>
+        </SurfaceCard>
+        </>
       )}
 
       {tab === 'storage' && (
         <SurfaceCard>
           <div className="space-y-4">
             <p className="text-sm text-on-surface-variant">{t('vmDetail.storageHint')}</p>
+            <button type="button" disabled className="btn-outline-sm opacity-70">
+              {t('vmDetail.expandVolume')} <ComingSoonBadge className="ml-2" />
+            </button>
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
                 <label className="block text-sm font-medium mb-1">{t('vmDetail.attachVolume')}</label>
@@ -426,7 +681,7 @@ export function VMDetail() {
                 disabled={!attachVolumeId || attachMutation.isPending}
                 className="btn-primary flex items-center gap-1"
               >
-                <Plus size={16} /> {t('vmDetail.attachVolume')}
+                <Plus size={16} /> {attachMutation.isPending ? 'Attaching…' : t('vmDetail.attachVolume')}
               </button>
             </div>
             {attachMutation.isError && (
@@ -464,7 +719,7 @@ export function VMDetail() {
                           disabled={detachMutation.isPending}
                           className="btn-outline-sm flex items-center gap-1 ml-auto"
                         >
-                          <Unlink size={14} /> {t('vmDetail.detachVolume')}
+                          <Unlink size={14} /> {detachMutation.isPending ? 'Detaching…' : t('vmDetail.detachVolume')}
                         </button>
                       </PageTableTd>
                     </PageTableRow>
@@ -476,6 +731,12 @@ export function VMDetail() {
               <p className="text-error text-sm">{(detachMutation.error as Error).message}</p>
             )}
           </div>
+        </SurfaceCard>
+      )}
+
+      {tab === 'cloudinit' && (
+        <SurfaceCard padding="md">
+          <CloudInitEditor vmName={name} />
         </SurfaceCard>
       )}
 
@@ -531,6 +792,19 @@ export function VMDetail() {
         </SurfaceCard>
       )}
 
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => deleteMutation.mutate()}
+        title={t('vms.destroyTitle')}
+        message={t('vms.destroyMessage')}
+        resourceName={vm.name}
+        requireTypedName={vm.name}
+        confirmLabel={t('vms.destroy')}
+        loading={deleteMutation.isPending}
+        error={deleteMutation.isError ? (deleteMutation.error as Error).message : undefined}
+      />
+
       <Modal isOpen={snapshotModal} onClose={() => setSnapshotModal(false)} title={t('vmDetail.createSnapshot')}>
         <form
           onSubmit={(e) => { e.preventDefault(); snapshotMutation.mutate(); }}
@@ -552,6 +826,8 @@ export function VMDetail() {
           </div>
         </form>
       </Modal>
+
+      <DeployVMWizard open={cloneOpen} onClose={() => setCloneOpen(false)} cloneFrom={vm} />
     </div>
     </RefreshingPanel>
   );

@@ -1,10 +1,11 @@
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Menu, X, Building2 } from 'lucide-react';
 import { VirtFoundryLogo } from './VirtFoundryLogo';
 import { SidebarNav } from './SidebarNav';
 import { SettingsMenu, UserMenu } from './HeaderMenus';
 import { HeaderSearch, NotificationsMenu } from './HeaderToolbar';
+import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { authService } from '../lib/auth';
 import { listTenants } from '../lib/platform-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,15 +13,18 @@ import { useRealtimeEvents } from '../hooks/useRealtimeEvents';
 import { queryKeys, isPlatformQueryKey } from '../lib/query-keys';
 import { useI18n } from '../lib/i18n';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectIsRoot } from '../store/authSlice';
+import { selectIsRoot, selectUser } from '../store/authSlice';
 import { selectSidebarOpen, selectTenantId, setSidebarOpen, setTenantId } from '../store/uiSlice';
+import { roleBadgeLabel } from '../lib/vm-display';
 import clsx from 'clsx';
 
 export function Layout() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const isRoot = useAppSelector(selectIsRoot);
+  const user = useAppSelector(selectUser);
   const sidebarOpen = useAppSelector(selectSidebarOpen);
   const selectedTenant = useAppSelector(selectTenantId) ?? '';
   const dispatch = useAppDispatch();
@@ -28,6 +32,9 @@ export function Layout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { t } = useI18n();
+
+  const openCmd = useCallback(() => setCmdOpen(true), []);
+  useCommandPaletteHotkey(openCmd);
 
   useEffect(() => {
     if (!isRoot || !defaultTenantId || selectedTenant) return;
@@ -50,6 +57,7 @@ export function Layout() {
   const tenants = tenantsData?.tenants || [];
   const impersonating = isRoot && selectedTenant !== '' && selectedTenant !== defaultTenantId;
   const sidebarWidth = sidebarOpen ? 'md:ml-sidebar-expanded' : 'md:ml-sidebar-collapsed';
+  const impersonatedName = tenants.find((tn) => tn.id === selectedTenant)?.name || selectedTenant;
 
   const handleTenantChange = (tenantId: string) => {
     dispatch(setTenantId(tenantId || null));
@@ -67,7 +75,6 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
       <aside
         className={clsx(
           'hidden md:flex flex-col fixed left-0 top-0 h-full z-40 border-r border-outline-variant inner-glow',
@@ -86,7 +93,6 @@ export function Layout() {
         </nav>
       </aside>
 
-      {/* Main */}
       <div className={clsx('flex-1 flex flex-col min-h-screen w-full pt-16', sidebarWidth, 'transition-[margin] duration-300 ease-in-out')}>
         <header
           className={clsx(
@@ -99,7 +105,7 @@ export function Layout() {
             <button
               type="button"
               onClick={() => dispatch(setSidebarOpen(!sidebarOpen))}
-              className="hidden md:flex p-2 rounded-full text-on-surface-variant hover:bg-surface-container transition-colors"
+              className="hidden md:flex p-2 rounded-full text-on-surface-variant hover:bg-surface-container transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -109,21 +115,48 @@ export function Layout() {
           </div>
 
           <div className="hidden md:flex flex-1 max-w-xs ml-2">
-            <HeaderSearch />
+            <button
+              type="button"
+              onClick={openCmd}
+              className="w-full text-left h-10 pl-3 pr-3 bg-surface-container-high border border-outline-variant rounded-lg text-body-sm text-on-surface-variant hover:border-primary-container transition-colors flex items-center justify-between gap-2"
+            >
+              <span className="truncate">{t('cmdk.placeholder')}</span>
+              <kbd className="text-[10px] font-mono border border-outline-variant rounded px-1.5 py-0.5 shrink-0">⌘K</kbd>
+            </button>
+            <div className="sr-only" aria-hidden>
+              <HeaderSearch />
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            {isRoot && (
-              <select
-                value={selectedTenant}
-                onChange={(e) => handleTenantChange(e.target.value)}
-                className="hidden lg:block text-sm border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-high text-on-surface max-w-[180px]"
+          <div className="flex items-center gap-2 shrink-0">
+            {user?.role && (
+              <span
+                className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono border border-outline-variant bg-surface-container-high text-on-surface"
+                title={t('header.role')}
               >
-                <option value="">{t('nav.selectTenant')}</option>
-                {tenants.map((tn) => (
-                  <option key={tn.id} value={tn.id}>{tn.name}</option>
-                ))}
-              </select>
+                {roleBadgeLabel(user.role)}
+              </span>
+            )}
+            {isRoot && (
+              <label className="hidden md:flex items-center gap-2" title={t('header.tenantHint')}>
+                <Building2 size={16} className="text-on-surface-variant shrink-0" />
+                <select
+                  value={selectedTenant}
+                  onChange={(e) => handleTenantChange(e.target.value)}
+                  aria-label={t('header.tenant')}
+                  className={clsx(
+                    'text-sm border rounded-lg px-3 py-2 bg-surface-container-high text-on-surface max-w-[200px]',
+                    impersonating
+                      ? 'border-error ring-2 ring-error/50'
+                      : 'border-outline-variant',
+                  )}
+                >
+                  <option value="">{t('nav.selectTenant')}</option>
+                  {tenants.map((tn) => (
+                    <option key={tn.id} value={tn.id}>{tn.name}</option>
+                  ))}
+                </select>
+              </label>
             )}
             <NotificationsMenu
               open={notifOpen}
@@ -157,8 +190,17 @@ export function Layout() {
         </header>
 
         {impersonating && (
-          <div className="bg-error-container/30 border-b border-error-container text-on-error-container px-6 py-2 text-sm">
-            {t('nav.impersonatingTenant')}: {tenants.find((tn) => tn.id === selectedTenant)?.name || selectedTenant}
+          <div className="bg-error text-white px-4 md:px-6 py-2.5 text-sm flex flex-wrap items-center justify-between gap-2 shadow-md">
+            <span className="font-medium">
+              {t('impersonate.banner')}: <strong className="font-data-mono">{impersonatedName}</strong>
+            </span>
+            <button
+              type="button"
+              className="text-sm px-3 py-1 rounded-lg border border-white/40 hover:bg-white/10"
+              onClick={() => handleTenantChange(defaultTenantId || '')}
+            >
+              {t('impersonate.exit')}
+            </button>
           </div>
         )}
 
@@ -167,7 +209,6 @@ export function Layout() {
         </main>
       </div>
 
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={closeMobileSidebar} />
@@ -184,6 +225,8 @@ export function Layout() {
           </aside>
         </div>
       )}
+
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
   );
 }

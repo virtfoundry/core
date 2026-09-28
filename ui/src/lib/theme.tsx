@@ -23,9 +23,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   const theme = useAppSelector(selectTheme);
+  const isDark = useAppSelector(selectIsDarkTheme);
   const dispatch = useAppDispatch();
   return {
     theme,
+    isDark,
     setTheme: (next: Theme) => dispatch(setTheme(next)),
     toggleTheme: () => dispatch(toggleTheme()),
   };
