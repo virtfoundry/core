@@ -27,10 +27,12 @@ func (s Scope) allows(tenantID string) bool {
 }
 
 // Hub broadcasts real-time events to connected UI clients, filtered by the
-// tenant each client is scoped to.
+// tenant each client is scoped to. Channel subscribers (gRPC Watch) share the
+// same BroadcastTenant fan-out as WebSocket clients.
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[*Client]struct{}
+	subs    map[*subscriber]struct{}
 }
 
 type Client struct {
@@ -40,13 +42,22 @@ type Client struct {
 	scope Scope
 }
 
+// subscriber is a non-WebSocket consumer (e.g. gRPC WatchInstances).
+type subscriber struct {
+	ch    chan Event
+	scope Scope
+}
+
 type Event struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
 }
 
 func NewHub() *Hub {
-	return &Hub{clients: make(map[*Client]struct{})}
+	return &Hub{
+		clients: make(map[*Client]struct{}),
+		subs:    make(map[*subscriber]struct{}),
+	}
 }
 
 // BroadcastTenant delivers an event to clients scoped to tenantID, plus root
@@ -64,8 +75,11 @@ func (h *Hub) BroadcastTenant(tenantID, eventType string, payload interface{}) {
 		return
 	}
 
+	ev := Event{Type: eventType, Payload: payload}
+
 	h.mu.RLock()
 	slow := make([]*Client, 0)
+	slowSubs := make([]*subscriber, 0)
 	for client := range h.clients {
 		if !client.scope.allows(tenantID) {
 			continue
@@ -76,9 +90,19 @@ func (h *Hub) BroadcastTenant(tenantID, eventType string, payload interface{}) {
 			slow = append(slow, client)
 		}
 	}
+	for sub := range h.subs {
+		if !sub.scope.allows(tenantID) {
+			continue
+		}
+		select {
+		case sub.ch <- ev:
+		default:
+			slowSubs = append(slowSubs, sub)
+		}
+	}
 	h.mu.RUnlock()
 
-	if len(slow) > 0 {
+	if len(slow) > 0 || len(slowSubs) > 0 {
 		h.mu.Lock()
 		for _, client := range slow {
 			if _, ok := h.clients[client]; ok {
@@ -86,8 +110,48 @@ func (h *Hub) BroadcastTenant(tenantID, eventType string, payload interface{}) {
 				close(client.send)
 			}
 		}
+		for _, sub := range slowSubs {
+			if _, ok := h.subs[sub]; ok {
+				delete(h.subs, sub)
+				close(sub.ch)
+			}
+		}
 		h.mu.Unlock()
 	}
+}
+
+// Subscribe registers a buffered channel consumer under scope. cancel must be
+// called (typically via defer) to unregister; after cancel the channel is closed.
+// A scope that matches no tenant returns a closed channel and a no-op cancel.
+func (h *Hub) Subscribe(scope Scope) (<-chan Event, func()) {
+	if !scope.AllTenants && scope.TenantID == "" {
+		ch := make(chan Event)
+		close(ch)
+		return ch, func() {}
+	}
+	sub := &subscriber{ch: make(chan Event, 64), scope: scope}
+	h.mu.Lock()
+	h.subs[sub] = struct{}{}
+	h.mu.Unlock()
+	var once sync.Once
+	cancel := func() {
+		once.Do(func() {
+			h.mu.Lock()
+			if _, ok := h.subs[sub]; ok {
+				delete(h.subs, sub)
+				close(sub.ch)
+			}
+			h.mu.Unlock()
+		})
+	}
+	return sub.ch, cancel
+}
+
+// SubscriberCount returns the number of channel subscribers (tests / diagnostics).
+func (h *Hub) SubscriberCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.subs)
 }
 
 // Register attaches a connection to the hub under scope. A scope that matches

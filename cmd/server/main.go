@@ -294,6 +294,7 @@ func main() {
 				Auth: authSvc, Store: repo, Identity: identitySvc,
 			},
 			Backend: platformSvc,
+			Hub:     hub,
 			Log:     log,
 		})
 		if err != nil {

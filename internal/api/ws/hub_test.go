@@ -131,6 +131,39 @@ func TestHubDropsUnscopedBroadcast(t *testing.T) {
 	}
 }
 
+func TestHubSubscribeDeliversAndFilters(t *testing.T) {
+	hub := NewHub()
+	ch, cancel := hub.Subscribe(Scope{TenantID: "tenant-a"})
+	defer cancel()
+
+	hub.BroadcastTenant("tenant-b", "vm.created", map[string]string{"name": "other"})
+	hub.BroadcastTenant("tenant-a", "vm.updated", map[string]string{"name": "web-01"})
+
+	select {
+	case ev := <-ch:
+		if ev.Type != "vm.updated" {
+			t.Fatalf("got %q, want vm.updated", ev.Type)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for subscribe event")
+	}
+
+	// Cross-tenant should not have been delivered (buffer empty).
+	select {
+	case ev := <-ch:
+		t.Fatalf("unexpected event %+v", ev)
+	default:
+	}
+
+	cancel()
+	if _, ok := <-ch; ok {
+		t.Fatal("channel should be closed after cancel")
+	}
+	if hub.SubscriberCount() != 0 {
+		t.Fatalf("subscribers = %d after cancel", hub.SubscriberCount())
+	}
+}
+
 func TestHubRejectsRegistrationWithoutScope(t *testing.T) {
 	hub := NewHub()
 
