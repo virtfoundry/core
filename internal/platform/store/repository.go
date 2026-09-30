@@ -26,7 +26,9 @@ type Repository interface {
 	SaveAPIKey(k *platform.APIKey)
 	GetAPIKey(id string) (*platform.APIKey, bool)
 	GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool)
-	ListAPIKeys(userID string) []*platform.APIKey
+	// ListAPIKeys returns keys for userID. Optional username enables a direct
+	// User CR Get on Kubernetes (avoids List-by-ID); Memory ignores username.
+	ListAPIKeys(userID, username string) []*platform.APIKey
 	ListAPIKeysByTenant(tenantID string) []*platform.APIKey
 	DeleteAPIKey(id string)
 	TouchAPIKeyLastUsed(id string)

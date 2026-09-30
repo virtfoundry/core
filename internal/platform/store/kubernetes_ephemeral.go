@@ -29,7 +29,7 @@ func (k *Kubernetes) SaveAPIKey(key *platform.APIKey) {
 	secret := mapping.APIKeySecret(crName, key.SecretHash, ns)
 	_, _ = k.clientset.CoreV1().Secrets(ns).Create(k.ctx(), secret, metav1.CreateOptions{})
 	k.saveNamespacedMapped(mapping.APIKeyGVR, ns, func() *unstructured.Unstructured { return obj }, func(saved *unstructured.Unstructured) {
-		*key = *k.apiKeyFromCR(saved, ns)
+		*key = *k.apiKeyFromCR(saved, ns, true)
 	})
 }
 
@@ -38,7 +38,7 @@ func (k *Kubernetes) GetAPIKey(id string) (*platform.APIKey, bool) {
 	if !ok {
 		return nil, false
 	}
-	return k.apiKeyFromCR(obj, ns), true
+	return k.apiKeyFromCR(obj, ns, true), true
 }
 
 func (k *Kubernetes) GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool) {
@@ -47,7 +47,7 @@ func (k *Kubernetes) GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool) {
 		if p != prefix {
 			continue
 		}
-		key := k.apiKeyFromCR(&obj, obj.GetNamespace())
+		key := k.apiKeyFromCR(&obj, obj.GetNamespace(), true)
 		if key.RevokedAt == nil {
 			return key, true
 		}
@@ -55,18 +55,23 @@ func (k *Kubernetes) GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool) {
 	return nil, false
 }
 
-func (k *Kubernetes) ListAPIKeys(userID string) []*platform.APIKey {
-	var out []*platform.APIKey
-	u, ok := k.GetUser(userID)
+func (k *Kubernetes) ListAPIKeys(userID, username string) []*platform.APIKey {
+	u, ok := k.resolveUserForAPIKeyList(userID, username)
 	if !ok {
 		return nil
 	}
 	userCR := mapping.UserCRName(u.Username)
+	var out []*platform.APIKey
 	for _, obj := range k.listNamespacedAll(mapping.APIKeyGVR) {
 		ref, _, _ := unstructured.NestedString(obj.Object, "spec", "userRef", "name")
-		if ref == userCR {
-			out = append(out, k.apiKeyFromCR(&obj, obj.GetNamespace()))
+		if ref != userCR {
+			continue
 		}
+		// List hydration: map CR fields only — no Secret Get, no User List/Get per key.
+		key := mapping.APIKeyFromUnstructured(&obj)
+		key.UserID = u.ID
+		key.TenantID = u.TenantID
+		out = append(out, key)
 	}
 	return out
 }
@@ -74,12 +79,27 @@ func (k *Kubernetes) ListAPIKeys(userID string) []*platform.APIKey {
 func (k *Kubernetes) ListAPIKeysByTenant(tenantID string) []*platform.APIKey {
 	var out []*platform.APIKey
 	for _, obj := range k.listNamespacedAll(mapping.APIKeyGVR) {
-		key := k.apiKeyFromCR(&obj, obj.GetNamespace())
+		key := k.apiKeyFromCR(&obj, obj.GetNamespace(), false)
 		if key.TenantID == tenantID {
 			out = append(out, key)
 		}
 	}
 	return out
+}
+
+// resolveUserForAPIKeyList prefers a direct User CR Get by username (no User List).
+func (k *Kubernetes) resolveUserForAPIKeyList(userID, username string) (*platform.User, bool) {
+	if username != "" {
+		if u, ok := k.GetUserForAuth(username); ok {
+			if userID == "" || u.ID == userID {
+				return u, true
+			}
+		}
+	}
+	if userID == "" {
+		return nil, false
+	}
+	return k.GetUser(userID)
 }
 
 func (k *Kubernetes) DeleteAPIKey(id string) {
@@ -102,23 +122,29 @@ func (k *Kubernetes) TouchAPIKeyLastUsed(id string) {
 	k.SaveAPIKey(key)
 }
 
-func (k *Kubernetes) apiKeyFromCR(obj *unstructured.Unstructured, ns string) *platform.APIKey {
+func (k *Kubernetes) apiKeyFromCR(obj *unstructured.Unstructured, ns string, withSecret bool) *platform.APIKey {
 	key := mapping.APIKeyFromUnstructured(obj)
-	secretRef, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "name")
-	if secretRef == "" {
-		secretRef = mapping.APIKeySecretName(obj.GetName())
-	}
-	if sec, err := k.clientset.CoreV1().Secrets(ns).Get(k.ctx(), secretRef, metav1.GetOptions{}); err == nil {
-		key.SecretHash = string(sec.Data[mapping.SecretKeyAPIHash])
-	}
-	userRef, _, _ := unstructured.NestedString(obj.Object, "spec", "userRef", "name")
-	for _, u := range k.ListUsers() {
-		if mapping.UserCRName(u.Username) == userRef {
-			key.UserID = u.ID
-			key.TenantID = u.TenantID
-			break
+	if withSecret {
+		secretRef, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "name")
+		if secretRef == "" {
+			secretRef = mapping.APIKeySecretName(obj.GetName())
+		}
+		if sec, err := k.clientset.CoreV1().Secrets(ns).Get(k.ctx(), secretRef, metav1.GetOptions{}); err == nil {
+			key.SecretHash = string(sec.Data[mapping.SecretKeyAPIHash])
 		}
 	}
+	userRef, _, _ := unstructured.NestedString(obj.Object, "spec", "userRef", "name")
+	if userRef == "" {
+		return key
+	}
+	// Direct User Get by CR name — never ListUsers (N+1 on list hydration).
+	uObj, err := k.dyn.Resource(mapping.UserGVR).Get(k.ctx(), userRef, metav1.GetOptions{})
+	if err != nil {
+		return key
+	}
+	u := k.userFromCR(k.ctx(), uObj, false)
+	key.UserID = u.ID
+	key.TenantID = u.TenantID
 	return key
 }
 
