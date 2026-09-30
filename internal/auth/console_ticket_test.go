@@ -8,8 +8,10 @@ import (
 	"github.com/virtfoundry/core/internal/platform"
 )
 
+const testTicketSecret = "test-console-ticket-secret-32b!!"
+
 func TestConsoleTicketRedeemReturnsSubject(t *testing.T) {
-	s := NewConsoleTicketStore(DefaultConsoleTicketTTL)
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
 
 	token, expiresAt, err := s.Issue(ConsoleTicket{
 		UserID: "u-1", Username: "operator", Role: platform.RoleUser,
@@ -34,8 +36,8 @@ func TestConsoleTicketRedeemReturnsSubject(t *testing.T) {
 	}
 }
 
-func TestConsoleTicketIsSingleUse(t *testing.T) {
-	s := NewConsoleTicketStore(DefaultConsoleTicketTTL)
+func TestConsoleTicketIsSingleUseOnSameReplica(t *testing.T) {
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
 	token, _, err := s.Issue(ConsoleTicket{TenantID: "t-1", VMName: "vm-a"})
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
@@ -49,8 +51,29 @@ func TestConsoleTicketIsSingleUse(t *testing.T) {
 	}
 }
 
+func TestConsoleTicketRedeemableOnSiblingReplica(t *testing.T) {
+	secret := []byte(testTicketSecret)
+	a := NewConsoleTicketStore(DefaultConsoleTicketTTL, secret)
+	b := NewConsoleTicketStore(DefaultConsoleTicketTTL, secret)
+
+	token, _, err := a.Issue(ConsoleTicket{
+		UserID: "u-1", Username: "op", Role: platform.RoleUser,
+		TenantID: "t-1", VMName: "vm-a",
+	})
+	if err != nil {
+		t.Fatalf("Issue: %v", err)
+	}
+	got, err := b.Redeem(token)
+	if err != nil {
+		t.Fatalf("sibling Redeem: %v", err)
+	}
+	if got.VMName != "vm-a" || got.TenantID != "t-1" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
 func TestConsoleTicketExpires(t *testing.T) {
-	s := NewConsoleTicketStore(30 * time.Second)
+	s := NewConsoleTicketStore(30*time.Second, []byte(testTicketSecret))
 	now := time.Now()
 	s.now = func() time.Time { return now }
 
@@ -66,7 +89,7 @@ func TestConsoleTicketExpires(t *testing.T) {
 }
 
 func TestConsoleTicketRejectsEmptyAndUnknown(t *testing.T) {
-	s := NewConsoleTicketStore(DefaultConsoleTicketTTL)
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
 
 	for _, token := range []string{"", "not-a-ticket"} {
 		if _, err := s.Redeem(token); !errors.Is(err, ErrConsoleTicketInvalid) {
@@ -75,8 +98,41 @@ func TestConsoleTicketRejectsEmptyAndUnknown(t *testing.T) {
 	}
 }
 
+func TestConsoleTicketRejectsEventsPurpose(t *testing.T) {
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
+	token, _, err := s.IssueEvents(EventsTicket{
+		UserID: "u-1", Username: "op", Role: platform.RoleUser, TenantID: "t-1",
+	})
+	if err != nil {
+		t.Fatalf("IssueEvents: %v", err)
+	}
+	if _, err := s.Redeem(token); !errors.Is(err, ErrConsoleTicketInvalid) {
+		t.Fatalf("console Redeem(events) = %v, want %v", err, ErrConsoleTicketInvalid)
+	}
+}
+
+func TestEventsTicketRedeem(t *testing.T) {
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
+	token, _, err := s.IssueEvents(EventsTicket{
+		UserID: "u-1", Username: "op", Role: platform.RoleUser, TenantID: "t-1",
+	})
+	if err != nil {
+		t.Fatalf("IssueEvents: %v", err)
+	}
+	got, err := s.RedeemEvents(token)
+	if err != nil {
+		t.Fatalf("RedeemEvents: %v", err)
+	}
+	if got.UserID != "u-1" || got.TenantID != "t-1" {
+		t.Fatalf("got %+v", got)
+	}
+	if _, err := s.RedeemEvents(token); !errors.Is(err, ErrEventsTicketInvalid) {
+		t.Fatalf("second RedeemEvents = %v", err)
+	}
+}
+
 func TestConsoleTicketsAreUnique(t *testing.T) {
-	s := NewConsoleTicketStore(DefaultConsoleTicketTTL)
+	s := NewConsoleTicketStore(DefaultConsoleTicketTTL, []byte(testTicketSecret))
 	seen := make(map[string]bool, 64)
 
 	for i := 0; i < 64; i++ {
