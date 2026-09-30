@@ -9,7 +9,7 @@ import (
 
 const ContextConsoleTicket ctxKey = "console_ticket"
 
-// ConsoleTicketAuth authenticates a console WebSocket from a single-use ticket
+// ConsoleTicketAuth authenticates a console WebSocket from a short-lived ticket
 // in the query string. The ticket is redeemed into an actor limited to
 // vms:console and pinned to the VM it was issued for.
 //
@@ -60,4 +60,47 @@ func GetConsoleTicket(ctx context.Context) *auth.ConsoleTicket {
 		return v
 	}
 	return nil
+}
+
+// EventsTicketAuth authenticates /ws/events from a short-lived ?ticket= so the
+// browser never puts the session JWT in the URL (core#133). Without a ticket,
+// falls back to header auth only (no ?token=).
+func EventsTicketAuth(tickets *auth.ConsoleTicketStore, fallback func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		withFallback := fallback(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw := r.URL.Query().Get("ticket")
+			if raw == "" {
+				withFallback.ServeHTTP(w, r)
+				return
+			}
+
+			ticket, err := tickets.RedeemEvents(raw)
+			if err != nil {
+				http.Error(w, `{"error":"invalid or expired events ticket"}`, http.StatusUnauthorized)
+				return
+			}
+
+			claims := &auth.Claims{
+				UserID:   ticket.UserID,
+				Username: ticket.Username,
+				Role:     ticket.Role,
+				TenantID: ticket.TenantID,
+			}
+			actor := &auth.Actor{
+				UserID:     ticket.UserID,
+				Username:   ticket.Username,
+				Role:       ticket.Role,
+				TenantID:   ticket.TenantID,
+				AuthMethod: "events_ticket",
+			}
+
+			ctx := context.WithValue(r.Context(), ContextClaims, claims)
+			ctx = context.WithValue(ctx, ContextActor, actor)
+			if ticket.TenantID != "" {
+				ctx = context.WithValue(ctx, ContextTenant, ticket.TenantID)
+			}
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }

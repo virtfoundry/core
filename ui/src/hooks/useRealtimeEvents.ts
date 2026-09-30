@@ -1,26 +1,32 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { authService } from '../lib/auth';
 import {
   invalidateConnectivityFallback,
   invalidateForPlatformEvent,
   type PlatformEvent,
 } from '../lib/realtime-invalidation';
+import { createEventsTicket } from '../lib/platform-api';
 
 const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 /** Safety poll only when WebSocket is disconnected (not a global refetch). */
 const WS_DOWN_FALLBACK_MS = 45_000;
 
-/** /ws/events is authenticated and tenant-scoped; the browser cannot set headers on a WebSocket. */
-function eventsWsUrl(): string {
-  const params = new URLSearchParams();
-  const token = authService.getToken();
-  if (token) params.set('token', token);
-  const tenantId = localStorage.getItem('tenant_id');
-  if (tenantId) params.set('tenant_id', tenantId);
-  const query = params.toString();
-  return query ? `${WS_BASE}/ws/events?${query}` : `${WS_BASE}/ws/events`;
+/**
+ * /ws/events uses a short-lived ticket (minted via Authorization header) so the
+ * session JWT never appears in the WebSocket URL (core#133).
+ */
+async function eventsWsUrl(): Promise<string | null> {
+  try {
+    const { ticket } = await createEventsTicket();
+    const params = new URLSearchParams();
+    params.set('ticket', ticket);
+    const tenantId = localStorage.getItem('tenant_id');
+    if (tenantId) params.set('tenant_id', tenantId);
+    return `${WS_BASE}/ws/events?${params.toString()}`;
+  } catch {
+    return null;
+  }
 }
 
 export function useRealtimeEvents() {
@@ -37,11 +43,18 @@ export function useRealtimeEvents() {
   );
 
   useEffect(() => {
+    let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout>;
     let fallbackTimer: ReturnType<typeof setInterval>;
 
-    function connect() {
-      const ws = new WebSocket(eventsWsUrl());
+    async function connect() {
+      const url = await eventsWsUrl();
+      if (cancelled) return;
+      if (!url) {
+        reconnectTimer = setTimeout(connect, 3000);
+        return;
+      }
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -59,7 +72,9 @@ export function useRealtimeEvents() {
 
       ws.onclose = () => {
         connectedRef.current = false;
-        reconnectTimer = setTimeout(connect, 3000);
+        if (!cancelled) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
       };
 
       ws.onerror = () => {
@@ -67,7 +82,7 @@ export function useRealtimeEvents() {
       };
     }
 
-    connect();
+    void connect();
 
     fallbackTimer = setInterval(() => {
       if (!connectedRef.current) {
@@ -76,6 +91,7 @@ export function useRealtimeEvents() {
     }, WS_DOWN_FALLBACK_MS);
 
     return () => {
+      cancelled = true;
       clearTimeout(reconnectTimer);
       clearInterval(fallbackTimer);
       wsRef.current?.close();

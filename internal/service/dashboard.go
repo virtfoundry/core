@@ -53,26 +53,30 @@ type NotificationItem struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
-func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string) (*DashboardSummary, error) {
-	vms, err := s.ListVMs(ctx, tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	vmCount := countVMStates(vms)
+func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string, perms []string) (*DashboardSummary, error) {
 	summary := &DashboardSummary{
-		VMs: DashboardResourceCount{
-			Total:   len(vms),
-			Running: vmCount.running,
-			Error:   vmCount.errors,
-		},
 		Volumes:        DashboardResourceCount{Total: len(s.ListVolumes(tenantID))},
 		VPCs:           DashboardResourceCount{Total: len(s.ListVPCs(tenantID))},
 		Networks:       DashboardResourceCount{Total: len(s.ListNetworks(tenantID))},
 		SecurityGroups: DashboardResourceCount{Total: len(s.ListSecurityGroups(tenantID))},
-		Health:         dashboardHealth(vmCount.errors, vmCount.transitional),
-		RecentActivity: recentVMActivity(vms, 8),
+		Health:         "ok",
+		RecentActivity: []DashboardActivity{},
 	}
+	if !auth.HasPermission(perms, auth.PermVMsRead) {
+		return summary, nil
+	}
+	vms, err := s.ListVMs(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	vmCount := countVMStates(vms)
+	summary.VMs = DashboardResourceCount{
+		Total:   len(vms),
+		Running: vmCount.running,
+		Error:   vmCount.errors,
+	}
+	summary.Health = dashboardHealth(vmCount.errors, vmCount.transitional)
+	summary.RecentActivity = recentVMActivity(vms, 8)
 	return summary, nil
 }
 
@@ -166,7 +170,10 @@ func (s *PlatformService) Search(ctx context.Context, tenantID, query string, pe
 	return hits
 }
 
-func (s *PlatformService) Notifications(ctx context.Context, tenantID string) []NotificationItem {
+func (s *PlatformService) Notifications(ctx context.Context, tenantID string, perms []string) []NotificationItem {
+	if !auth.HasPermission(perms, auth.PermVMsRead) {
+		return []NotificationItem{}
+	}
 	vms, err := s.ListVMs(ctx, tenantID)
 	if err != nil {
 		return []NotificationItem{}

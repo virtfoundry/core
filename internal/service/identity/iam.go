@@ -207,12 +207,15 @@ func (s *Service) ListAPIKeys(userID, tenantID string, adminView bool) []*platfo
 	return s.store.ListAPIKeys(userID)
 }
 
-func (s *Service) RevokeAPIKey(userID, keyID string, admin bool) error {
+func (s *Service) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool) error {
 	k, ok := s.store.GetAPIKey(keyID)
 	if !ok {
 		return fmt.Errorf("api key not found")
 	}
 	if !admin && k.UserID != userID {
+		return fmt.Errorf("forbidden")
+	}
+	if admin && !root && tenantID != "" && k.TenantID != tenantID {
 		return fmt.Errorf("forbidden")
 	}
 	s.store.DeleteAPIKey(keyID)

@@ -224,11 +224,11 @@ func (h *IAMHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	admin := auth.HasPermission(actor.Permissions, auth.PermUsersWrite)
-	if err := h.svc.RevokeAPIKey(actor.UserID, mux.Vars(r)["id"], admin); err != nil {
+	root := actor.Role == platform.RoleRoot
+	if err := h.svc.RevokeAPIKey(actor.UserID, mux.Vars(r)["id"], tid, admin, root); err != nil {
 		respondError(w, err)
 		return
 	}
-	_ = tid
 	w.WriteHeader(http.StatusNoContent)
 }
 

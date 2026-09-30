@@ -18,7 +18,7 @@ import (
 
 func newTestConsoleHandler(st store.Repository) *ConsoleHandler {
 	return NewConsoleHandler(nil, st, service.NewPlatformService(st, nil, nil, nil),
-		auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL), nil)
+		auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte("test-secret")), nil)
 }
 
 func TestConsoleResolveVMAccessUsesTenantNamespace(t *testing.T) {

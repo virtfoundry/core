@@ -24,12 +24,13 @@ type eventsFixture struct {
 	srv     *httptest.Server
 	store   store.Repository
 	authSvc *auth.Service
+	tickets *auth.ConsoleTicketStore
 	tenantA *platform.Tenant
 	tenantB *platform.Tenant
 }
 
 // newEventsFixture wires /ws/events exactly as cmd/server does — behind
-// middleware.AuthenticateWS — so the tests exercise the real auth path.
+// EventsTicketAuth with header Authenticate fallback (no session JWT in query).
 func newEventsFixture(t *testing.T) *eventsFixture {
 	t.Helper()
 
@@ -41,16 +42,18 @@ func newEventsFixture(t *testing.T) *eventsFixture {
 
 	authSvc := auth.NewService("test-secret", 3600)
 	identitySvc := identity.New(st)
+	tickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte("test-secret"))
 	platformSvc := service.NewPlatformService(st, nil, nil, nil)
 	hub := ws.NewHub()
-	h := NewEventsHandler(hub, platformSvc, nil)
+	h := NewEventsHandler(hub, platformSvc, tickets, nil)
 
 	router := http.NewServeMux()
-	router.Handle("/ws/events", middleware.AuthenticateWS(authSvc, st, identitySvc)(http.HandlerFunc(h.Events)))
+	authenticate := middleware.Authenticate(authSvc, st, identitySvc)
+	router.Handle("/ws/events", middleware.EventsTicketAuth(tickets, authenticate)(http.HandlerFunc(h.Events)))
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)
 
-	return &eventsFixture{hub: hub, srv: srv, store: st, authSvc: authSvc, tenantA: tenantA, tenantB: tenantB}
+	return &eventsFixture{hub: hub, srv: srv, store: st, authSvc: authSvc, tickets: tickets, tenantA: tenantA, tenantB: tenantB}
 }
 
 func (f *eventsFixture) token(t *testing.T, role platform.Role, tenantID string) string {
@@ -69,6 +72,18 @@ func (f *eventsFixture) token(t *testing.T, role platform.Role, tenantID string)
 		t.Fatalf("issue token: %v", err)
 	}
 	return token
+}
+
+func (f *eventsFixture) eventsTicket(t *testing.T, role platform.Role, tenantID string) string {
+	t.Helper()
+	_ = f.token(t, role, tenantID) // ensure user exists for other tests
+	ticket, _, err := f.tickets.IssueEvents(auth.EventsTicket{
+		UserID: "u-" + tenantID, Username: "user", Role: role, TenantID: tenantID,
+	})
+	if err != nil {
+		t.Fatalf("IssueEvents: %v", err)
+	}
+	return ticket
 }
 
 func (f *eventsFixture) dial(t *testing.T, query string) (*websocket.Conn, *http.Response, error) {
@@ -163,10 +178,24 @@ func TestEventsRejectsUnauthenticatedUpgrade(t *testing.T) {
 func TestEventsRejectsInvalidToken(t *testing.T) {
 	f := newEventsFixture(t)
 
-	conn, resp, err := f.dial(t, "token=not-a-jwt")
+	conn, resp, err := f.dial(t, "ticket=not-a-jwt")
 	if err == nil {
 		conn.Close()
-		t.Fatal("upgrade with invalid token succeeded")
+		t.Fatal("upgrade with invalid ticket succeeded")
+	}
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %v, want 401", resp)
+	}
+}
+
+func TestEventsRejectsSessionJWTInQuery(t *testing.T) {
+	f := newEventsFixture(t)
+	token := f.token(t, platform.RoleTenantAdmin, f.tenantA.ID)
+
+	conn, resp, err := f.dial(t, "token="+token)
+	if err == nil {
+		conn.Close()
+		t.Fatal("session JWT in query must not authenticate /ws/events")
 	}
 	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %v, want 401", resp)
@@ -175,9 +204,9 @@ func TestEventsRejectsInvalidToken(t *testing.T) {
 
 func TestEventsDoesNotDeliverOtherTenantEvents(t *testing.T) {
 	f := newEventsFixture(t)
-	token := f.token(t, platform.RoleTenantAdmin, f.tenantA.ID)
+	ticket := f.eventsTicket(t, platform.RoleTenantAdmin, f.tenantA.ID)
 
-	conn, _, err := f.dial(t, "token="+token)
+	conn, _, err := f.dial(t, "ticket="+ticket)
 	if err != nil {
 		t.Fatalf("dial as tenant A: %v", err)
 	}
@@ -192,9 +221,9 @@ func TestEventsDoesNotDeliverOtherTenantEvents(t *testing.T) {
 
 func TestEventsDeliversSameTenantEvents(t *testing.T) {
 	f := newEventsFixture(t)
-	token := f.token(t, platform.RoleTenantAdmin, f.tenantA.ID)
+	ticket := f.eventsTicket(t, platform.RoleTenantAdmin, f.tenantA.ID)
 
-	conn, _, err := f.dial(t, "token="+token)
+	conn, _, err := f.dial(t, "ticket="+ticket)
 	if err != nil {
 		t.Fatalf("dial as tenant A: %v", err)
 	}
@@ -213,7 +242,7 @@ func TestEventsDeliversSameTenantEvents(t *testing.T) {
 
 func TestEventsResolveScopeIgnoresTenantQueryForNonRoot(t *testing.T) {
 	f := newEventsFixture(t)
-	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), nil)
+	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), f.tickets, nil)
 
 	req := httptest.NewRequest("GET", "/ws/events?tenant_id="+f.tenantB.ID, nil)
 	req = req.WithContext(context.WithValue(req.Context(), middleware.ContextClaims, &auth.Claims{
@@ -235,7 +264,7 @@ func TestEventsResolveScopeIgnoresTenantQueryForNonRoot(t *testing.T) {
 
 func TestEventsResolveScopeIgnoresAllTenantsForNonRoot(t *testing.T) {
 	f := newEventsFixture(t)
-	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), nil)
+	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), f.tickets, nil)
 
 	req := httptest.NewRequest("GET", "/ws/events?all_tenants=true", nil)
 	req = req.WithContext(context.WithValue(req.Context(), middleware.ContextClaims, &auth.Claims{
@@ -257,7 +286,7 @@ func TestEventsResolveScopeIgnoresAllTenantsForNonRoot(t *testing.T) {
 
 func TestEventsResolveScopeAllowsRootAllTenants(t *testing.T) {
 	f := newEventsFixture(t)
-	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), nil)
+	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), f.tickets, nil)
 
 	req := httptest.NewRequest("GET", "/ws/events?all_tenants=true", nil)
 	req = req.WithContext(context.WithValue(req.Context(), middleware.ContextClaims, &auth.Claims{
@@ -276,7 +305,7 @@ func TestEventsResolveScopeAllowsRootAllTenants(t *testing.T) {
 
 func TestEventsResolveScopeRejectsMissingClaims(t *testing.T) {
 	f := newEventsFixture(t)
-	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), nil)
+	h := NewEventsHandler(f.hub, service.NewPlatformService(f.store, nil, nil, nil), f.tickets, nil)
 
 	req := httptest.NewRequest("GET", "/ws/events", nil)
 

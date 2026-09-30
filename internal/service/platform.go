@@ -140,8 +140,8 @@ func (s *PlatformService) ListAPIKeys(userID, tenantID string, adminView bool) [
 	return s.identity.ListAPIKeys(userID, tenantID, adminView)
 }
 
-func (s *PlatformService) RevokeAPIKey(userID, keyID string, admin bool) error {
-	return s.identity.RevokeAPIKey(userID, keyID, admin)
+func (s *PlatformService) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool) error {
+	return s.identity.RevokeAPIKey(userID, keyID, tenantID, admin, root)
 }
 
 func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.NetworkingConfig) error {
@@ -164,6 +164,13 @@ func (s *PlatformService) BootstrapISOImport(cfg config.ISOImportConfig) []strin
 	}
 	s.compute.ConfigureISOImport(policy)
 	return policy.AllowedHosts()
+}
+
+// BootstrapContainerImageAllowlist applies the ContainerDisk image allowlist and
+// returns the effective prefixes for startup logging (issue #134).
+func (s *PlatformService) BootstrapContainerImageAllowlist(cfg config.ContainerImageAllowlistConfig) []string {
+	s.compute.ConfigureContainerImageAllowlist(cfg.AllowedPrefixes)
+	return compute.BootstrapContainerImageAllowlist(cfg.AllowedPrefixes)
 }
 
 // --- tenant ---
