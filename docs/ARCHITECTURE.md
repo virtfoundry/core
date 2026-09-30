@@ -31,7 +31,9 @@ Multi-tenant IaaS platform native to Kubernetes. This document describes the cur
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Target (spec):** operator owns all infra reconciliation; API is a REST facade over CRs only. **Today:** API still uses `hypervisor.KubeVirtDriver` and `platform/k8s.Manager` for VM lifecycle, NAD, and console while controllers are ported.
+**Target (spec):** operator owns all infra reconciliation; API is a REST facade over CRs only. **Today:** API still uses `hypervisor.KubeVirtDriver` and `platform/k8s.Manager` for some paths (console, residual ISO/public-IP) while controllers are ported.
+
+**CRD-first actuator (core#131):** with `operatorReconcile` (kubernetes store), Start/Stop write only `Instance.spec.powerState` (operator syncs KubeVirt `RunStrategy`). DeployVM uses **one** writer: `SaveVM`/Instance via `deployVMViaOperator`, or refuses shapes that would require `CreateVM`+`SaveVM` dual-write (iso, public IP, extra networks, `cloud_init_password`).
 
 **Prerequisites:** [KubeVirt](https://kubevirt.io/), [Multus](https://github.com/k8snetworkplumbingwg/multus-cni), [CDI](https://github.com/kubevirt/containerized-data-importer) — see [Platform prerequisites](https://virtfoundry.github.io/helm-charts/docs/guide/prerequisites/).
 
