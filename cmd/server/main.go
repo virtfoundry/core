@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	vfgrpc "github.com/virtfoundry/core/internal/api/grpc"
 	"github.com/virtfoundry/core/internal/api/handler"
 	"github.com/virtfoundry/core/internal/api/middleware"
 	"github.com/virtfoundry/core/internal/api/ws"
@@ -250,13 +252,6 @@ func main() {
 	rootOnly.HandleFunc("/service-offerings/{id}", platformHandler.DeleteServiceOffering).Methods("DELETE")
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           router,
-		ReadHeaderTimeout: serverReadHeaderTimeout,
-		ReadTimeout:       serverReadTimeout,
-		IdleTimeout:       serverIdleTimeout,
-	}
 
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
@@ -266,10 +261,50 @@ func main() {
 		}
 	}()
 
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal("listen", zap.Error(err))
+	}
+
+	// gRPC spike (#135): cmux dual-stack on the same :8080 as REST.
+	// Set VIRTFOUNDRY_GRPC=0 to disable and keep HTTP-only (fail-soft).
+	// Timeouts from #161 apply to HTTP-only, cmux HTTP, and fallback paths.
+	grpcEnabled := os.Getenv("VIRTFOUNDRY_GRPC") != "0"
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
+		ReadTimeout:       serverReadTimeout,
+		IdleTimeout:       serverIdleTimeout,
+	}
+
 	go func() {
-		log.Info("server listening", zap.String("addr", addr))
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("server error", zap.Error(err))
+		if !grpcEnabled {
+			log.Info("server listening (HTTP only; gRPC spike disabled)", zap.String("addr", addr))
+			if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+				log.Fatal("server error", zap.Error(err))
+			}
+			return
+		}
+		log.Info("server listening (HTTP+gRPC cmux spike)", zap.String("addr", addr))
+		err := vfgrpc.ServeDualStack(vfgrpc.DualStackOptions{
+			Listener: ln,
+			HTTP:     srv,
+			Auth: vfgrpc.AuthDeps{
+				Auth: authSvc, Store: repo, Identity: identitySvc,
+			},
+			Backend: platformSvc,
+			Log:     log,
+		})
+		if err != nil {
+			log.Error("cmux dual-stack failed; falling back to HTTP-only", zap.Error(err))
+			fallback, ferr := net.Listen("tcp", addr)
+			if ferr != nil {
+				log.Fatal("http fallback listen", zap.Error(ferr))
+			}
+			if serr := srv.Serve(fallback); serr != nil && serr != http.ErrServerClosed {
+				log.Fatal("server error", zap.Error(serr))
+			}
 		}
 	}()
 
@@ -279,7 +314,8 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Shutdown(ctx)
+	_ = srv.Shutdown(ctx)
+	_ = ln.Close()
 	log.Info("shutdown complete")
 }
 
