@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { ExternalLink, HelpCircle, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import clsx from 'clsx';
 import { useI18n } from '../lib/i18n';
@@ -6,21 +6,11 @@ import { useTheme } from '../lib/theme';
 import { appVersionLabel } from '../lib/version';
 import { useAppSelector } from '../store/hooks';
 import { selectUser } from '../store/authSlice';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 function userInitials(username?: string) {
   if (!username) return '?';
   return username.slice(0, 2).toUpperCase();
-}
-
-function useClickOutside(ref: RefObject<HTMLElement | null>, open: boolean, onClose: () => void) {
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open, onClose, ref]);
 }
 
 function HeaderPopover({ open, children }: { open: boolean; children: ReactNode }) {

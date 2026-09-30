@@ -12,6 +12,7 @@ import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DeployVMWizard } from '../components/DeployVMWizard';
 import { ComingSoonBadge } from '../components/ComingSoonBadge';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
@@ -596,37 +597,19 @@ export function VMs() {
                           {formatVmOffering(vm)}
                         </PageTableTd>
                         <PageTableTd>
-                          <div className="flex flex-wrap gap-1 items-center max-w-[140px]">
+                          <div className="flex flex-wrap gap-1 items-center max-w-[140px] min-h-[28px]">
                             {tags.map((tg) => (
                               <span key={tg} className="text-[10px] px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container">
                                 {tg}
                               </span>
                             ))}
-                            <button
-                              type="button"
-                              className="btn-icon-neutral !p-1"
-                              title={t('vms.editTags')}
-                              aria-label={t('vms.editTags')}
-                              onClick={() => {
-                                setTagEditVm(vm.name);
-                                setTagDraft(tags.join(', '));
-                              }}
-                            >
-                              <Tag size={12} />
-                            </button>
+                            {tags.length === 0 && (
+                              <span className="text-xs text-on-surface-variant">—</span>
+                            )}
                           </div>
                         </PageTableTd>
                         <PageTableTd>
                           <div className="flex justify-end gap-1" role="group" aria-label={t('common.actions')}>
-                            <button
-                              type="button"
-                              onClick={() => openClone(vm)}
-                              className="btn-icon-neutral"
-                              title={t('vms.clone')}
-                              aria-label={t('vms.clone')}
-                            >
-                              <CopyPlus size={16} />
-                            </button>
                             {running ? (
                               <button
                                 type="button"
@@ -658,25 +641,42 @@ export function VMs() {
                             >
                               <Monitor size={16} />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => { setSnapshotForm({ name: `${vm.name}-snap` }); setSnapshotModal({ vmName: vm.name }); }}
-                              disabled={!running}
-                              className="btn-icon-neutral focus-visible:ring-2 focus-visible:ring-primary"
-                              title={t('vms.snapshot')}
-                              aria-label={t('vms.snapshot')}
-                            >
-                              <Camera size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(vm)}
-                              className="btn-icon-danger focus-visible:ring-2 focus-visible:ring-error"
-                              title={t('vms.destroy')}
-                              aria-label={t('vms.destroy')}
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            <OverflowMenu
+                              items={[
+                                {
+                                  id: 'clone',
+                                  label: t('vms.clone'),
+                                  icon: <CopyPlus size={14} />,
+                                  onSelect: () => openClone(vm),
+                                },
+                                {
+                                  id: 'snapshot',
+                                  label: t('vms.snapshot'),
+                                  icon: <Camera size={14} />,
+                                  disabled: !running,
+                                  onSelect: () => {
+                                    setSnapshotForm({ name: `${vm.name}-snap` });
+                                    setSnapshotModal({ vmName: vm.name });
+                                  },
+                                },
+                                {
+                                  id: 'tags',
+                                  label: t('vms.editTags'),
+                                  icon: <Tag size={14} />,
+                                  onSelect: () => {
+                                    setTagEditVm(vm.name);
+                                    setTagDraft(tags.join(', '));
+                                  },
+                                },
+                                {
+                                  id: 'delete',
+                                  label: t('vms.destroy'),
+                                  icon: <Trash2 size={14} />,
+                                  danger: true,
+                                  onSelect: () => setDeleteTarget(vm),
+                                },
+                              ]}
+                            />
                           </div>
                         </PageTableTd>
                       </PageTableRow>
