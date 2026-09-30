@@ -42,6 +42,7 @@ import {
   deployPhaseFromVm,
   type DeployPhase,
 } from '../lib/vm-display';
+import { realtimePollInterval, useRealtimeConnected } from '../hooks/useRealtimeEvents';
 
 const SSH_USER = 'ubuntu';
 const DEFAULT_CLOUD_INIT = '#cloud-config\n';
@@ -101,6 +102,7 @@ type Props = {
 export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const wsConnected = useRealtimeConnected();
   const [step, setStep] = useState<Step>('compute');
   const [form, setForm] = useState<FormState>(emptyForm);
   const [createSgModal, setCreateSgModal] = useState(false);
@@ -136,7 +138,10 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
     queryKey: queryKeys.vms,
     queryFn: listVMs,
     enabled: !!trackingName,
-    refetchInterval: trackingName ? 2_000 : false,
+    refetchInterval: realtimePollInterval(wsConnected, !!trackingName, {
+      downMs: 2_000,
+      healthyMs: 10_000,
+    }),
   });
   const trackedVm: PlatformVM | undefined = (trackData?.vms || []).find((vm) => vm.name === trackingName);
   const phase = deployPhaseFromVm(trackedVm);

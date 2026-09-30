@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   invalidateConnectivityFallback,
@@ -11,6 +11,56 @@ const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${wi
 
 /** Safety poll only when WebSocket is disconnected (not a global refetch). */
 const WS_DOWN_FALLBACK_MS = 45_000;
+
+/** Aggressive transitional poll when WS is down (VMs starting/stopping). */
+export const POLL_WS_DOWN_MS = 3_000;
+/** Slow safety poll while transitional and WS is healthy (events should win). */
+export const POLL_WS_HEALTHY_MS = 15_000;
+/** Template ISO import / dashboard warning when WS healthy. */
+export const POLL_WS_HEALTHY_SLOW_MS = 30_000;
+
+type Listener = () => void;
+
+let wsHealthy = false;
+const listeners = new Set<Listener>();
+
+function setWsHealthy(next: boolean) {
+  if (wsHealthy === next) return;
+  wsHealthy = next;
+  listeners.forEach((l) => l());
+}
+
+function subscribeWsHealthy(listener: Listener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getWsHealthy() {
+  return wsHealthy;
+}
+
+/** True while /ws/events is connected — list pages back off polling. */
+export function useRealtimeConnected(): boolean {
+  return useSyncExternalStore(subscribeWsHealthy, getWsHealthy, () => false);
+}
+
+/**
+ * refetchInterval helper: aggressive when WS down, slow (or off) when healthy.
+ * Pass `false` as healthyMs to fully disable poll while connected.
+ */
+export function realtimePollInterval(
+  connected: boolean,
+  needsPoll: boolean,
+  opts?: { downMs?: number; healthyMs?: number | false },
+): number | false {
+  if (!needsPoll) return false;
+  if (connected) {
+    return opts?.healthyMs === undefined ? POLL_WS_HEALTHY_MS : opts.healthyMs;
+  }
+  return opts?.downMs ?? POLL_WS_DOWN_MS;
+}
 
 /**
  * /ws/events uses a short-lived ticket (minted via Authorization header) so the
@@ -59,6 +109,7 @@ export function useRealtimeEvents() {
 
       ws.onopen = () => {
         connectedRef.current = true;
+        setWsHealthy(true);
       };
 
       ws.onmessage = (event) => {
@@ -72,6 +123,7 @@ export function useRealtimeEvents() {
 
       ws.onclose = () => {
         connectedRef.current = false;
+        setWsHealthy(false);
         if (!cancelled) {
           reconnectTimer = setTimeout(connect, 3000);
         }
@@ -94,6 +146,8 @@ export function useRealtimeEvents() {
       cancelled = true;
       clearTimeout(reconnectTimer);
       clearInterval(fallbackTimer);
+      connectedRef.current = false;
+      setWsHealthy(false);
       wsRef.current?.close();
     };
   }, [handleEvent, queryClient]);
