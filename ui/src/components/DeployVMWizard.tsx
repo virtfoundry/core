@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, Monitor, Shield } from 'lucide-react';
+import { Check, Copy, HardDrive, Monitor, Shield } from 'lucide-react';
 import clsx from 'clsx';
 import {
   deployVM,
@@ -481,74 +481,154 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     placeholder="web-server-01"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{t('common.image')}</label>
-                    <select
-                      required
-                      value={form.template_id}
-                      onChange={(e) => {
-                        const template_id = e.target.value;
-                        const tmpl = templates.find((x) => x.id === template_id) || null;
-                        const available = offeringsForTemplate(offerings, tmpl);
-                        const preferred = findOfferingByName(
-                          available,
-                          isWindowsTemplate(tmpl) ? 'windows-large' : 'small',
-                        );
-                        setForm({
-                          ...form,
-                          template_id,
-                          offering: preferred?.id || available[0]?.id || '',
-                        });
-                      }}
-                      className={formSelectClass}
-                    >
-                      <option value="">{t('vms.selectTemplate')}</option>
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('common.image')}</label>
+                  {templates.length === 0 ? (
+                    <InfoBanner variant="warning">{t('vms.noTemplates')}</InfoBanner>
+                  ) : (
+                    <div className="space-y-3">
                       {linuxTemplates.length > 0 && (
-                        <optgroup label="Linux">
-                          {linuxTemplates.map((tmpl) => (
-                            <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
-                          ))}
-                        </optgroup>
+                        <div>
+                          <p className="text-xs font-label text-on-surface-variant mb-1.5">{t('vms.templateOsLinux')}</p>
+                          <div className="grid gap-2 sm:grid-cols-2" role="listbox" aria-label={t('vms.templateOsLinux')}>
+                            {linuxTemplates.map((tmpl) => {
+                              const selected = form.template_id === tmpl.id;
+                              const preferred = findOfferingByName(
+                                offeringsForTemplate(offerings, tmpl),
+                                'small',
+                              );
+                              const hint = tmpl.os_type || tmpl.source_type || tmpl.image || '—';
+                              return (
+                                <button
+                                  key={tmpl.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  onClick={() => {
+                                    const available = offeringsForTemplate(offerings, tmpl);
+                                    const next = findOfferingByName(available, 'small');
+                                    setForm({
+                                      ...form,
+                                      template_id: tmpl.id,
+                                      offering: next?.id || available[0]?.id || '',
+                                    });
+                                  }}
+                                  className={clsx(optionCardClass(selected), 'text-left')}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="font-medium truncate">{tmpl.display_name || tmpl.name}</p>
+                                      <p className="text-xs text-on-surface-variant font-data-mono mt-0.5 truncate" title={hint}>
+                                        {hint}
+                                      </p>
+                                      {preferred && (
+                                        <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
+                                          <HardDrive size={12} className="shrink-0" aria-hidden />
+                                          {preferred.cpu} vCPU ·{' '}
+                                          {preferred.memory_mi >= 1024
+                                            ? `${(preferred.memory_mi / 1024).toFixed(0)} GiB`
+                                            : `${preferred.memory_mi} MiB`}
+                                          {tmpl.boot_disk_size_gi != null && (
+                                            <> · {tmpl.boot_disk_size_gi} Gi disk</>
+                                          )}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {selected && <Check size={16} className="text-primary shrink-0 mt-0.5" aria-hidden />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                       {windowsTemplates.length > 0 && (
-                        <optgroup label="Windows">
-                          {windowsTemplates.map((tmpl) => (
-                            <option key={tmpl.id} value={tmpl.id}>{tmpl.display_name}</option>
-                          ))}
-                        </optgroup>
+                        <div>
+                          <p className="text-xs font-label text-on-surface-variant mb-1.5">{t('vms.templateOsWindows')}</p>
+                          <div className="grid gap-2 sm:grid-cols-2" role="listbox" aria-label={t('vms.templateOsWindows')}>
+                            {windowsTemplates.map((tmpl) => {
+                              const selected = form.template_id === tmpl.id;
+                              const preferred = findOfferingByName(
+                                offeringsForTemplate(offerings, tmpl),
+                                'windows-large',
+                              );
+                              const hint = tmpl.os_type || tmpl.source_type || tmpl.image || '—';
+                              return (
+                                <button
+                                  key={tmpl.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  onClick={() => {
+                                    const available = offeringsForTemplate(offerings, tmpl);
+                                    const next = findOfferingByName(available, 'windows-large');
+                                    setForm({
+                                      ...form,
+                                      template_id: tmpl.id,
+                                      offering: next?.id || available[0]?.id || '',
+                                    });
+                                  }}
+                                  className={clsx(optionCardClass(selected), 'text-left')}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="font-medium truncate">{tmpl.display_name || tmpl.name}</p>
+                                      <p className="text-xs text-on-surface-variant font-data-mono mt-0.5 truncate" title={hint}>
+                                        {hint}
+                                      </p>
+                                      {preferred && (
+                                        <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
+                                          <HardDrive size={12} className="shrink-0" aria-hidden />
+                                          {preferred.cpu} vCPU ·{' '}
+                                          {preferred.memory_mi >= 1024
+                                            ? `${(preferred.memory_mi / 1024).toFixed(0)} GiB`
+                                            : `${preferred.memory_mi} MiB`}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {selected && <Check size={16} className="text-primary shrink-0 mt-0.5" aria-hidden />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Offering</label>
-                    <select
-                      value={form.offering}
-                      onChange={(e) => {
-                        const offering = offerings.find((o) => o.id === e.target.value);
-                        setForm({
-                          ...form,
-                          offering: e.target.value,
-                          dedicated_cpu: !!offering?.dedicated_cpu,
-                        });
-                      }}
-                      className={formSelectClass}
-                    >
-                      {templateOfferings.map((o) => <option key={o.id} value={o.id}>{offeringLabel(o)}</option>)}
-                    </select>
-                    <label className="mt-3 flex items-start gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={form.dedicated_cpu}
-                        onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
-                      />
-                      <span>
-                        <span className="font-medium">{t('vms.dedicatedCpu')}</span>
-                        <p className="text-xs text-on-surface-variant mt-0.5">{t('vms.dedicatedCpuHint')}</p>
-                      </span>
-                    </label>
-                  </div>
+                      {!form.template_id && (
+                        <p className="text-xs text-on-surface-variant">{t('vms.selectTemplate')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t('vms.offering')}</label>
+                  <select
+                    value={form.offering}
+                    onChange={(e) => {
+                      const offering = offerings.find((o) => o.id === e.target.value);
+                      setForm({
+                        ...form,
+                        offering: e.target.value,
+                        dedicated_cpu: !!offering?.dedicated_cpu,
+                      });
+                    }}
+                    className={formSelectClass}
+                    disabled={!form.template_id}
+                  >
+                    {templateOfferings.map((o) => <option key={o.id} value={o.id}>{offeringLabel(o)}</option>)}
+                  </select>
+                  <label className="mt-3 flex items-start gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={form.dedicated_cpu}
+                      onChange={(e) => setForm({ ...form, dedicated_cpu: e.target.checked })}
+                    />
+                    <span>
+                      <span className="font-medium">{t('vms.dedicatedCpu')}</span>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{t('vms.dedicatedCpuHint')}</p>
+                    </span>
+                  </label>
                 </div>
               </div>
             )}

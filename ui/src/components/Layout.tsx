@@ -1,10 +1,11 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
-import { Menu, X, Building2 } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { VirtFoundryLogo } from './VirtFoundryLogo';
 import { SidebarNav } from './SidebarNav';
 import { SettingsMenu, UserMenu } from './HeaderMenus';
 import { HeaderSearch, NotificationsMenu } from './HeaderToolbar';
+import { TenantSwitcher } from './TenantSwitcher';
 import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 import { authService } from '../lib/auth';
 import { listTenants } from '../lib/platform-api';
@@ -49,7 +50,7 @@ export function Layout() {
 
   useRealtimeEvents();
 
-  const { data: tenantsData } = useQuery({
+  const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
     queryKey: queryKeys.tenants,
     queryFn: listTenants,
     enabled: isRoot,
@@ -138,25 +139,13 @@ export function Layout() {
               </span>
             )}
             {isRoot && (
-              <label className="hidden md:flex items-center gap-2" title={t('header.tenantHint')}>
-                <Building2 size={16} className="text-on-surface-variant shrink-0" />
-                <select
-                  value={selectedTenant}
-                  onChange={(e) => handleTenantChange(e.target.value)}
-                  aria-label={t('header.tenant')}
-                  className={clsx(
-                    'text-sm border rounded-lg px-3 py-2 bg-surface-container-high text-on-surface max-w-[200px]',
-                    impersonating
-                      ? 'border-error ring-2 ring-error/50'
-                      : 'border-outline-variant',
-                  )}
-                >
-                  <option value="">{t('nav.selectTenant')}</option>
-                  {tenants.map((tn) => (
-                    <option key={tn.id} value={tn.id}>{tn.name}</option>
-                  ))}
-                </select>
-              </label>
+              <TenantSwitcher
+                tenants={tenants}
+                selectedTenantId={selectedTenant}
+                defaultTenantId={defaultTenantId}
+                onChange={handleTenantChange}
+                loading={tenantsLoading}
+              />
             )}
             <NotificationsMenu
               open={notifOpen}
