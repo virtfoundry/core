@@ -995,15 +995,20 @@ func (s *Service) resolveDeployNetworks(tenantID string, publicIP bool, networkI
 }
 
 func (s *Service) tenantDefaultNetworkID(tenantID string) (string, error) {
+	var defaultVPCFound bool
 	for _, vpc := range s.store.ListVPCs(tenantID) {
 		if vpc.Name != branding.DefaultVPCName {
 			continue
 		}
+		defaultVPCFound = true
 		for _, net := range s.store.ListNetworks(tenantID) {
 			if net.VPCID == vpc.ID && net.Name == "default" {
 				return net.ID, nil
 			}
 		}
+	}
+	if defaultVPCFound {
+		return "", fmt.Errorf("default network missing for default VPC")
 	}
 	return "", fmt.Errorf("default VPC not provisioned for tenant")
 }

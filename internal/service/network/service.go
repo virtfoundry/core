@@ -125,6 +125,7 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 }
 
 // EnsureDefaultVPC creates the AWS-style default VPC (10.0.0.0/16 + default subnet) if missing.
+// If the default VPC exists but its default subnet was deleted/orphaned, restores the subnet only.
 func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platform.Network, error) {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
@@ -136,6 +137,9 @@ func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platf
 	if net, ok := s.defaultVPCNetwork(tenantID); ok {
 		return net, nil
 	}
+	if vpc := s.findDefaultVPC(tenantID); vpc != nil {
+		return s.CreateNetwork(ctx, tenantID, vpc.ID, "default", "", 24)
+	}
 	_, defNet, err := s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, branding.DefaultVPCCIDR)
 	if err != nil {
 		_, defNet, err = s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, "")
@@ -146,15 +150,23 @@ func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platf
 	return defNet, nil
 }
 
-func (s *Service) defaultVPCNetwork(tenantID string) (*platform.Network, bool) {
+func (s *Service) findDefaultVPC(tenantID string) *platform.VPC {
 	for _, vpc := range s.store.ListVPCs(tenantID) {
-		if vpc.Name != branding.DefaultVPCName {
-			continue
+		if vpc.Name == branding.DefaultVPCName {
+			return vpc
 		}
-		for _, net := range s.store.ListNetworks(tenantID) {
-			if net.VPCID == vpc.ID && net.Name == "default" {
-				return net, true
-			}
+	}
+	return nil
+}
+
+func (s *Service) defaultVPCNetwork(tenantID string) (*platform.Network, bool) {
+	vpc := s.findDefaultVPC(tenantID)
+	if vpc == nil {
+		return nil, false
+	}
+	for _, net := range s.store.ListNetworks(tenantID) {
+		if net.VPCID == vpc.ID && net.Name == "default" {
+			return net, true
 		}
 	}
 	return nil, false

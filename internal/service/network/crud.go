@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/branding"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -25,6 +27,9 @@ func (s *Service) DeleteVPC(ctx context.Context, tenantID, vpcID string) error {
 	vpc, ok := s.findVPC(tenantID, vpcID)
 	if !ok {
 		return errVPCNotFound
+	}
+	if vpc.Name == branding.DefaultVPCName {
+		return iaerrors.NewBadRequestError("cannot delete the default VPC")
 	}
 	nets := s.ListNetworksByVPC(tenantID, vpcID)
 	for _, net := range nets {
@@ -59,6 +64,9 @@ func (s *Service) DeleteNetwork(ctx context.Context, tenantID, networkID string)
 	if !ok || net.TenantID != tenantID {
 		return fmt.Errorf("network not found")
 	}
+	if err := s.refuseProtectedDefaultNetwork(tenantID, net); err != nil {
+		return err
+	}
 	if s.isNetworkInUse(tenantID, networkID) {
 		return fmt.Errorf("network is in use by a virtual machine")
 	}
@@ -67,6 +75,17 @@ func (s *Service) DeleteNetwork(ctx context.Context, tenantID, networkID string)
 	}
 	s.store.DeleteNetwork(networkID)
 	return nil
+}
+
+func (s *Service) refuseProtectedDefaultNetwork(tenantID string, net *platform.Network) error {
+	if net.Name != "default" {
+		return nil
+	}
+	vpc, ok := s.findVPC(tenantID, net.VPCID)
+	if !ok || vpc.Name != branding.DefaultVPCName {
+		return nil
+	}
+	return iaerrors.NewBadRequestError("cannot delete the default subnet of the default VPC")
 }
 
 func (s *Service) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name, desc string, rules []platform.SecurityGroupRule) (*platform.SecurityGroup, error) {
