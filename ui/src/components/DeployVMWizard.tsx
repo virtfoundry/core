@@ -34,14 +34,11 @@ import {
   InfoBanner,
 } from './shell';
 import { StatusBadge } from './StatusBadge';
-import { ComingSoonBadge } from './ComingSoonBadge';
-import { CloudInitEditor } from './CloudInitEditor';
 import {
   DEPLOY_PHASE_ORDER,
   deployPhaseFromVm,
   type DeployPhase,
 } from '../lib/vm-display';
-import { maskCloudInitSecrets } from '../lib/error-catalog';
 
 function optionCardClass(selected: boolean) {
   return clsx(
@@ -96,8 +93,6 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const [createSgModal, setCreateSgModal] = useState(false);
   const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
   const [trackingName, setTrackingName] = useState<string | null>(null);
-  const [cloudInitDraft, setCloudInitDraft] = useState('#cloud-config\n');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { data: netData } = useQuery({ queryKey: queryKeys.networks, queryFn: listNetworks, enabled: open });
   const { data: sshData } = useQuery({ queryKey: queryKeys.sshKeys, queryFn: listSSHKeys, enabled: open });
@@ -135,8 +130,6 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       setStep('compute');
       setForm(emptyForm());
       setTrackingName(null);
-      setCloudInitDraft('#cloud-config\n');
-      setShowAdvanced(false);
     }
   }, [open]);
 
@@ -723,40 +716,6 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     </div>
                   )}
                 </dl>
-                <div className="rounded-lg border border-outline-variant p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{t('cloudinit.reviewTitle')}</p>
-                    <ComingSoonBadge label={t('preview.localOnly')} />
-                  </div>
-                  <pre className="text-[11px] font-data-mono whitespace-pre-wrap max-h-28 overflow-y-auto text-on-surface-variant">
-                    {maskCloudInitSecrets(cloudInitDraft) || '—'}
-                  </pre>
-                </div>
-                <button
-                  type="button"
-                  className="btn-ghost-muted text-sm"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                >
-                  {showAdvanced ? t('vms.hideAdvanced') : t('vms.showAdvanced')}
-                </button>
-                {showAdvanced && (
-                  <div className="space-y-3 rounded-lg border border-dashed border-outline-variant p-3">
-                    <CloudInitEditor
-                      vmName={form.name || 'draft'}
-                      reviewOnly
-                      initialValue={cloudInitDraft}
-                      onChange={setCloudInitDraft}
-                    />
-                    <div className="flex flex-wrap gap-2 text-xs text-on-surface-variant">
-                      <span className="inline-flex items-center gap-1 border border-outline-variant rounded px-2 py-1">
-                        {t('vms.affinity')} <ComingSoonBadge />
-                      </span>
-                      <span className="inline-flex items-center gap-1 border border-outline-variant rounded px-2 py-1">
-                        GPU / host-device <ComingSoonBadge />
-                      </span>
-                    </div>
-                  </div>
-                )}
                 <div className="rounded-lg border border-outline-variant p-3">
                   <p className="text-sm font-medium mb-2">{t('vms.precheckTitle')}</p>
                   {prechecks.length === 0 ? (
