@@ -715,9 +715,11 @@ func (s *Service) ReconcileAll(ctx context.Context) {
 	}
 }
 
-// vmEvent is the realtime payload for VM events. It carries only what the UI
-// needs to invalidate its caches — namespace, IPs, host and NICs stay out of
-// the stream so a subscriber never receives inventory detail over WebSocket.
+// vmEvent is the realtime payload for VM events. It carries only id/name/state
+// so the stream stays thin — namespace, IPs, host, cpu/memory and NICs stay out
+// of WebSocket (inventory remains on REST). UI CN Phase 1 consumers merge-patch
+// the list cache from these fields and may one-shot GET on vm.created when the
+// row is incomplete.
 type vmEvent struct {
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name"`
