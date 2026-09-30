@@ -164,3 +164,112 @@ func TestListInstances_RootRequiresTenantMetadata(t *testing.T) {
 		t.Fatalf("expected empty list for unused tenant, got %d", len(resp.GetInstances()))
 	}
 }
+
+func TestGetInstance_RequiresName(t *testing.T) {
+	st := store.NewMemory()
+	if err := st.SeedIAM(); err != nil {
+		t.Fatalf("SeedIAM: %v", err)
+	}
+	tenantID := store.NewID()
+	user := &platform.User{
+		ID: store.NewID(), Username: "alice", Role: platform.RoleUser,
+		RoleID: store.SystemRoleIDTenantAdmin, TenantID: tenantID, State: "active",
+	}
+	st.SaveUser(user)
+	authSvc := auth.NewService("test-secret-at-least-32-bytes-long!!", 3600)
+	token, _, err := authSvc.IssueToken(user)
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+	client := startTestServer(t, vfgrpc.AuthDeps{Auth: authSvc, Store: st, Identity: identity.New(st)}, &fakeBackend{})
+
+	md := metadata.Pairs("authorization", "Bearer "+token)
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	_, err = client.GetInstance(ctx, &iaasv1alpha1.GetInstanceRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("want InvalidArgument, got %v", err)
+	}
+}
+
+func TestGetInstance_OK(t *testing.T) {
+	st := store.NewMemory()
+	if err := st.SeedIAM(); err != nil {
+		t.Fatalf("SeedIAM: %v", err)
+	}
+	tenantID := store.NewID()
+	user := &platform.User{
+		ID: store.NewID(), Username: "alice", Role: platform.RoleUser,
+		RoleID: store.SystemRoleIDTenantAdmin, TenantID: tenantID, State: "active",
+	}
+	st.SaveUser(user)
+	authSvc := auth.NewService("test-secret-at-least-32-bytes-long!!", 3600)
+	token, _, err := authSvc.IssueToken(user)
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+	backend := &fakeBackend{vms: []*platform.PlatformVM{
+		{ID: "1", TenantID: tenantID, Name: "web-1", State: "Running", CPU: 2, MemoryMi: 2048},
+	}}
+	client := startTestServer(t, vfgrpc.AuthDeps{Auth: authSvc, Store: st, Identity: identity.New(st)}, backend)
+
+	md := metadata.Pairs("authorization", "Bearer "+token)
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	resp, err := client.GetInstance(ctx, &iaasv1alpha1.GetInstanceRequest{Name: "web-1"})
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if resp.GetInstance().GetName() != "web-1" {
+		t.Fatalf("got %+v", resp.GetInstance())
+	}
+
+	_, err = client.GetInstance(ctx, &iaasv1alpha1.GetInstanceRequest{Name: "missing"})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("want NotFound, got %v", err)
+	}
+}
+
+func TestWatchInstances_EmitsSnapshot(t *testing.T) {
+	st := store.NewMemory()
+	if err := st.SeedIAM(); err != nil {
+		t.Fatalf("SeedIAM: %v", err)
+	}
+	tenantID := store.NewID()
+	user := &platform.User{
+		ID: store.NewID(), Username: "alice", Role: platform.RoleUser,
+		RoleID: store.SystemRoleIDTenantAdmin, TenantID: tenantID, State: "active",
+	}
+	st.SaveUser(user)
+	authSvc := auth.NewService("test-secret-at-least-32-bytes-long!!", 3600)
+	token, _, err := authSvc.IssueToken(user)
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+	backend := &fakeBackend{vms: []*platform.PlatformVM{
+		{ID: "1", TenantID: tenantID, Name: "web-1", State: "Running"},
+		{ID: "2", TenantID: tenantID, Name: "web-2", State: "Stopped"},
+	}}
+	client := startTestServer(t, vfgrpc.AuthDeps{Auth: authSvc, Store: st, Identity: identity.New(st)}, backend)
+
+	md := metadata.Pairs("authorization", "Bearer "+token)
+	ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(context.Background(), md), 5*time.Second)
+	defer cancel()
+
+	stream, err := client.WatchInstances(ctx, &iaasv1alpha1.WatchInstancesRequest{})
+	if err != nil {
+		t.Fatalf("WatchInstances: %v", err)
+	}
+	var names []string
+	for {
+		ev, err := stream.Recv()
+		if err != nil {
+			break
+		}
+		if ev.GetEventType() != "MODIFIED" {
+			t.Fatalf("want MODIFIED, got %q", ev.GetEventType())
+		}
+		names = append(names, ev.GetInstance().GetName())
+	}
+	if len(names) != 2 {
+		t.Fatalf("got %v, want 2 events", names)
+	}
+}
