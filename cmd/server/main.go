@@ -102,6 +102,8 @@ func main() {
 	platformSvc.BootstrapStorage(cfg.Storage)
 	isoImportHosts := platformSvc.BootstrapISOImport(cfg.Security.ISOImport)
 	log.Info("iso import allowlist", zap.Strings("allowed_hosts", isoImportHosts))
+	containerImagePrefixes := platformSvc.BootstrapContainerImageAllowlist(cfg.Security.ContainerImageAllowlist)
+	log.Info("container disk image allowlist", zap.Strings("allowed_prefixes", containerImagePrefixes))
 	if cfg.Networking.Public.Enabled {
 		log.Info("public network enabled",
 			zap.String("cidr", cfg.Networking.Public.CIDR),
@@ -275,6 +277,7 @@ func loadConfig() (*config.Config, string) {
 		cfg.Security.JWTSecret = v
 	}
 	config.ApplyISOImportEnv(cfg)
+	config.ApplyContainerImageAllowlistEnv(cfg)
 	config.ApplyAllowedOriginsEnv(cfg)
 	if err := config.Validate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "insecure configuration rejected: %v\n", err)

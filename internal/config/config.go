@@ -114,6 +114,9 @@ type SecurityConfig struct {
 	LoginThrottle  LoginThrottleConfig `mapstructure:"login_throttle"`
 	// ISOImport restricts where CDI may download tenant-supplied ISO URLs from.
 	ISOImport ISOImportConfig `mapstructure:"iso_import"`
+	// ContainerImageAllowlist restricts ContainerDisk image refs on DeployVM.
+	// Empty keeps built-in defaults (quay.io/containerdisks/, quay.io/kubevirt/).
+	ContainerImageAllowlist ContainerImageAllowlistConfig `mapstructure:"container_image_allowlist"`
 }
 
 // ISOImportConfig is the admin allowlist for tenant-supplied ISO download URLs.
@@ -127,6 +130,13 @@ type ISOImportConfig struct {
 	// DisableHTTPImport refuses every URL-based ISO import. Tenants can still
 	// register ISO templates from an existing volume (iso_volume_id).
 	DisableHTTPImport bool `mapstructure:"disable_http_import"`
+}
+
+// ContainerImageAllowlistConfig is the admin allowlist for ContainerDisk image
+// reference prefixes on the DeployVM path (issue #134). Configuring the list
+// (YAML or env) replaces the built-in defaults.
+type ContainerImageAllowlistConfig struct {
+	AllowedPrefixes []string `mapstructure:"allowed_prefixes"`
 }
 
 // LoginThrottleConfig tunes login brute-force protection. Zero values fall
@@ -204,6 +214,10 @@ const (
 	// EnvAllowedOrigins overrides security.allowed_origins with a
 	// comma-separated list of browser origins for CORS and WebSocket checks.
 	EnvAllowedOrigins = "VIRTFOUNDRY_ALLOWED_ORIGINS"
+	// EnvAllowedContainerImagePrefixes overrides
+	// security.container_image_allowlist.allowed_prefixes with a comma-separated
+	// list of ContainerDisk image reference prefixes (issue #134).
+	EnvAllowedContainerImagePrefixes = "VIRTFOUNDRY_ALLOWED_CONTAINER_IMAGE_PREFIXES"
 )
 
 // ApplyISOImportEnv lets operators set the ISO import allowlist via environment
@@ -222,6 +236,24 @@ func ApplyISOImportEnv(cfg *Config) {
 	}
 	if os.Getenv(EnvISODisableHTTPImport) == "1" {
 		cfg.Security.ISOImport.DisableHTTPImport = true
+	}
+}
+
+// ApplyContainerImageAllowlistEnv lets operators set the ContainerDisk image
+// allowlist via environment, which takes precedence over the YAML config.
+func ApplyContainerImageAllowlistEnv(cfg *Config) {
+	raw := os.Getenv(EnvAllowedContainerImagePrefixes)
+	if raw == "" {
+		return
+	}
+	var prefixes []string
+	for _, p := range strings.Split(raw, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			prefixes = append(prefixes, p)
+		}
+	}
+	if len(prefixes) > 0 {
+		cfg.Security.ContainerImageAllowlist.AllowedPrefixes = prefixes
 	}
 }
 
