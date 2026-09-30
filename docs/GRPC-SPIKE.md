@@ -10,7 +10,7 @@ Experimental `InstanceService` on package `virtfoundry.iaas.v1alpha1`:
 |-----|-------------------------|
 | `ListInstances` | Thin adapter over `internal/service/compute` (`ListVMs`) |
 | `GetInstance` | Thin adapter over `GetVM` |
-| `WatchInstances` | One-shot snapshot stream (`MODIFIED` per VM), then EOF — not hub-backed yet |
+| `WatchInstances` | Initial `MODIFIED` snapshot, then hub-backed stream of `vm.created` / `vm.updated` / `vm.deleted` (same hub as `/ws/events`) until client disconnect |
 
 Transport: **grpc-go behind [cmux](https://github.com/soheilhy/cmux) on the same ClusterIP port as REST (`:8080`)**. No separate Ingress path for gRPC in this spike. No `:9090` / `GRPCRoute` unless cmux proves unusable later.
 
@@ -23,6 +23,8 @@ Metadata only — **never** `?token=`:
 
 Missing/invalid credentials or unresolved tenant → `Unauthenticated`.
 
+Permission (parity with REST `AutoPermission` for `GET /vms`): non-root needs `vms:read`; root bypasses.
+
 ## Explicitly out of scope
 
 - gRPC in **operator**
@@ -30,7 +32,6 @@ Missing/invalid credentials or unresolved tenant → `Unauthenticated`.
 - VNC / console over gRPC (stays WS + ticket)
 - Migrating Terraform provider to gRPC
 - Helm Ingress / Gateway API gRPC exposure
-- Full Watch tied to `/ws/events` hub
 
 ## Enable / disable
 
@@ -62,10 +63,23 @@ grpcurl -plaintext \
 
 ClusterIP / in-cluster clients are the intended consumers; do not put gRPC on the public Ingress for this spike.
 
-## TODO (post-spike)
+## Watch stream mapping
 
-- [ ] Wire `WatchInstances` to the existing events hub (parity with `/ws/events`)
-- [ ] Permission matrix parity with REST `AutoPermission`
+| Hub event (`/ws/events`) | `WatchInstances` `event_type` |
+|--------------------------|-------------------------------|
+| (initial ListVMs) | `MODIFIED` snapshot |
+| `vm.created` | `ADDED` |
+| `vm.updated` | `MODIFIED` |
+| `vm.deleted` | `DELETED` |
+
+ADDED/MODIFIED try to enrich via `GetVM`; hub payload alone carries `id`/`name`/`state`. Non-`vm.*` hub events are ignored.
+
+## TODO (remaining)
+
+- [ ] Root `all_tenants` scope on Watch (WS supports it; gRPC pins to resolved tenant)
+- [ ] Method-map interceptor for future RPCs beyond `vms:read` (today handlers call `requireVMsRead`)
 - [ ] Helm note only (no Ingress) — chart change only if docs need a flag
 - [ ] Decide production port strategy (`:8080` cmux vs `GRPCRoute`)
 - [ ] SDK / client stubs for in-cluster operators (not TF yet)
+
+> Note: epic [#135](https://github.com/virtfoundry/core/issues/135) is closed after the cmux spike (#162). Hub Watch is a follow-up on that track.
