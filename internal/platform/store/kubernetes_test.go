@@ -75,6 +75,17 @@ func TestKubernetesStore_UserSecretRoundTrip(t *testing.T) {
 	if !repo.HasRootUser() {
 		t.Fatal("expected HasRootUser true")
 	}
+
+	authUser, ok := repo.GetUserForAuth("root")
+	if !ok {
+		t.Fatal("expected GetUserForAuth root")
+	}
+	if authUser.PasswordHash != "" {
+		t.Fatalf("GetUserForAuth should skip password Secret, got hash %q", authUser.PasswordHash)
+	}
+	if authUser.ID != got.ID || authUser.Username != "root" {
+		t.Fatalf("GetUserForAuth identity: %#v want id=%q", authUser, got.ID)
+	}
 }
 
 func TestKubernetesStore_AdminUserIncludesTenantRefWhenTenantIDCacheMisses(t *testing.T) {

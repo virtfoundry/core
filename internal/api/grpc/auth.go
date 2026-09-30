@@ -92,7 +92,7 @@ func (d AuthDeps) authenticate(ctx context.Context) (context.Context, error) {
 		if err != nil {
 			return nil, status.Error(codes.Unauthenticated, "invalid token")
 		}
-		u, found := d.Store.GetUser(c.UserID)
+		u, found := store.ResolveJWTUser(d.Store, c.UserID, c.Username)
 		if !found || u.State == "disabled" {
 			return nil, status.Error(codes.Unauthenticated, "invalid token")
 		}

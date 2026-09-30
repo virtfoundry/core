@@ -6,6 +6,9 @@ import "github.com/virtfoundry/core/internal/platform"
 type Repository interface {
 	SaveUser(u *platform.User)
 	GetUserByUsername(username string) (*platform.User, bool)
+	// GetUserForAuth is the lean username lookup for JWT validation: same as
+	// GetUserByUsername but may omit PasswordHash (no Secret fetch on K8s).
+	GetUserForAuth(username string) (*platform.User, bool)
 	HasRootUser() bool
 	GetUser(id string) (*platform.User, bool)
 	ListUsers() []*platform.User
