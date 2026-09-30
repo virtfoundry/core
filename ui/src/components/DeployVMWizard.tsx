@@ -35,6 +35,8 @@ import {
   InfoBanner,
 } from './shell';
 import { StatusBadge } from './StatusBadge';
+import { ComingSoonBadge } from './ComingSoonBadge';
+import { CloudInitEditor } from './CloudInitEditor';
 import {
   DEPLOY_PHASE_ORDER,
   deployPhaseFromVm,
@@ -42,6 +44,14 @@ import {
 } from '../lib/vm-display';
 
 const SSH_USER = 'ubuntu';
+const DEFAULT_CLOUD_INIT = '#cloud-config\n';
+
+/** Send userdata only when the wizard draft has real content beyond the stub. */
+function deployCloudInitPayload(draft: string): string | undefined {
+  const trimmed = draft.trim();
+  if (!trimmed || trimmed === '#cloud-config') return undefined;
+  return trimmed + '\n';
+}
 
 function optionCardClass(selected: boolean) {
   return clsx(
@@ -97,6 +107,8 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
   const [trackingName, setTrackingName] = useState<string | null>(null);
   const [sshCopied, setSshCopied] = useState(false);
+  const [cloudInitDraft, setCloudInitDraft] = useState(DEFAULT_CLOUD_INIT);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { data: netData } = useQuery({ queryKey: queryKeys.networks, queryFn: listNetworks, enabled: open });
   const { data: sshData } = useQuery({ queryKey: queryKeys.sshKeys, queryFn: listSSHKeys, enabled: open });
@@ -135,6 +147,8 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       setForm(emptyForm());
       setTrackingName(null);
       setSshCopied(false);
+      setCloudInitDraft(DEFAULT_CLOUD_INIT);
+      setShowAdvanced(false);
     }
   }, [open]);
 
@@ -296,6 +310,8 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
         ? form.network_ids
         : [];
 
+    const cloudInit = deployCloudInitPayload(cloudInitDraft);
+
     deployMutation.mutate({
       name: form.name,
       template_id: form.template_id,
@@ -307,6 +323,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       ...(isPublic ? { public_ip: true, security_group_ids: form.security_group_ids } : {}),
       ...(linux ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
+      ...(cloudInit ? { cloud_init_user_data: cloudInit } : {}),
     });
   };
 
@@ -773,6 +790,32 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     </div>
                   )}
                 </dl>
+                <button
+                  type="button"
+                  className="btn-ghost-muted text-sm"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                >
+                  {showAdvanced ? t('vms.hideAdvanced') : t('vms.showAdvanced')}
+                </button>
+                {showAdvanced && (
+                  <div className="space-y-3 rounded-lg border border-dashed border-outline-variant p-3">
+                    <CloudInitEditor
+                      vmName={form.name || 'draft'}
+                      reviewOnly
+                      applyOnDeploy
+                      initialValue={cloudInitDraft}
+                      onChange={setCloudInitDraft}
+                    />
+                    <div className="flex flex-wrap gap-2 text-xs text-on-surface-variant">
+                      <span className="inline-flex items-center gap-1 border border-outline-variant rounded px-2 py-1">
+                        {t('vms.affinity')} <ComingSoonBadge />
+                      </span>
+                      <span className="inline-flex items-center gap-1 border border-outline-variant rounded px-2 py-1">
+                        GPU / host-device <ComingSoonBadge />
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-lg border border-outline-variant p-3">
                   <p className="text-sm font-medium mb-2">{t('vms.precheckTitle')}</p>
                   {prechecks.length === 0 ? (

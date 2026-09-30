@@ -85,6 +85,7 @@ type DeployVMInput struct {
 	DisplayName       string
 	SSHKeyID          string
 	CloudInitPassword string // optional one-time guest password; enables password SSH
+	CloudInitUserData string // optional deploy userdata; overrides template when non-empty
 	DataVolumeID      string
 	BootDiskSizeGi    int
 	ExposeSSH         bool
@@ -142,6 +143,10 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 			}
 			tmplDisplay = tmpl.DisplayName
 		}
+	}
+	// Deploy userdata overrides template (operator Instance > Template; hypervisor CloudInitExtra).
+	if ud := strings.TrimSpace(in.CloudInitUserData); ud != "" {
+		cloudInitExtra = ud
 	}
 	if cpu <= 0 {
 		cpu = 1

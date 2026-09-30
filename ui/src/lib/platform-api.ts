@@ -304,6 +304,7 @@ export async function deployVM(data: {
   public_ip?: boolean;
   security_group_ids?: string[];
   ssh_key_id?: string;
+  cloud_init_user_data?: string;
   data_volume_id?: string;
   expose_ssh?: boolean;
   display_name?: string;

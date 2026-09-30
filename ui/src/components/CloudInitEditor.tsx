@@ -7,13 +7,15 @@ import { useI18n } from '../lib/i18n';
 
 type Props = {
   vmName: string;
-  /** When true, show masked preview for deploy review (no persist). */
+  /** When true, show masked preview for deploy review (no local persist button). */
   reviewOnly?: boolean;
+  /** When true, userdata is sent on deployVM (hide local-only badge/hint). */
+  applyOnDeploy?: boolean;
   initialValue?: string;
   onChange?: (value: string) => void;
 };
 
-export function CloudInitEditor({ vmName, reviewOnly = false, initialValue, onChange }: Props) {
+export function CloudInitEditor({ vmName, reviewOnly = false, applyOnDeploy = false, initialValue, onChange }: Props) {
   const { t } = useI18n();
   const [value, setValue] = useState(() => initialValue ?? (getCloudInitDraft(vmName) || '#cloud-config\nusers:\n  - name: ubuntu\n    sudo: ALL=(ALL) NOPASSWD:ALL\n'));
   const [saved, setSaved] = useState(false);
@@ -36,9 +38,11 @@ export function CloudInitEditor({ vmName, reviewOnly = false, initialValue, onCh
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <h3 className="text-sm font-medium text-on-surface">{t('cloudinit.title')}</h3>
-        <ComingSoonBadge label={t('preview.localOnly')} />
+        {!applyOnDeploy && <ComingSoonBadge label={t('preview.localOnly')} />}
       </div>
-      <p className="text-xs text-on-surface-variant">{t('cloudinit.hint')}</p>
+      <p className="text-xs text-on-surface-variant">
+        {applyOnDeploy ? t('cloudinit.deployHint') : t('cloudinit.hint')}
+      </p>
       <textarea
         value={value}
         onChange={(e) => handleChange(e.target.value)}

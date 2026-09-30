@@ -119,6 +119,10 @@ func (s *Service) deployVMViaOperator(
 		ServiceOfferingID: in.ServiceOfferingID,
 		CreatedAt:         store.Now(),
 	}
+	// Only Instance override — empty leaves Template.spec.cloudInitUserData to the operator.
+	if ud := strings.TrimSpace(in.CloudInitUserData); ud != "" {
+		vm.CloudInitUserData = ud
+	}
 	if tenant != nil {
 		vm.Zone = tenant.Slug
 	}
