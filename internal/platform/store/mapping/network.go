@@ -44,12 +44,15 @@ func VPCFromUnstructured(obj *unstructured.Unstructured, tenantID string) *platf
 	return v
 }
 
-func SGCRName(sg *platform.SecurityGroup) string {
+func SGCRName(sg *platform.SecurityGroup, vpcCRName string) string {
+	if vpcCRName != "" {
+		return SanitizeCRName(vpcCRName + "-" + sg.Name)
+	}
 	return SanitizeCRName(sg.Name)
 }
 
 func SGToUnstructured(sg *platform.SecurityGroup, tenantSlug, vpcCRName string) *unstructured.Unstructured {
-	obj := newObject("SecurityGroup", SGCRName(sg), "")
+	obj := newObject("SecurityGroup", SGCRName(sg, vpcCRName), "")
 	obj.SetLabels(BaseLabels(tenantSlug))
 	SetLegacyID(obj, sg.ID)
 	spec := map[string]interface{}{
@@ -109,15 +112,29 @@ func SGFromUnstructured(obj *unstructured.Unstructured, tenantID string, vpcID s
 	return sg
 }
 
-func NetworkCRName(n *platform.Network) string {
+// NetworkCRName returns the Kubernetes metadata.name for a Network CR.
+// Isolated nets are scoped by VPC CR name so two VPCs can each have a
+// subnet named "default" without colliding in the tenant namespace.
+// Shared public stays the fixed name "public".
+func NetworkCRName(n *platform.Network, vpcCRName string) string {
 	if n.NetworkType == platform.NetworkTypeShared {
 		return "public"
+	}
+	if vpcCRName != "" {
+		return SanitizeCRName(vpcCRName + "-" + n.Name)
+	}
+	if n.ID != "" {
+		short := n.ID
+		if len(short) > 8 {
+			short = short[:8]
+		}
+		return SanitizeCRName(n.Name + "-" + short)
 	}
 	return SanitizeCRName(n.Name)
 }
 
 func NetworkToUnstructured(n *platform.Network, tenantSlug, vpcCRName string) *unstructured.Unstructured {
-	obj := newObject("Network", NetworkCRName(n), "")
+	obj := newObject("Network", NetworkCRName(n, vpcCRName), "")
 	obj.SetLabels(BaseLabels(tenantSlug))
 	SetLegacyID(obj, n.ID)
 	spec := map[string]interface{}{

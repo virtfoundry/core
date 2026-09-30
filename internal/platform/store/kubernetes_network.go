@@ -30,7 +30,8 @@ func (k *Kubernetes) resolveNetworkCRName(networkID string) string {
 		return obj.GetName()
 	}
 	if n, ok := k.GetNetwork(networkID); ok {
-		return mapping.NetworkCRName(n)
+		vpcCR := k.resolveVPCCRName(n.TenantID, n.VPCID)
+		return mapping.NetworkCRName(n, vpcCR)
 	}
 	return ""
 }
@@ -100,8 +101,19 @@ func (k *Kubernetes) SaveSG(sg *platform.SecurityGroup) {
 	}
 	vpcCR := k.resolveVPCCRName(sg.TenantID, sg.VPCID)
 	slug := k.tenantSlug(sg.TenantID)
+	existingName := ""
+	if sg.ID != "" {
+		if obj, foundNS, ok := k.findNamespacedByID(mapping.SecurityGroupGVR, sg.ID); ok {
+			existingName = obj.GetName()
+			ns = foundNS
+		}
+	}
 	k.saveNamespacedMapped(mapping.SecurityGroupGVR, ns, func() *unstructured.Unstructured {
-		return mapping.SGToUnstructured(sg, slug, vpcCR)
+		obj := mapping.SGToUnstructured(sg, slug, vpcCR)
+		if existingName != "" {
+			obj.SetName(existingName)
+		}
+		return obj
 	}, func(saved *unstructured.Unstructured) {
 		*sg = *mapping.SGFromUnstructured(saved, sg.TenantID, sg.VPCID)
 	})
@@ -160,8 +172,21 @@ func (k *Kubernetes) SaveNetwork(n *platform.Network) {
 	}
 	vpcCR := k.resolveVPCCRName(n.TenantID, n.VPCID)
 	slug := k.tenantSlug(n.TenantID)
+	// Preserve existing CR metadata.name when found by legacy ID so a naming
+	// formula change does not create a second object (upsert keys on name).
+	existingName := ""
+	if n.ID != "" {
+		if obj, foundNS, ok := k.findNamespacedByID(mapping.NetworkGVR, n.ID); ok {
+			existingName = obj.GetName()
+			ns = foundNS
+		}
+	}
 	k.saveNamespacedMapped(mapping.NetworkGVR, ns, func() *unstructured.Unstructured {
-		return mapping.NetworkToUnstructured(n, slug, vpcCR)
+		obj := mapping.NetworkToUnstructured(n, slug, vpcCR)
+		if existingName != "" {
+			obj.SetName(existingName)
+		}
+		return obj
 	}, func(saved *unstructured.Unstructured) {
 		*n = *mapping.NetworkFromUnstructured(saved, n.TenantID, n.VPCID)
 	})
@@ -237,7 +262,7 @@ func (k *Kubernetes) AllocateIPAddress(networkID string) (*platform.IPAddress, e
 		return nil, fmt.Errorf("network not found")
 	}
 	ns := k.networkNamespace(net)
-	netCR := mapping.NetworkCRName(net)
+	netCR := k.resolveNetworkCRName(networkID)
 	list, err := k.dyn.Resource(mapping.IPAddressGVR).Namespace(ns).List(k.ctx(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -297,7 +322,7 @@ func (k *Kubernetes) SeedIPPool(networkID, start, end string) error {
 		return fmt.Errorf("network not found")
 	}
 	ns := k.networkNamespace(net)
-	netCR := mapping.NetworkCRName(net)
+	netCR := k.resolveNetworkCRName(networkID)
 	for addr := start; ; {
 		ip := &platform.IPAddress{ID: NewID(), NetworkID: networkID, Address: addr, Status: "available", CreatedAt: Now()}
 		obj := mapping.IPToUnstructured(ip, netCR)
