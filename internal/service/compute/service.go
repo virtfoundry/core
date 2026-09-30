@@ -8,12 +8,12 @@ import (
 	"sync"
 
 	"github.com/virtfoundry/core/internal/infra/hypervisor"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	"github.com/virtfoundry/core/internal/platform/importurl"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
-	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -29,17 +29,18 @@ type Service struct {
 	kvBase *hypervisor.KubeVirtDriver
 	hub    shared.EventBroadcaster
 
-	vmStateMu         sync.Mutex
-	vmStates          map[vmStateKey]string
-	vmListCacheMu     sync.RWMutex
-	vmListCache       map[string]vmListCacheEntry
-	allowPodNetwork   bool
-	defaultNetwork    string
-	storageClass      string
-	windowsBootSizeGi int
-	windowsISOSizeGi  int
-	operatorReconcile bool
-	isoImport         *importurl.Policy
+	vmStateMu              sync.Mutex
+	vmStates               map[vmStateKey]string
+	vmListCacheMu          sync.RWMutex
+	vmListCache            map[string]vmListCacheEntry
+	allowPodNetwork        bool
+	defaultNetwork         string
+	storageClass           string
+	windowsBootSizeGi      int
+	windowsISOSizeGi       int
+	operatorReconcile      bool
+	isoImport              *importurl.Policy
+	containerImagePrefixes []string
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub shared.EventBroadcaster) *Service {
@@ -214,6 +215,13 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		spec.BootPVC = bootPVC
 		spec.InstallISO = isoPVC
 		spec.Image = ""
+	}
+
+	// ContainerDisk allowlist (issue #134): skip when ISO path cleared Image.
+	if img := strings.TrimSpace(spec.Image); img != "" {
+		if err := ValidateContainerDiskImage(img, s.containerImagePrefixes); err != nil {
+			return nil, iaerrors.NewBadRequestError(err.Error())
+		}
 	}
 
 	if s.canDeployViaOperator(deployTmpl, in, in.NetworkIDs) {
