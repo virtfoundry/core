@@ -60,7 +60,7 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	if apierrors.IsNotFound(err) {
 		created, createErr := k.dyn.Resource(mapping.UserGVR).Create(ctx, obj, metav1.CreateOptions{})
 		if createErr == nil {
-			*u = *k.userFromCR(ctx, created)
+			*u = *k.userFromCR(ctx, created, true)
 		}
 		return
 	}
@@ -71,7 +71,7 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	obj.SetResourceVersion(existing.GetResourceVersion())
 	updated, updateErr := k.dyn.Resource(mapping.UserGVR).Update(ctx, obj, metav1.UpdateOptions{})
 	if updateErr == nil {
-		*u = *k.userFromCR(ctx, updated)
+		*u = *k.userFromCR(ctx, updated, true)
 	}
 }
 
@@ -80,7 +80,17 @@ func (k *Kubernetes) GetUserByUsername(username string) (*platform.User, bool) {
 	if err != nil {
 		return nil, false
 	}
-	u := k.userFromCR(context.Background(), obj)
+	u := k.userFromCR(context.Background(), obj, true)
+	return u, true
+}
+
+// GetUserForAuth loads the User CR by username without fetching the password Secret.
+func (k *Kubernetes) GetUserForAuth(username string) (*platform.User, bool) {
+	obj, err := k.dyn.Resource(mapping.UserGVR).Get(context.Background(), mapping.UserCRName(username), metav1.GetOptions{})
+	if err != nil {
+		return nil, false
+	}
+	u := k.userFromCR(context.Background(), obj, false)
 	return u, true
 }
 
@@ -105,7 +115,7 @@ func (k *Kubernetes) GetUser(id string) (*platform.User, bool) {
 	}
 	for i := range list.Items {
 		if string(list.Items[i].GetUID()) == id {
-			return k.userFromCR(context.Background(), &list.Items[i]), true
+			return k.userFromCR(context.Background(), &list.Items[i], true), true
 		}
 	}
 	return nil, false
@@ -118,7 +128,7 @@ func (k *Kubernetes) ListUsers() []*platform.User {
 	}
 	out := make([]*platform.User, 0, len(list.Items))
 	for i := range list.Items {
-		out = append(out, k.userFromCR(context.Background(), &list.Items[i]))
+		out = append(out, k.userFromCR(context.Background(), &list.Items[i], true))
 	}
 	return out
 }
@@ -138,7 +148,7 @@ func (k *Kubernetes) ListUsersByTenant(tenantID string) []*platform.User {
 		ref, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "tenantRef", "name")
 		username, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "username")
 		if ref == tenantCR || username == tenantCR+"-admin" {
-			out = append(out, k.userFromCR(context.Background(), &list.Items[i]))
+			out = append(out, k.userFromCR(context.Background(), &list.Items[i], true))
 		}
 	}
 	return out
@@ -155,20 +165,21 @@ func (k *Kubernetes) DeleteUser(id string) {
 	_ = k.clientset.CoreV1().Secrets(k.systemNS()).Delete(ctx, mapping.UserSecretName(crName), metav1.DeleteOptions{})
 }
 
-func (k *Kubernetes) userFromCR(ctx context.Context, obj *unstructured.Unstructured) *platform.User {
-	crName := obj.GetName()
-	secretRef, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "name")
-	key, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "key")
-	if key == "" {
-		key = mapping.SecretKeyPasswordHash
-	}
-	if secretRef == "" {
-		secretRef = mapping.UserSecretName(crName)
-	}
-
+func (k *Kubernetes) userFromCR(ctx context.Context, obj *unstructured.Unstructured, withPassword bool) *platform.User {
 	hash := ""
-	if sec, err := k.clientset.CoreV1().Secrets(k.systemNS()).Get(ctx, secretRef, metav1.GetOptions{}); err == nil {
-		hash = string(sec.Data[key])
+	if withPassword {
+		crName := obj.GetName()
+		secretRef, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "name")
+		key, _, _ := unstructured.NestedString(obj.Object, "spec", "secretRef", "key")
+		if key == "" {
+			key = mapping.SecretKeyPasswordHash
+		}
+		if secretRef == "" {
+			secretRef = mapping.UserSecretName(crName)
+		}
+		if sec, err := k.clientset.CoreV1().Secrets(k.systemNS()).Get(ctx, secretRef, metav1.GetOptions{}); err == nil {
+			hash = string(sec.Data[key])
+		}
 	}
 
 	u := mapping.UserFromUnstructured(obj, hash)

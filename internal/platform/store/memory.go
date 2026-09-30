@@ -83,6 +83,10 @@ func (m *Memory) GetUserByUsername(username string) (*platform.User, bool) {
 	return u, ok
 }
 
+func (m *Memory) GetUserForAuth(username string) (*platform.User, bool) {
+	return m.GetUserByUsername(username)
+}
+
 func (m *Memory) HasRootUser() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

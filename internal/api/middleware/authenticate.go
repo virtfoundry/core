@@ -53,7 +53,7 @@ func authenticate(authSvc *auth.Service, st store.Repository, ident *identity.Se
 					http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 					return
 				}
-				u, ok := st.GetUser(c.UserID)
+				u, ok := store.ResolveJWTUser(st, c.UserID, c.Username)
 				if !ok || u.State == "disabled" {
 					http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 					return
