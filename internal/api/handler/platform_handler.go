@@ -1035,7 +1035,11 @@ func (h *PlatformHandler) DashboardSummary(w http.ResponseWriter, r *http.Reques
 		respondError(w, err)
 		return
 	}
-	summary, err := h.svc.DashboardSummary(r.Context(), tid)
+	perms := []string{auth.PermAll}
+	if actor := middleware.GetActor(r.Context()); actor != nil {
+		perms = actor.Permissions
+	}
+	summary, err := h.svc.DashboardSummary(r.Context(), tid, perms)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -1064,7 +1068,11 @@ func (h *PlatformHandler) Notifications(w http.ResponseWriter, r *http.Request) 
 		respondError(w, err)
 		return
 	}
-	items := h.svc.Notifications(r.Context(), tid)
+	perms := []string{auth.PermAll}
+	if actor := middleware.GetActor(r.Context()); actor != nil {
+		perms = actor.Permissions
+	}
+	items := h.svc.Notifications(r.Context(), tid, perms)
 	respondJSON(w, http.StatusOK, map[string]interface{}{"notifications": nonNilSlice(items)})
 }
 

@@ -8,32 +8,40 @@ import (
 )
 
 var resourcePermMap = map[string]string{
-	"tenants":          "tenants",
-	"users":            "users",
-	"roles":            "users",
-	"api-keys":         "users",
-	"vpcs":             "vpcs",
-	"networks":         "networks",
-	"security-groups":  "security_groups",
-	"volumes":          "volumes",
-	"snapshots":        "volumes",
-	"load-balancers":   "networks",
-	"target-groups":    "networks",
-	"vms":              "vms",
-	"vm-templates":     "vms",
-	"vm-snapshots":     "vms",
-	"ssh-keys":         "ssh_keys",
+	"tenants":           "tenants",
+	"users":             "users",
+	"roles":             "users",
+	"api-keys":          "users",
+	"vpcs":              "vpcs",
+	"networks":          "networks",
+	"security-groups":   "security_groups",
+	"volumes":           "volumes",
+	"snapshots":         "volumes",
+	"load-balancers":    "networks",
+	"target-groups":     "networks",
+	"vms":               "vms",
+	"vm-templates":      "vms",
+	"vm-snapshots":      "vms",
+	"ssh-keys":          "ssh_keys",
 	"service-offerings": "vms",
-	"auth":             "users",
+	"auth":              "users",
+}
+
+// routes that aggregate multiple resources; authz is enforced inside handlers
+// (permission-filtered payloads), not via a single resourcePermMap entry.
+var handlerAuthzBypass = map[string]bool{
+	"/api/v1/auth/me":           true,
+	"/api/v1/dashboard/summary": true,
+	"/api/v1/search":            true,
+	"/api/v1/notifications":     true,
 }
 
 // AutoPermission enforces <resource>:read|write from URL path and HTTP method.
+// Unmapped API segments are denied (fail-closed). /api-keys self-service and
+// handler-authz routes are explicit allows.
 func AutoPermission(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/auth/me" ||
-			r.URL.Path == "/api/v1/dashboard/summary" ||
-			r.URL.Path == "/api/v1/search" ||
-			r.URL.Path == "/api/v1/notifications" {
+		if handlerAuthzBypass[r.URL.Path] {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -44,17 +52,19 @@ func AutoPermission(next http.Handler) http.Handler {
 		}
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 		if len(parts) < 3 {
-			next.ServeHTTP(w, r)
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
 		segment := parts[2]
+		// API key self-service: any authenticated principal may manage own keys;
+		// admin cross-user revoke is gated inside the handler/service.
 		if segment == "api-keys" {
 			next.ServeHTTP(w, r)
 			return
 		}
 		base, ok := resourcePermMap[segment]
 		if !ok {
-			next.ServeHTTP(w, r)
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
 		action := "read"
