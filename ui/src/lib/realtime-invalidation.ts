@@ -1,5 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
+import { getVM } from './platform-api';
+import {
+  applyVmEventToCache,
+  payloadLacksSizing,
+  type VMsCache,
+} from './vm-event-cache';
 
 export interface PlatformEvent {
   type: string;
@@ -20,6 +26,39 @@ function resourcePrefix(type: string): string {
   return dot === -1 ? type : type.slice(0, dot);
 }
 
+function applyVmListPatch(
+  queryClient: QueryClient,
+  type: string,
+  payload: Record<string, unknown> | undefined,
+) {
+  queryClient.setQueryData<VMsCache>(queryKeys.vms, (old) =>
+    applyVmEventToCache(old, type, payload),
+  );
+}
+
+/** Fill thin vm.created rows once via GET /vms/{name} when sizing is missing. */
+function fetchVmIfCreatedThin(
+  queryClient: QueryClient,
+  name: string,
+  payload: Record<string, unknown> | undefined,
+  hadRow: boolean,
+) {
+  if (hadRow || !payloadLacksSizing(payload)) return;
+  void queryClient
+    .fetchQuery({
+      queryKey: queryKeys.vm(name),
+      queryFn: () => getVM(name),
+    })
+    .then((res) => {
+      if (!res?.vm) return;
+      const full = res.vm as unknown as Record<string, unknown>;
+      applyVmListPatch(queryClient, 'vm.updated', full);
+    })
+    .catch(() => {
+      // Leave thin merge-patch row; next WS event or manual refresh can recover.
+    });
+}
+
 /** Invalidate only the queries affected by a realtime event — no global refetch storm. */
 export function invalidateForPlatformEvent(queryClient: QueryClient, event: PlatformEvent) {
   const { type, payload } = event;
@@ -35,14 +74,41 @@ export function invalidateForPlatformEvent(queryClient: QueryClient, event: Plat
 
   switch (prefix) {
     case 'vm': {
-      invalidate(queryClient, queryKeys.vms);
-      invalidate(queryClient, queryKeys.vmSnapshots);
-      // Attach/detach and destroy change volume ownership shown in lists
-      invalidate(queryClient, queryKeys.volumes);
-      invalidateDashboardShell(queryClient);
+      const prev = queryClient.getQueryData<VMsCache>(queryKeys.vms);
+      const hadRow = name ? (prev?.vms ?? []).some((vm) => vm.name === name) : false;
+
+      // Happy path: merge-patch list cache — do not invalidateQueries(vms).
+      applyVmListPatch(queryClient, type, payload);
+
+      if (type === 'vm.deleted') {
+        invalidate(queryClient, queryKeys.vmSnapshots);
+        invalidate(queryClient, queryKeys.volumes);
+        invalidateDashboardShell(queryClient);
+        if (name) {
+          invalidate(queryClient, queryKeys.vm(name));
+          void queryClient.invalidateQueries({ queryKey: ['platform-vm-volumes', name] });
+        }
+        return;
+      }
+
+      if (type === 'vm.created') {
+        if (name) {
+          if (!hadRow && payloadLacksSizing(payload)) {
+            fetchVmIfCreatedThin(queryClient, name, payload, hadRow);
+          } else {
+            invalidate(queryClient, queryKeys.vm(name));
+          }
+        }
+        invalidate(queryClient, queryKeys.vmSnapshots);
+        invalidateDashboardShell(queryClient);
+        return;
+      }
+
+      // vm.updated (and unknown vm.*): state/id/name patches only —
+      // Phase 1 skips volumes invalidate (cannot distinguish attach/detach).
+      // Pure state updates must not touch volumes or dashboard.
       if (name) {
         invalidate(queryClient, queryKeys.vm(name));
-        void queryClient.invalidateQueries({ queryKey: ['platform-vm-volumes', name] });
       }
       return;
     }
