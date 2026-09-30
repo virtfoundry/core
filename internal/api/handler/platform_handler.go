@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/virtfoundry/core/internal/api/middleware"
@@ -616,6 +618,27 @@ func (h *PlatformHandler) GetVM(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+const (
+	maxVMLogTail      = int64(10_000)
+	vmLogFollowMaxAge = 5 * time.Minute
+)
+
+// parseVMLogTail returns a positive tail line count capped at maxVMLogTail.
+func parseVMLogTail(raw string) int64 {
+	tail := int64(200)
+	if raw == "" {
+		return tail
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n <= 0 {
+		return tail
+	}
+	if n > maxVMLogTail {
+		return maxVMLogTail
+	}
+	return n
+}
+
 func (h *PlatformHandler) GetVMLogs(w http.ResponseWriter, r *http.Request) {
 	tid, err := h.tenantID(r)
 	if err != nil {
@@ -623,15 +646,17 @@ func (h *PlatformHandler) GetVMLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := mux.Vars(r)["name"]
-	tail := int64(200)
-	if v := r.URL.Query().Get("tail"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			tail = n
-		}
-	}
+	tail := parseVMLogTail(r.URL.Query().Get("tail"))
 	follow := r.URL.Query().Get("follow") == "1"
 
-	stream, err := h.svc.StreamVMLogs(r.Context(), tid, name, tail, follow)
+	ctx := r.Context()
+	if follow {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, vmLogFollowMaxAge)
+		defer cancel()
+	}
+
+	stream, err := h.svc.StreamVMLogs(ctx, tid, name, tail, follow)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		http.Error(w, sanitizeClientError(err.Error()), http.StatusInternalServerError)
