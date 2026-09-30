@@ -160,6 +160,23 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
     if (defaultSg) setForm((f) => ({ ...f, security_group_ids: [defaultSg.id] }));
   }, [open, form.network_mode, form.security_group_ids.length, defaultSg?.id]);
 
+  // Auto-pick first isolated network when Multus/private path has none selected.
+  useEffect(() => {
+    if (!open || form.network_mode !== 'private' || form.network_backend !== 'multus') return;
+    if (form.network_ids.length > 0 || privateNetworks.length === 0) return;
+    const firstId = privateNetworks[0]?.id;
+    if (!firstId) return;
+    setForm((f) => (f.network_ids.length > 0 ? f : { ...f, network_ids: [firstId] }));
+  }, [
+    open,
+    step,
+    form.network_mode,
+    form.network_backend,
+    form.network_ids.length,
+    privateNetworks[0]?.id,
+    privateNetworks.length,
+  ]);
+
   useEffect(() => {
     if (!open || offerings.length === 0) return;
     if (cloneFrom?.service_offering_id && offerings.some((o) => o.id === cloneFrom.service_offering_id)) {
@@ -260,6 +277,15 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       return true;
     }
     return true;
+  };
+
+  const toggleNetworkId = (id: string) => {
+    setForm((f) => ({
+      ...f,
+      network_ids: f.network_ids.includes(id)
+        ? f.network_ids.filter((x) => x !== id)
+        : [...f.network_ids, id],
+    }));
   };
 
   const handleDeploy = () => {
@@ -512,6 +538,29 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">
                     <label className="block text-sm font-medium">{t('vms.networkBackend')}</label>
                     <div className="flex flex-col sm:flex-row gap-3">
+                      <label className={optionCardClass(form.network_backend === 'multus')}>
+                        <input
+                          type="radio"
+                          name="network_backend"
+                          className="mr-2"
+                          checked={form.network_backend === 'multus'}
+                          onChange={() => {
+                            const firstId = privateNetworks[0]?.id;
+                            setForm({
+                              ...form,
+                              network_backend: 'multus',
+                              network_ids:
+                                form.network_ids.length > 0
+                                  ? form.network_ids
+                                  : firstId
+                                    ? [firstId]
+                                    : [],
+                            });
+                          }}
+                        />
+                        <span className="font-medium">{t('vms.networkMultus')}</span>
+                        <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkMultusHint')}</p>
+                      </label>
                       <label className={optionCardClass(form.network_backend === 'pod')}>
                         <input
                           type="radio"
@@ -523,17 +572,6 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                         <span className="font-medium">{t('vms.networkPod')}</span>
                         <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkPodHint')}</p>
                       </label>
-                      <label className={optionCardClass(form.network_backend === 'multus')}>
-                        <input
-                          type="radio"
-                          name="network_backend"
-                          className="mr-2"
-                          checked={form.network_backend === 'multus'}
-                          onChange={() => setForm({ ...form, network_backend: 'multus' })}
-                        />
-                        <span className="font-medium">{t('vms.networkMultus')}</span>
-                        <p className="text-xs text-on-surface-variant mt-1 ml-5">{t('vms.networkMultusHint')}</p>
-                      </label>
                     </div>
                     {form.network_backend === 'multus' && (
                       <div>
@@ -541,21 +579,30 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                           <InfoBanner variant="warning">{t('vms.noPrivateSubnets')}</InfoBanner>
                         ) : (
                           <>
-                            <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetRequired')}</label>
-                            <select
-                              multiple
-                              value={form.network_ids}
-                              onChange={(e) => {
-                                const selected = Array.from(e.target.selectedOptions, (o) => o.value);
-                                setForm({ ...form, network_ids: selected });
-                              }}
-                              className={clsx(formSelectClass, 'min-h-[88px] !h-auto')}
-                            >
-                              {privateNetworks.map((n) => (
-                                <option key={n.id} value={n.id}>{n.name} ({n.cidr})</option>
-                              ))}
-                            </select>
-                            <p className="text-xs text-on-surface-variant mt-1">{t('vms.multiSelectHint')}</p>
+                            <label className="block text-sm font-medium mb-2">{t('vms.privateSubnetRequired')}</label>
+                            <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label={t('vms.privateSubnetRequired')}>
+                              {privateNetworks.map((n) => {
+                                const selected = form.network_ids.includes(n.id);
+                                return (
+                                  <button
+                                    key={n.id}
+                                    type="button"
+                                    onClick={() => toggleNetworkId(n.id)}
+                                    aria-pressed={selected}
+                                    className={clsx(optionCardClass(selected), 'text-left')}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="font-medium truncate">{n.name}</p>
+                                        <p className="text-xs text-on-surface-variant font-data-mono mt-0.5">{n.cidr}</p>
+                                      </div>
+                                      {selected && <Check size={16} className="text-primary shrink-0 mt-0.5" aria-hidden />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="text-xs text-on-surface-variant mt-2">{t('vms.multiSelectHint')}</p>
                           </>
                         )}
                       </div>
