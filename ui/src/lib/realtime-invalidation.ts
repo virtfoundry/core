@@ -1,11 +1,15 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
 import { getVM } from './platform-api';
+import type { PlatformVM } from './platform-api';
 import {
   applyVmEventToCache,
+  mergeVmRow,
   payloadLacksSizing,
   type VMsCache,
 } from './vm-event-cache';
+
+type VMDetailCache = { vm: PlatformVM; velas_url?: string };
 
 export interface PlatformEvent {
   type: string;
@@ -34,6 +38,19 @@ function applyVmListPatch(
   queryClient.setQueryData<VMsCache>(queryKeys.vms, (old) =>
     applyVmEventToCache(old, type, payload),
   );
+}
+
+/** Merge-patch detail cache when present — avoid refetch on every state tick. */
+function applyVmDetailPatch(
+  queryClient: QueryClient,
+  name: string,
+  payload: Record<string, unknown> | undefined,
+) {
+  if (!payload) return;
+  queryClient.setQueryData<VMDetailCache>(queryKeys.vm(name), (old) => {
+    if (!old?.vm) return old;
+    return { ...old, vm: mergeVmRow(old.vm, payload) };
+  });
 }
 
 /** Fill thin vm.created rows once via GET /vms/{name} when sizing is missing. */
@@ -108,7 +125,7 @@ export function invalidateForPlatformEvent(queryClient: QueryClient, event: Plat
       // Phase 1 skips volumes invalidate (cannot distinguish attach/detach).
       // Pure state updates must not touch volumes or dashboard.
       if (name) {
-        invalidate(queryClient, queryKeys.vm(name));
+        applyVmDetailPatch(queryClient, name, payload);
       }
       return;
     }
