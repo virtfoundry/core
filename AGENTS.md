@@ -22,6 +22,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports`.
 - Testes no **homelab** — nunca Kind.
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.
+- **CRD-first (`operatorReconcile`):** Start/Stop → só `Instance.spec.powerState`. DeployVM → um actuator (`deployVMViaOperator` / SaveVM) — nunca `CreateVM`+`SaveVM` no mesmo fluxo (core#131).
 
 ## Docs locais
 

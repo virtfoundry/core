@@ -227,6 +227,11 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	if s.canDeployViaOperator(deployTmpl, in, in.NetworkIDs) {
 		return s.deployVMViaOperator(ctx, tenantID, in, name, ns, cpu, memMi, image, dedicated, deployTmpl, tmplDisplay)
 	}
+	// core#131: with operatorReconcile, never CreateVM + SaveVM in the same flow.
+	// Unsupported shapes stay blocked until they are CR-first (one actuator).
+	if s.operatorReconcile {
+		return nil, iaerrors.NewBadRequestError(operatorDeployUnsupportedReason(deployTmpl, in, in.NetworkIDs))
+	}
 
 	if err := kv.CreateVM(ctx, spec); err != nil {
 		return nil, err
@@ -482,11 +487,13 @@ func (s *Service) SyncAllVMStates(ctx context.Context) {
 }
 
 func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
-	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, true); err != nil {
-		return nil, err
-	}
+	// CRD-first (core#131): with operatorReconcile, only Instance.spec.powerState.
+	// The operator syncs KubeVirt RunStrategy — never patch KV in the same flow.
 	if s.operatorReconcile {
 		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerRunning)
+	}
+	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, true); err != nil {
+		return nil, err
 	}
 	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)
@@ -498,11 +505,11 @@ func (s *Service) StartVM(ctx context.Context, tenantID, vmName string) (*platfo
 }
 
 func (s *Service) StopVM(ctx context.Context, tenantID, vmName string) (*platform.PlatformVM, error) {
-	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, false); err != nil {
-		return nil, err
-	}
 	if s.operatorReconcile {
 		return s.setVMPowerState(ctx, tenantID, vmName, instancePowerHalted)
+	}
+	if err := s.patchKubeVirtRunStrategy(ctx, tenantID, vmName, false); err != nil {
+		return nil, err
 	}
 	s.invalidateVMListCache(tenantID)
 	vm, err := s.GetVM(ctx, tenantID, vmName)

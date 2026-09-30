@@ -33,11 +33,38 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 		return false
 	}
 	// One-time cloud-init passwords are not on the Instance CR yet — keep
-	// those deploys on the hypervisor path. SSH keys go via sshKeyRefs.
+	// those deploys off the CR-first path. SSH keys go via sshKeyRefs.
 	if strings.TrimSpace(in.CloudInitPassword) != "" {
 		return false
 	}
 	return true
+}
+
+// operatorDeployUnsupportedReason explains why a deploy cannot use the single
+// CR actuator under operatorReconcile (core#131 — no CreateVM+SaveVM dual-write).
+func operatorDeployUnsupportedReason(deployTmpl *platform.VMTemplate, in DeployVMInput, networkIDs []string) string {
+	var reasons []string
+	if deployTmpl != nil && strings.EqualFold(deployTmpl.SourceType, "iso") {
+		reasons = append(reasons, "iso template")
+	}
+	if in.DataVolumeID != "" {
+		reasons = append(reasons, "data_volume_id")
+	}
+	if in.PublicIP {
+		reasons = append(reasons, "public_ip")
+	}
+	if len(networkIDs) > 0 {
+		reasons = append(reasons, "extra networks")
+	}
+	if strings.TrimSpace(in.CloudInitPassword) != "" {
+		reasons = append(reasons, "cloud_init_password")
+	}
+	if len(reasons) == 0 {
+		reasons = append(reasons, "unsupported deploy shape")
+	}
+	return "operator reconcile is enabled: refuse hypervisor dual-write for " +
+		strings.Join(reasons, ", ") +
+		"; use a CR-first-compatible deploy (SSH key, no public IP/extra networks/iso/password)"
 }
 
 func (s *Service) deployVMViaOperator(
