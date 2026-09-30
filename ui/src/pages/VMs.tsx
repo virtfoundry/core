@@ -351,7 +351,7 @@ export function VMs() {
                 <Columns2 size={16} /> {t('vms.split')}
               </button>
               <button type="button" onClick={() => { setCloneFrom(null); setDeployModal(true); }} className="btn-primary">
-                <Plus size={18} /> Deploy VM
+                <Plus size={18} /> {t('vms.deploy')}
               </button>
             </>
           }
@@ -382,9 +382,9 @@ export function VMs() {
           <div className="flex flex-wrap gap-2 items-center" role="group" aria-label={t('common.filterState')}>
             {([
               ['all', t('common.filterAll'), filterCounts.all],
-              ['running', 'Running', filterCounts.running],
-              ['error', 'Error', filterCounts.error],
-              ['stopped', 'Stopped', filterCounts.stopped],
+              ['running', t('vms.filterRunning'), filterCounts.running],
+              ['error', t('vms.filterError'), filterCounts.error],
+              ['stopped', t('vms.filterStopped'), filterCounts.stopped],
             ] as const).map(([id, label, count]) => (
               <button
                 key={id}
@@ -485,7 +485,7 @@ export function VMs() {
                   <PageTableTh>{t('vms.col.displayName')}</PageTableTh>
                   <PageTableTh>{t('common.state')}</PageTableTh>
                   <PageTableTh>IP</PageTableTh>
-                  <PageTableTh>Host</PageTableTh>
+                  <PageTableTh>{t('vms.col.host')}</PageTableTh>
                   <PageTableTh>{t('vms.col.offering')}</PageTableTh>
                   <PageTableTh>Tags</PageTableTh>
                   <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
@@ -689,7 +689,7 @@ export function VMs() {
 
         {filteredVMs.some((vm) => isVmError(vm.state) && vm.error_message) && stateFilter !== 'error' && (
           <InfoBanner variant="warning">
-            Há VMs em Error — use o filtro Error ou abra o detalhe para ver a causa, catálogo de erros e Retry.
+            {t('vms.errorFilterHint')}
           </InfoBanner>
         )}
       </div>
@@ -713,8 +713,8 @@ export function VMs() {
                 </div>
                 <dl className="grid grid-cols-2 gap-2">
                   <div><dt className="text-on-surface-variant text-xs">IP</dt><dd className="font-data-mono">{splitVm.ip || '—'}</dd></div>
-                  <div><dt className="text-on-surface-variant text-xs">Host</dt><dd>{splitVm.host_name || '—'}</dd></div>
-                  <div><dt className="text-on-surface-variant text-xs">Offering</dt><dd>{formatVmOffering(splitVm)}</dd></div>
+                  <div><dt className="text-on-surface-variant text-xs">{t('vms.col.host')}</dt><dd>{splitVm.host_name || '—'}</dd></div>
+                  <div><dt className="text-on-surface-variant text-xs">{t('vms.col.offering')}</dt><dd>{formatVmOffering(splitVm)}</dd></div>
                   <div><dt className="text-on-surface-variant text-xs">Template</dt><dd>{splitVm.template || '—'}</dd></div>
                 </dl>
                 {splitVm.error_message && (
