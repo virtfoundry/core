@@ -29,7 +29,12 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 	if deployTmpl != nil && strings.EqualFold(deployTmpl.SourceType, "iso") {
 		return false
 	}
-	if in.DataVolumeID != "" || in.PublicIP || len(networkIDs) > 0 {
+	if in.DataVolumeID != "" || in.PublicIP {
+		return false
+	}
+	// Isolated Multus NICs are CR-first (Instance.spec.nics → operator).
+	// Shared/public networks still need the legacy hypervisor path.
+	if len(networkIDs) > 0 && !s.networksAllIsolated(networkIDs) {
 		return false
 	}
 	// One-time cloud-init passwords are not on the Instance CR yet — keep
@@ -40,9 +45,24 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 	return true
 }
 
+// networksAllIsolated reports whether every ID is an isolated tenant network.
+// Unknown / missing IDs are not isolated (refuse CR-first).
+func (s *Service) networksAllIsolated(networkIDs []string) bool {
+	if s.store == nil || len(networkIDs) == 0 {
+		return false
+	}
+	for _, id := range networkIDs {
+		net, ok := s.store.GetNetwork(id)
+		if !ok || net.NetworkType != platform.NetworkTypeIsolated {
+			return false
+		}
+	}
+	return true
+}
+
 // operatorDeployUnsupportedReason explains why a deploy cannot use the single
 // CR actuator under operatorReconcile (core#131 — no CreateVM+SaveVM dual-write).
-func operatorDeployUnsupportedReason(deployTmpl *platform.VMTemplate, in DeployVMInput, networkIDs []string) string {
+func (s *Service) operatorDeployUnsupportedReason(deployTmpl *platform.VMTemplate, in DeployVMInput, networkIDs []string) string {
 	var reasons []string
 	if deployTmpl != nil && strings.EqualFold(deployTmpl.SourceType, "iso") {
 		reasons = append(reasons, "iso template")
@@ -53,8 +73,8 @@ func operatorDeployUnsupportedReason(deployTmpl *platform.VMTemplate, in DeployV
 	if in.PublicIP {
 		reasons = append(reasons, "public_ip")
 	}
-	if len(networkIDs) > 0 {
-		reasons = append(reasons, "extra networks")
+	if len(networkIDs) > 0 && !s.networksAllIsolated(networkIDs) {
+		reasons = append(reasons, "shared/public networks")
 	}
 	if strings.TrimSpace(in.CloudInitPassword) != "" {
 		reasons = append(reasons, "cloud_init_password")
@@ -64,7 +84,7 @@ func operatorDeployUnsupportedReason(deployTmpl *platform.VMTemplate, in DeployV
 	}
 	return "operator reconcile is enabled: refuse hypervisor dual-write for " +
 		strings.Join(reasons, ", ") +
-		"; use a CR-first-compatible deploy (SSH key, no public IP/extra networks/iso/password)"
+		"; use a CR-first-compatible deploy (SSH key, isolated networks, no public IP/shared networks/iso/password)"
 }
 
 func (s *Service) deployVMViaOperator(
@@ -78,6 +98,7 @@ func (s *Service) deployVMViaOperator(
 	dedicated bool,
 	deployTmpl *platform.VMTemplate,
 	tmplDisplay string,
+	networkIDs []string,
 ) (*platform.PlatformVM, error) {
 	tenant, _ := s.store.GetTenant(tenantID)
 	displayName := in.DisplayName
@@ -115,6 +136,7 @@ func (s *Service) deployVMViaOperator(
 		TemplateRef:       templateRef,
 		DedicatedCPU:      dedicated,
 		SSHKeyRefs:        sshKeyRefs,
+		NICs:              s.buildOperatorVMNics(tenantID, networkIDs),
 		Hypervisor:        "KubeVirt",
 		ServiceOfferingID: in.ServiceOfferingID,
 		CreatedAt:         store.Now(),
@@ -130,6 +152,35 @@ func (s *Service) deployVMViaOperator(
 	s.invalidateVMListCache(tenantID)
 	s.broadcastVM(tenantID, "vm.created", vm)
 	return vm, nil
+}
+
+// buildOperatorVMNics maps resolved network IDs to Instance Multus NICs.
+// Unlike buildVMNetworks, this does not require NAD fields yet — the operator
+// resolves NAD from Network status when reconciling Instance.spec.nics.
+func (s *Service) buildOperatorVMNics(tenantID string, networkIDs []string) []platform.VMNic {
+	if len(networkIDs) == 0 {
+		return nil
+	}
+	nics := make([]platform.VMNic, 0, len(networkIDs))
+	for i, netID := range networkIDs {
+		net, ok := s.store.GetNetwork(netID)
+		if !ok {
+			continue
+		}
+		if net.NetworkType != platform.NetworkTypeShared && net.TenantID != tenantID {
+			continue
+		}
+		ifaceName := shared.SanitizeSlug(net.Name)
+		if ifaceName == "" {
+			ifaceName = fmt.Sprintf("net%d", i)
+		}
+		nics = append(nics, platform.VMNic{
+			Name:      ifaceName,
+			Type:      "multus",
+			NetworkID: net.ID,
+		})
+	}
+	return nics
 }
 
 func (s *Service) setVMPowerState(ctx context.Context, tenantID, vmName, power string) (*platform.PlatformVM, error) {
