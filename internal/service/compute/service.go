@@ -453,18 +453,18 @@ func (s *Service) listVMsFromKubeVirt(ctx context.Context, tenantID string) ([]*
 }
 
 func (s *Service) SyncAllVMStates(ctx context.Context) {
-	if s.operatorReconcile {
-		for _, tenant := range s.store.ListTenants() {
-			vms := clonePlatformVMs(s.store.ListVMs(tenant.ID))
-			s.enrichVMsFromCatalog(vms)
-			s.setVMListCache(tenant.ID, vms)
-		}
-		return
-	}
 	for _, tenant := range s.store.ListTenants() {
-		vms, err := s.listVMsFromKubeVirt(ctx, tenant.ID)
-		if err != nil {
-			continue
+		var vms []*platform.PlatformVM
+		if s.operatorReconcile {
+			// core#132: read Instance CR phase/status honestly — no KubeVirt
+			// short-circuit, then broadcast when signature changes.
+			vms = clonePlatformVMs(s.store.ListVMs(tenant.ID))
+		} else {
+			listed, err := s.listVMsFromKubeVirt(ctx, tenant.ID)
+			if err != nil {
+				continue
+			}
+			vms = listed
 		}
 		s.enrichVMsFromCatalog(vms)
 		s.setVMListCache(tenant.ID, vms)

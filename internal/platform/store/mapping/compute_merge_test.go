@@ -12,8 +12,11 @@ func TestInstancePhaseToPlatformState(t *testing.T) {
 		"Ready":    "Running",
 		"Failed":   "Error",
 		"Running":  "Running",
+		"Stopped":  "Stopped",
 		"Pending":  "Pending",
 		"Starting": "Starting",
+		"Stopping": "Stopping",
+		"Error":    "Error",
 	}
 	for in, want := range tests {
 		if got := InstancePhaseToPlatformState(in); got != want {
@@ -27,18 +30,35 @@ func TestMergePlatformVMPreservesHypervisorFields(t *testing.T) {
 		State: "Running", CPU: 2, MemoryMi: 2048, IP: "10.0.0.2", Image: "fedora",
 	}
 	fromCR := &platform.PlatformVM{
-		State: "Pending", CPU: 0, MemoryMi: 0, Name: "vm1", ID: "id1",
+		State: "", CPU: 0, MemoryMi: 0, Name: "vm1", ID: "id1",
 	}
 	dst := *fromCR
 	MergePlatformVM(&dst, prior, fromCR)
 	if dst.State != "Running" {
-		t.Fatalf("state: got %q", dst.State)
+		t.Fatalf("empty CR state should fill from prior: got %q", dst.State)
 	}
 	if dst.CPU != 2 || dst.MemoryMi != 2048 || dst.IP != "10.0.0.2" {
 		t.Fatalf("runtime fields not preserved: %+v", dst)
 	}
 	if dst.Name != "vm1" {
 		t.Fatalf("cr fields lost: %+v", dst)
+	}
+}
+
+func TestMergePlatformVMDoesNotReplacePendingWithPriorRunning(t *testing.T) {
+	prior := &platform.PlatformVM{
+		State: "Running", CPU: 2, MemoryMi: 2048, IP: "10.0.0.2",
+	}
+	fromCR := &platform.PlatformVM{
+		State: "Pending", CPU: 0, MemoryMi: 0, Name: "vm1", ID: "id1",
+	}
+	dst := *fromCR
+	MergePlatformVM(&dst, prior, fromCR)
+	if dst.State != "Pending" {
+		t.Fatalf("explicit Pending must not be clobbered by prior Running: got %q", dst.State)
+	}
+	if dst.CPU != 2 || dst.MemoryMi != 2048 || dst.IP != "10.0.0.2" {
+		t.Fatalf("runtime fields should still fill from prior: %+v", dst)
 	}
 }
 

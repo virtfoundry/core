@@ -28,7 +28,9 @@ func InstancePhaseToPlatformState(phase string) string {
 // runtime fields when the CR status subresource has not been populated yet.
 func MergePlatformVM(dst, prior, fromCR *platform.PlatformVM) {
 	*dst = *fromCR
-	if dst.State == "" || (dst.State == "Pending" && prior.State != "" && prior.State != "Pending") {
+	// core#132: only fill empty state from prior — never clobber explicit Pending
+	// (or Starting/Stopping) with a stale Running/Stopped from cache.
+	if dst.State == "" && prior.State != "" {
 		dst.State = prior.State
 	}
 	if dst.CPU == 0 && prior.CPU > 0 {

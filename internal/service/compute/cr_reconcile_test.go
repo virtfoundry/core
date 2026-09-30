@@ -3,12 +3,30 @@ package compute
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
-	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 )
+
+type recordingHub struct {
+	mu     sync.Mutex
+	events []recordedEvent
+}
+
+type recordedEvent struct {
+	tenantID  string
+	eventType string
+	payload   interface{}
+}
+
+func (h *recordingHub) BroadcastTenant(tenantID, eventType string, payload interface{}) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.events = append(h.events, recordedEvent{tenantID: tenantID, eventType: eventType, payload: payload})
+}
 
 func TestCanDeployViaOperator(t *testing.T) {
 	s := &Service{operatorReconcile: true}
@@ -110,3 +128,66 @@ func TestDeployVM_OperatorReconcileSingleActuatorInvariant(t *testing.T) {
 	_ = iaerrors.NewBadRequestError(msg) // DeployVM wraps this exact helper
 }
 
+func TestSyncAllVMStates_OperatorReconcileBroadcastsPhaseChange(t *testing.T) {
+	// core#132: under operatorReconcile, Sync must detect CR phase changes and
+	// broadcast — not cache-only short-circuit.
+	mem := store.NewMemory()
+	tenantID := "t-sync"
+	mem.SaveTenant(&platform.Tenant{ID: tenantID, Slug: "acme", Namespace: "virtfoundry-tenant-acme"})
+	mem.SaveVM(&platform.PlatformVM{
+		ID:        "vm-1",
+		TenantID:  tenantID,
+		Name:      "demo",
+		Namespace: "virtfoundry-tenant-acme",
+		State:     "Running",
+	})
+
+	hub := &recordingHub{}
+	s := &Service{
+		store:             mem,
+		hub:               hub,
+		operatorReconcile: true,
+		vmStates:          make(map[vmStateKey]string),
+	}
+	ctx := context.Background()
+
+	s.SyncAllVMStates(ctx)
+	if len(hub.events) != 0 {
+		t.Fatalf("first sync seeds signatures only, got %d events", len(hub.events))
+	}
+
+	stored, ok := mem.GetVMByName(tenantID, "demo")
+	if !ok {
+		t.Fatal("vm missing")
+	}
+	stored.State = "Pending"
+	mem.SaveVM(stored)
+
+	s.SyncAllVMStates(ctx)
+	if len(hub.events) != 1 {
+		t.Fatalf("phase change should broadcast once, got %d events", len(hub.events))
+	}
+	ev := hub.events[0]
+	if ev.tenantID != tenantID || ev.eventType != "vm.updated" {
+		t.Fatalf("unexpected event: %+v", ev)
+	}
+	payload, ok := ev.payload.(vmEvent)
+	if !ok {
+		t.Fatalf("payload type %T", ev.payload)
+	}
+	if payload.Name != "demo" || payload.State != "Pending" {
+		t.Fatalf("broadcast payload: %+v", payload)
+	}
+
+	// Intermediate Starting must also broadcast (no masking).
+	stored.State = "Starting"
+	mem.SaveVM(stored)
+	s.SyncAllVMStates(ctx)
+	if len(hub.events) != 2 {
+		t.Fatalf("Starting change should broadcast, got %d events", len(hub.events))
+	}
+	payload, ok = hub.events[1].payload.(vmEvent)
+	if !ok || payload.State != "Starting" {
+		t.Fatalf("expected Starting broadcast, got %+v", hub.events[1].payload)
+	}
+}
