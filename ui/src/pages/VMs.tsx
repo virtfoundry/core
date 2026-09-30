@@ -87,7 +87,7 @@ export function VMs() {
     refetchInterval: (q) => {
       const vms = q.state.data?.vms || [];
       const transitional = vms.some((vm) => isVMTransitional(vm.state));
-      return realtimePollInterval(wsConnected, transitional);
+      return realtimePollInterval(wsConnected, transitional, { healthyMs: false });
     },
   });
 
