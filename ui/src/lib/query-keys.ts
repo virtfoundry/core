@@ -1,4 +1,4 @@
-/** Central query keys — keep in sync with useRealtimeEvents invalidation. */
+/** Central query keys — keep in sync with realtime-invalidation.ts. */
 export const queryKeys = {
   tenants: ['tenants'] as const,
   dashboardSummary: ['platform-dashboard-summary'] as const,

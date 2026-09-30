@@ -13,11 +13,17 @@ import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { getRecentActions } from '../lib/preview-prefs';
 import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { useMemo } from 'react';
+import {
+  POLL_WS_HEALTHY_SLOW_MS,
+  realtimePollInterval,
+  useRealtimeConnected,
+} from '../hooks/useRealtimeEvents';
 
 export function Dashboard() {
   const { t } = useI18n();
   const needsTenant = useNeedsTenant();
   const enabled = !needsTenant;
+  const wsConnected = useRealtimeConnected();
   const localRecent = useMemo(() => getRecentActions(), []);
 
   const { data: summary, isFetching, isLoading } = useQuery({
@@ -26,8 +32,11 @@ export function Dashboard() {
     enabled,
     refetchInterval: (q) => {
       const health = q.state.data?.health;
-      if (health === 'warning' || health === 'critical') return 5_000;
-      return false;
+      const unhealthy = health === 'warning' || health === 'critical';
+      return realtimePollInterval(wsConnected, unhealthy, {
+        downMs: 5_000,
+        healthyMs: POLL_WS_HEALTHY_SLOW_MS,
+      });
     },
   });
 

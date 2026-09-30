@@ -16,6 +16,11 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
+  POLL_WS_HEALTHY_SLOW_MS,
+  realtimePollInterval,
+  useRealtimeConnected,
+} from '../hooks/useRealtimeEvents';
+import {
   PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, formTextareaClass,
@@ -63,6 +68,7 @@ export function Templates() {
   const [deployOpen, setDeployOpen] = useState(false);
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
+  const wsConnected = useRealtimeConnected();
 
   const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.templates,
@@ -70,8 +76,12 @@ export function Templates() {
     enabled: !needsTenant,
     refetchInterval: (q) => {
       const templates = q.state.data?.vm_templates || [];
-      if (templates.some((tmpl) => isTemplateImporting(tmpl.import_state))) return 5_000;
-      return false;
+      const importing = templates.some((tmpl) => isTemplateImporting(tmpl.import_state));
+      // Backend may not emit template.* yet — keep a slow safety poll while importing
+      return realtimePollInterval(wsConnected, importing, {
+        downMs: 5_000,
+        healthyMs: POLL_WS_HEALTHY_SLOW_MS,
+      });
     },
   });
 

@@ -15,7 +15,7 @@ import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { isVMTransitional } from '../hooks/useRealtimeEvents';
+import { isVMTransitional, realtimePollInterval, useRealtimeConnected } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useAppSelector } from '../store/hooks';
@@ -77,6 +77,7 @@ export function VMs() {
 
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
+  const wsConnected = useRealtimeConnected();
 
   const { data, isLoading, isRefetching, refetch, error, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vms,
@@ -84,8 +85,8 @@ export function VMs() {
     enabled: !needsTenant,
     refetchInterval: (q) => {
       const vms = q.state.data?.vms || [];
-      if (vms.some((vm) => isVMTransitional(vm.state))) return 3_000;
-      return false;
+      const transitional = vms.some((vm) => isVMTransitional(vm.state));
+      return realtimePollInterval(wsConnected, transitional);
     },
   });
 

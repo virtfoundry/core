@@ -23,7 +23,12 @@ import { CloudInitEditor } from '../components/CloudInitEditor';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { isVMTransitional } from '../hooks/useRealtimeEvents';
+import {
+  isVMTransitional,
+  POLL_WS_HEALTHY_MS,
+  realtimePollInterval,
+  useRealtimeConnected,
+} from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
@@ -66,6 +71,7 @@ export function VMDetail() {
   const [sshCopied, setSshCopied] = useState(false);
 
   const needsTenant = useNeedsTenant();
+  const wsConnected = useRealtimeConnected();
 
   const loadLogs = async () => {
     setLogLoading(true);
@@ -93,8 +99,15 @@ export function VMDetail() {
     enabled: !needsTenant && !!name,
     refetchInterval: (q) => {
       const current = q.state.data?.vm;
-      if (current && isVMTransitional(current.state)) return 3_000;
-      if (current && isVmError(current.state)) return 5_000;
+      if (current && isVMTransitional(current.state)) {
+        return realtimePollInterval(wsConnected, true);
+      }
+      if (current && isVmError(current.state)) {
+        return realtimePollInterval(wsConnected, true, {
+          downMs: 5_000,
+          healthyMs: POLL_WS_HEALTHY_MS,
+        });
+      }
       return false;
     },
   });
