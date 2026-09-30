@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Circle, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { listSSHKeys, listServiceOfferings, listVMTemplates, listVMs } from '../lib/platform-api';
+import { listNetworks, listSSHKeys, listServiceOfferings, listVMTemplates, listVMs } from '../lib/platform-api';
+import { isIsolatedNetwork } from '../lib/networks';
 import { queryKeys } from '../lib/query-keys';
 import { getOnboarding, saveOnboarding } from '../lib/preview-prefs';
 import { useI18n } from '../lib/i18n';
@@ -16,11 +17,14 @@ export function OnboardingChecklist() {
   const { data: tmpl } = useQuery({ queryKey: queryKeys.templates, queryFn: listVMTemplates });
   const { data: offs } = useQuery({ queryKey: queryKeys.offerings, queryFn: listServiceOfferings });
   const { data: keys } = useQuery({ queryKey: queryKeys.sshKeys, queryFn: listSSHKeys });
+  const { data: nets } = useQuery({ queryKey: queryKeys.networks, queryFn: listNetworks });
   const { data: vms } = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs });
 
   const hasTemplate = (tmpl?.vm_templates?.length ?? 0) > 0;
   const hasOffering = (offs?.service_offerings?.length ?? 0) > 0;
   const hasSsh = (keys?.ssh_keys?.length ?? 0) > 0;
+  // DeployVMWizard Multus path needs an isolated Network CR (VPC default subnet counts).
+  const hasNetwork = (nets?.networks ?? []).some(isIsolatedNetwork);
   const hasVm = (vms?.vms?.length ?? 0) > 0;
 
   if (state.dismissed || hasVm) return null;
@@ -29,6 +33,8 @@ export function OnboardingChecklist() {
     { done: hasTemplate, label: t('onboarding.template'), to: '/templates' },
     { done: hasOffering, label: t('onboarding.offering'), to: '/offerings' },
     { done: hasSsh, label: t('onboarding.ssh'), to: '/ssh-keys' },
+    // Link /vpcs: creating a VPC auto-provisions the default private subnet.
+    { done: hasNetwork, label: t('onboarding.network'), to: '/vpcs' },
     { done: hasVm, label: t('onboarding.deploy'), to: '/vms' },
   ];
 
