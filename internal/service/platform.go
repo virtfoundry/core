@@ -136,8 +136,8 @@ func (s *PlatformService) CreateAPIKey(userID, tenantID string, in identity.Crea
 	return s.identity.CreateAPIKey(userID, tenantID, in, actor)
 }
 
-func (s *PlatformService) ListAPIKeys(userID, tenantID string, adminView bool) []*platform.APIKey {
-	return s.identity.ListAPIKeys(userID, tenantID, adminView)
+func (s *PlatformService) ListAPIKeys(userID, username, tenantID string, adminView bool) []*platform.APIKey {
+	return s.identity.ListAPIKeys(userID, username, tenantID, adminView)
 }
 
 func (s *PlatformService) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool) error {

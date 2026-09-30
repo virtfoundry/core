@@ -124,7 +124,8 @@ func (m *Memory) GetAPIKeyByPrefix(prefix string) (*platform.APIKey, bool) {
 	return nil, false
 }
 
-func (m *Memory) ListAPIKeys(userID string) []*platform.APIKey {
+func (m *Memory) ListAPIKeys(userID, username string) []*platform.APIKey {
+	_ = username
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	var out []*platform.APIKey

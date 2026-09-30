@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
-	"github.com/virtfoundry/core/internal/platform"
-	"github.com/virtfoundry/core/internal/platform/store"
 	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
+	"github.com/virtfoundry/core/internal/platform"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
+	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -93,14 +93,17 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name s
 
 func (s *Service) ListSnapshots(tenantID string) []*platform.Snapshot {
 	snaps := s.store.ListSnapshots(tenantID)
+	if s.k8s == nil {
+		return snaps
+	}
 	for _, snap := range snaps {
 		if snap.State == "ready" {
 			continue
 		}
 		slug := shared.SanitizeSlug(snap.Name)
 		if ready, err := s.k8s.VolumeSnapshotReady(context.Background(), snap.Namespace, slug); err == nil && ready {
+			// Readiness is response-only: do not write-on-read via SaveSnapshot.
 			snap.State = "ready"
-			s.store.SaveSnapshot(snap)
 		}
 	}
 	return snaps

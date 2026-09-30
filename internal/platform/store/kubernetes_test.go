@@ -136,9 +136,14 @@ func TestKubernetesStore_SystemRoleNamesRoundTrip(t *testing.T) {
 
 func newTestDynamicClient() *fake.FakeDynamicClient {
 	listKinds := map[schema.GroupVersionResource]string{
-		mapping.TenantGVR: "TenantList",
-		mapping.UserGVR:   "UserList",
-		mapping.RoleGVR:   "RoleList",
+		mapping.TenantGVR:           "TenantList",
+		mapping.UserGVR:             "UserList",
+		mapping.RoleGVR:             "RoleList",
+		mapping.DiskGVR:             "DiskList",
+		mapping.DiskSnapshotGVR:     "DiskSnapshotList",
+		mapping.InstanceGVR:         "InstanceList",
+		mapping.APIKeyGVR:           "APIKeyList",
+		mapping.InstanceSnapshotGVR: "InstanceSnapshotList",
 	}
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)

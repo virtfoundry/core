@@ -179,7 +179,7 @@ func (h *IAMHandler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	admin := auth.HasPermission(actor.Permissions, auth.PermUsersWrite)
-	keys := h.svc.ListAPIKeys(actor.UserID, tid, admin)
+	keys := h.svc.ListAPIKeys(actor.UserID, actor.Username, tid, admin)
 	out := make([]map[string]interface{}, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, publicAPIKey(k))

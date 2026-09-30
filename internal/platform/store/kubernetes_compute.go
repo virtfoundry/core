@@ -324,12 +324,15 @@ func (k *Kubernetes) volumeIDFromDiskRef(tenantID string, obj *unstructured.Unst
 	if ref == "" {
 		return ""
 	}
-	for _, v := range k.ListVolumes(tenantID) {
-		if mapping.DiskCRName(v) == ref {
-			return v.ID
-		}
+	ns, ok := k.tenantNamespace(tenantID)
+	if !ok {
+		return ""
 	}
-	return ""
+	disk, err := k.dyn.Resource(mapping.DiskGVR).Namespace(ns).Get(k.ctx(), ref, metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+	return mapping.ResourceID(disk)
 }
 
 func (k *Kubernetes) vmIDFromInstanceRef(tenantID string, obj *unstructured.Unstructured) string {

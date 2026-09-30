@@ -200,11 +200,11 @@ func (s *Service) CreateAPIKey(userID, tenantID string, in CreateAPIKeyInput, ac
 	return &CreateAPIKeyResult{Key: k, Secret: full}, nil
 }
 
-func (s *Service) ListAPIKeys(userID, tenantID string, adminView bool) []*platform.APIKey {
+func (s *Service) ListAPIKeys(userID, username, tenantID string, adminView bool) []*platform.APIKey {
 	if adminView && tenantID != "" {
 		return s.store.ListAPIKeysByTenant(tenantID)
 	}
-	return s.store.ListAPIKeys(userID)
+	return s.store.ListAPIKeys(userID, username)
 }
 
 func (s *Service) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool) error {
