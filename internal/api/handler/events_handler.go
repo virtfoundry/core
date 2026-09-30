@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/virtfoundry/core/internal/api/middleware"
@@ -12,21 +13,53 @@ import (
 )
 
 // EventsHandler upgrades /ws/events and subscribes the caller to its own
-// tenant's event stream. It must be mounted behind middleware.Authenticate.
+// tenant's event stream. It must be mounted behind EventsTicketAuth (or
+// header Authenticate for non-browser clients).
 type EventsHandler struct {
 	hub      *ws.Hub
 	svc      *service.PlatformService
+	tickets  *auth.ConsoleTicketStore
 	upgrader websocket.Upgrader
 }
 
-func NewEventsHandler(hub *ws.Hub, svc *service.PlatformService, allowedOrigins []string) *EventsHandler {
+func NewEventsHandler(hub *ws.Hub, svc *service.PlatformService, tickets *auth.ConsoleTicketStore, allowedOrigins []string) *EventsHandler {
 	return &EventsHandler{
-		hub: hub,
-		svc: svc,
+		hub:     hub,
+		svc:     svc,
+		tickets: tickets,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: ws.OriginChecker(allowedOrigins),
 		},
 	}
+}
+
+// IssueEventsTicket mints a short-lived credential for /ws/events so the
+// browser never puts its session JWT in a WebSocket URL (core#133).
+func (h *EventsHandler) IssueEventsTicket(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.EffectiveActor(r.Context())
+	if actor == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == "" {
+		tenantID = actor.TenantID
+	}
+	token, expiresAt, err := h.tickets.IssueEvents(auth.EventsTicket{
+		UserID:   actor.UserID,
+		Username: actor.Username,
+		Role:     actor.Role,
+		TenantID: tenantID,
+	})
+	if err != nil {
+		http.Error(w, `{"error":"could not issue events ticket"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	respondJSON(w, http.StatusCreated, map[string]string{
+		"ticket":     token,
+		"expires_at": expiresAt.UTC().Format(time.RFC3339),
+	})
 }
 
 // resolveScope maps the authenticated actor to the tenants it may observe.

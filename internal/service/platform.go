@@ -166,6 +166,13 @@ func (s *PlatformService) BootstrapISOImport(cfg config.ISOImportConfig) []strin
 	return policy.AllowedHosts()
 }
 
+// BootstrapContainerImageAllowlist applies the ContainerDisk image allowlist and
+// returns the effective prefixes for startup logging (issue #134).
+func (s *PlatformService) BootstrapContainerImageAllowlist(cfg config.ContainerImageAllowlistConfig) []string {
+	s.compute.ConfigureContainerImageAllowlist(cfg.AllowedPrefixes)
+	return compute.BootstrapContainerImageAllowlist(cfg.AllowedPrefixes)
+}
+
 // --- tenant ---
 
 func (s *PlatformService) CreateTenant(ctx context.Context, name, slug, adminPassword string) (*platform.Tenant, *platform.User, error) {

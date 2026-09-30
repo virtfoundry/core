@@ -28,7 +28,7 @@ func newConsoleFixture(t *testing.T) *consoleFixture {
 	st := store.NewMemory()
 	authSvc := auth.NewService("test-secret", 3600)
 	identitySvc := identity.New(st)
-	tickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL)
+	tickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte("test-secret"))
 
 	reached := false
 	var seen *auth.Actor
@@ -155,9 +155,10 @@ func TestConsoleRejectsMissingCredentials(t *testing.T) {
 	}
 }
 
-func TestAuthenticateWSStillAcceptsQueryToken(t *testing.T) {
+func TestEventsTicketAuthRejectsSessionJWTInQuery(t *testing.T) {
 	st := store.NewMemory()
 	authSvc := auth.NewService("test-secret", 3600)
+	tickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte("test-secret"))
 	u := &platform.User{ID: store.NewID(), Username: "eventuser", Role: platform.RoleTenantAdmin, TenantID: store.NewID(), State: "active"}
 	st.SaveUser(u)
 	token, _, err := authSvc.IssueToken(u)
@@ -166,13 +167,37 @@ func TestAuthenticateWSStillAcceptsQueryToken(t *testing.T) {
 	}
 
 	reached := false
-	h := AuthenticateWS(authSvc, st, identity.New(st))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := EventsTicketAuth(tickets, Authenticate(authSvc, st, identity.New(st)))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reached = true
 	}))
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/ws/events?token="+token, nil))
+	if reached || rec.Code != http.StatusUnauthorized {
+		t.Fatalf("session JWT in query must be rejected: reached=%v status=%d", reached, rec.Code)
+	}
+}
+
+func TestEventsTicketAuthAcceptsTicket(t *testing.T) {
+	st := store.NewMemory()
+	authSvc := auth.NewService("test-secret", 3600)
+	tickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte("test-secret"))
+	ticket, _, err := tickets.IssueEvents(auth.EventsTicket{
+		UserID: "u-1", Username: "op", Role: platform.RoleTenantAdmin, TenantID: "t-1",
+	})
+	if err != nil {
+		t.Fatalf("IssueEvents: %v", err)
+	}
+
+	reached := false
+	h := EventsTicketAuth(tickets, Authenticate(authSvc, st, identity.New(st)))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusSwitchingProtocols)
+	}))
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/ws/events?ticket="+ticket, nil))
 	if !reached {
-		t.Fatalf("browser WebSocket auth broke for /ws/events: status %d", rec.Code)
+		t.Fatalf("events ticket auth failed: status %d", rec.Code)
 	}
 }

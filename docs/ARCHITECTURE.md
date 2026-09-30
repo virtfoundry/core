@@ -119,13 +119,14 @@ Tenant ────────────────────────�
 | `/vms` | GET, POST | JWT |
 | `/vms/{name}` | GET, PATCH | JWT |
 | `/vms/{name}/console-ticket` | POST | JWT, requires `vms:console` |
+| `/events-ticket` | POST | JWT (short-lived WS credential) |
 | `/vms/start`, `/stop`, `/delete` | POST | JWT |
 
 **WebSockets**
 
 | Path | Purpose | Auth |
 |------|---------|------|
-| `/ws/events` | Realtime events (`vm.created`, `vm.updated`, …), scoped to the caller's tenant. Root adds `all_tenants=true` to see every tenant. | JWT / API key (`?token=`) |
+| `/ws/events?ticket=` | Realtime events (`vm.created`, `vm.updated`, …), scoped to the caller's tenant. Root adds `all_tenants=true` to see every tenant. | Events ticket, or API key / JWT in the `Authorization` header. Does **not** accept session JWT via `?token=`. |
 | `/ws/console?ticket=` | noVNC proxy | Console ticket, or API key / JWT in the `Authorization` header. Requires `vms:console`. |
 
 `/ws/events` and `/ws/console` reject browser origins other than the request
@@ -134,10 +135,16 @@ no `Origin` header is still allowed for non-browser clients that authenticate
 via ticket, JWT, or API key.
 
 **Console handshake:** the browser calls `POST /vms/{name}/console-ticket` with
-its normal `Authorization` header and receives a single-use ticket that expires
-in 30 seconds and is bound to that VM and tenant. The ticket is the only
-credential allowed in a console URL; `/ws/console` does not accept `?token=`.
-Non-browser clients can skip the ticket and send the header directly.
+its normal `Authorization` header and receives a short-lived ticket (HMAC-signed
+with `JWT_SECRET`, ~30s, bound to that VM and tenant). Any API replica can
+redeem it. Best-effort single-use burn applies on the redeeming process.
+The ticket is the only credential allowed in a console URL; `/ws/console` does
+not accept `?token=`. Non-browser clients can skip the ticket and send the
+header directly.
+
+**Events handshake:** the browser calls `POST /events-ticket` (same header auth)
+and opens `/ws/events?ticket=…`. Session JWTs must not appear in the query
+string.
 
 **Multi-tenancy:** root users send header `X-Tenant-ID` to operate inside a tenant.
 

@@ -102,6 +102,8 @@ func main() {
 	platformSvc.BootstrapStorage(cfg.Storage)
 	isoImportHosts := platformSvc.BootstrapISOImport(cfg.Security.ISOImport)
 	log.Info("iso import allowlist", zap.Strings("allowed_hosts", isoImportHosts))
+	containerImagePrefixes := platformSvc.BootstrapContainerImageAllowlist(cfg.Security.ContainerImageAllowlist)
+	log.Info("container disk image allowlist", zap.Strings("allowed_prefixes", containerImagePrefixes))
 	if cfg.Networking.Public.Enabled {
 		log.Info("public network enabled",
 			zap.String("cidr", cfg.Networking.Public.CIDR),
@@ -127,17 +129,19 @@ func main() {
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc, loginThrottle)
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
 	identitySvc := identity.New(repo)
-	consoleTickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL)
+	consoleTickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte(jwtSecret))
 	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc, consoleTickets, cfg.Security.AllowedOrigins)
-	eventsHandler := handler.NewEventsHandler(hub, platformSvc, cfg.Security.AllowedOrigins)
+	eventsHandler := handler.NewEventsHandler(hub, platformSvc, consoleTickets, cfg.Security.AllowedOrigins)
 	authenticate := middleware.Authenticate(authSvc, repo, identitySvc)
 
-	// The browser cannot set headers on a WebSocket, so /ws/console is entered
-	// with a single-use ticket instead of a long-lived JWT in the URL. Header
-	// auth still works for non-browser clients.
+	// The browser cannot set headers on a WebSocket, so /ws/console and
+	// /ws/events are entered with a short-lived signed ticket instead of a
+	// long-lived JWT in the URL. Header auth still works for non-browser clients.
+	// Tickets are HMAC-signed with JWT_SECRET so any API replica can redeem them.
 	router.Handle("/ws/console", middleware.ConsoleTicketAuth(consoleTickets, authenticate)(
 		middleware.RequirePermission(auth.PermVMsConsole)(http.HandlerFunc(consoleHandler.VNCConsole))))
-	router.Handle("/ws/events", middleware.AuthenticateWS(authSvc, repo, identitySvc)(http.HandlerFunc(eventsHandler.Events)))
+	router.Handle("/ws/events", middleware.EventsTicketAuth(consoleTickets, authenticate)(
+		http.HandlerFunc(eventsHandler.Events)))
 
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/auth/login", platformHandler.Login).Methods("POST")
@@ -149,6 +153,11 @@ func main() {
 	consoleAPI.Use(middleware.AuditRootImpersonation(repo))
 	consoleAPI.Use(middleware.RequirePermission(auth.PermVMsConsole))
 	consoleAPI.HandleFunc("/vms/{name}/console-ticket", consoleHandler.IssueConsoleTicket).Methods("POST")
+
+	eventsAPI := v1.NewRoute().Subrouter()
+	eventsAPI.Use(middleware.Authenticate(authSvc, repo, identitySvc))
+	eventsAPI.Use(middleware.AuditRootImpersonation(repo))
+	eventsAPI.HandleFunc("/events-ticket", eventsHandler.IssueEventsTicket).Methods("POST")
 
 	protected := v1.NewRoute().Subrouter()
 	protected.Use(middleware.Authenticate(authSvc, repo, identitySvc))
@@ -275,6 +284,7 @@ func loadConfig() (*config.Config, string) {
 		cfg.Security.JWTSecret = v
 	}
 	config.ApplyISOImportEnv(cfg)
+	config.ApplyContainerImageAllowlistEnv(cfg)
 	config.ApplyAllowedOriginsEnv(cfg)
 	if err := config.Validate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "insecure configuration rejected: %v\n", err)

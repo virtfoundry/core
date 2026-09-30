@@ -251,6 +251,13 @@ export async function createConsoleTicket(name: string) {
   });
 }
 
+/** Short-lived credential for /ws/events — keeps the session JWT out of the URL. */
+export async function createEventsTicket() {
+  return platformFetch<ConsoleTicket>('/events-ticket', {
+    method: 'POST',
+  });
+}
+
 export async function fetchVMLogs(name: string, tail = 200) {
   const token = localStorage.getItem('jwt_token') || '';
   const tenantId = localStorage.getItem('tenant_id');
