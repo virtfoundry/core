@@ -73,6 +73,30 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
+// DefaultMaxBodyBytes caps JSON/API request bodies (~4MiB) so template
+// cloud-init userdata still fits while oversized payloads return 413.
+const DefaultMaxBodyBytes int64 = 4 << 20
+
+// MaxBodyBytes rejects requests with Content-Length over max and wraps the
+// body with http.MaxBytesReader so oversized streams yield HTTP 413.
+func MaxBodyBytes(max int64) func(http.Handler) http.Handler {
+	if max <= 0 {
+		max = DefaultMaxBodyBytes
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > max {
+				http.Error(w, `{"error":"request body too large"}`, http.StatusRequestEntityTooLarge)
+				return
+			}
+			if r.Body != nil && r.Body != http.NoBody {
+				r.Body = http.MaxBytesReader(w, r.Body, max)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 type responseWriter struct {
 	http.ResponseWriter
 	status int
