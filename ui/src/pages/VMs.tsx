@@ -87,11 +87,9 @@ export function VMs() {
     refetchInterval: (q) => {
       const vms = q.state.data?.vms || [];
       const transitional = vms.some((vm) => isVMTransitional(vm.state));
-      return realtimePollInterval(wsConnected, transitional);
+      return realtimePollInterval(wsConnected, transitional, { healthyMs: false });
     },
   });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.vms });
 
   const withRateLimit = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     try {
@@ -123,7 +121,7 @@ export function VMs() {
     onError: (_e, _n, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.vms, ctx.prev);
     },
-    onSettled: invalidate,
+    // List refresh via /ws/events merge-patch — do not invalidateQueries(vms).
   });
   const stopMutation = useMutation({
     mutationFn: (name: string) => withRateLimit(() => stopVM(name)),
@@ -142,12 +140,12 @@ export function VMs() {
     onError: (_e, _n, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKeys.vms, ctx.prev);
     },
-    onSettled: invalidate,
+    // List refresh via /ws/events merge-patch — do not invalidateQueries(vms).
   });
   const destroyMutation = useMutation({
     mutationFn: deleteVM,
     onSuccess: () => {
-      invalidate();
+      // Row removal via vm.deleted merge-patch — do not invalidateQueries(vms).
       setDeleteTarget(null);
     },
   });
@@ -264,7 +262,7 @@ export function VMs() {
       setBulkProgress({ total: names.length, done: done + failed, failed, action });
     }
     setSelected(new Set());
-    invalidate();
+    // Bulk rows update via /ws/events merge-patch — do not invalidateQueries(vms).
     window.setTimeout(() => setBulkProgress(null), 2500);
   };
 
