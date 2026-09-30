@@ -230,12 +230,12 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	}
 
 	if s.canDeployViaOperator(deployTmpl, in, in.NetworkIDs) {
-		return s.deployVMViaOperator(ctx, tenantID, in, name, ns, cpu, memMi, image, dedicated, deployTmpl, tmplDisplay)
+		return s.deployVMViaOperator(ctx, tenantID, in, name, ns, cpu, memMi, image, dedicated, deployTmpl, tmplDisplay, networkIDs)
 	}
 	// core#131: with operatorReconcile, never CreateVM + SaveVM in the same flow.
 	// Unsupported shapes stay blocked until they are CR-first (one actuator).
 	if s.operatorReconcile {
-		return nil, iaerrors.NewBadRequestError(operatorDeployUnsupportedReason(deployTmpl, in, in.NetworkIDs))
+		return nil, iaerrors.NewBadRequestError(s.operatorDeployUnsupportedReason(deployTmpl, in, in.NetworkIDs))
 	}
 
 	if err := kv.CreateVM(ctx, spec); err != nil {
