@@ -78,6 +78,7 @@ Tenant ────────────────────────�
 |-------|---------|----------------|
 | Transport | `internal/api/handler` | HTTP decode, tenant resolution, JSON |
 | Transport | `internal/api/middleware` | JWT, CORS, logging |
+| Transport | `internal/api/grpc` | **Spike** — InstanceService + cmux on `:8080` ([GRPC-SPIKE.md](GRPC-SPIKE.md)) |
 | Transport | `internal/api/ws` | Realtime event hub |
 | Transport | `internal/api/handler/console_handler.go` | KubeVirt VNC WebSocket proxy |
 | Auth | `internal/auth` | JWT, bcrypt |

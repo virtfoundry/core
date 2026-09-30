@@ -83,6 +83,8 @@ Requires `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs installed
 
 See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/specs/2026-09-01-crd-operator-design.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+**gRPC spike (experimental):** `InstanceService` behind cmux on the same `:8080` as REST — see [docs/GRPC-SPIKE.md](docs/GRPC-SPIKE.md). REST remains canonical for UI/TF; set `VIRTFOUNDRY_GRPC=0` to disable.
+
 ## Documentation
 
 | Doc | Description |
@@ -90,6 +92,7 @@ See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/
 | [docs/CI.md](docs/CI.md) | Required PR checks (Go, UI, Helm, Terraform) |
 | [docs/WHY.md](docs/WHY.md) | Positioning vs Proxmox / KubeVirt / Harvester |
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
+| [docs/GRPC-SPIKE.md](docs/GRPC-SPIKE.md) | Experimental gRPC InstanceService + cmux (:8080) |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
 | [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) | Sandbox application draft (do not submit before 6‑month gate) |
 | [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |

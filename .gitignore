@@ -7,6 +7,7 @@ config/*.local.yaml
 .ssh-keys/
 .gotmp/
 .tmp/
+.tools/
 ui/node_modules/
 ui/dist/
 *.exe

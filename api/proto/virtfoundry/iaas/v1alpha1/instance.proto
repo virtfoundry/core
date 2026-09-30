@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package virtfoundry.iaas.v1alpha1;
+
+option go_package = "github.com/virtfoundry/core/api/gen/virtfoundry/iaas/v1alpha1;iaasv1alpha1";
+
+// Instance is a minimal view of a platform VM for the gRPC spike (#135).
+// Full REST fields remain the canonical UI/TF surface.
+message Instance {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string display_name = 4;
+  string namespace = 5;
+  string state = 6;
+  int32 cpu = 7;
+  int64 memory_mi = 8;
+  string ip = 9;
+  string power_state = 10;
+}
+
+message ListInstancesRequest {
+  // Optional page size hint; spike ignores pagination beyond a soft cap.
+  int32 page_size = 1;
+}
+
+message ListInstancesResponse {
+  repeated Instance instances = 1;
+}
+
+message GetInstanceRequest {
+  string name = 1;
+}
+
+message GetInstanceResponse {
+  Instance instance = 1;
+}
+
+message WatchInstancesRequest {}
+
+message WatchInstancesResponse {
+  Instance instance = 1;
+  // ADDED / MODIFIED / DELETED — spike may emit only MODIFIED snapshots.
+  string event_type = 2;
+}
+
+// InstanceService exposes List/Get/Watch over internal/service/compute.
+// Auth: metadata authorization: Bearer + x-tenant-id (fail-closed). No ?token=.
+service InstanceService {
+  rpc ListInstances(ListInstancesRequest) returns (ListInstancesResponse);
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  rpc WatchInstances(WatchInstancesRequest) returns (stream WatchInstancesResponse);
+}
