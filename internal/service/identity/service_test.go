@@ -152,3 +152,48 @@ func TestTenantAdminCanAssignTenantRoleAndRootCanManageSystemRole(t *testing.T) 
 		t.Fatalf("root updated system role: %v", err)
 	}
 }
+
+func TestRevokeAPIKeyRequiresTenantMatchForAdmin(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st)
+	tenantA := store.NewID()
+	tenantB := store.NewID()
+	userA := store.NewID()
+	userB := store.NewID()
+
+	st.SaveAPIKey(&platform.APIKey{
+		ID: "key-b", UserID: userB, TenantID: tenantB, Name: "other", Prefix: "abcd",
+	})
+
+	err := svc.RevokeAPIKey(userA, "key-b", tenantA, true, false)
+	if err == nil || err.Error() != "forbidden" {
+		t.Fatalf("cross-tenant admin revoke = %v, want forbidden", err)
+	}
+	k, ok := st.GetAPIKey("key-b")
+	if !ok || k.RevokedAt != nil {
+		t.Fatal("key should remain active after forbidden revoke")
+	}
+
+	if err := svc.RevokeAPIKey(userA, "key-b", tenantB, true, false); err != nil {
+		t.Fatalf("same-tenant admin revoke: %v", err)
+	}
+	k, ok = st.GetAPIKey("key-b")
+	if !ok || k.RevokedAt == nil {
+		t.Fatal("key should be revoked after same-tenant revoke")
+	}
+}
+
+func TestRevokeAPIKeyRootCanCrossTenant(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st)
+	st.SaveAPIKey(&platform.APIKey{
+		ID: "key-x", UserID: "u1", TenantID: "tenant-x", Name: "x", Prefix: "zzzz",
+	})
+	if err := svc.RevokeAPIKey("root", "key-x", "other-tenant", true, true); err != nil {
+		t.Fatalf("root revoke: %v", err)
+	}
+	k, ok := st.GetAPIKey("key-x")
+	if !ok || k.RevokedAt == nil {
+		t.Fatal("key should be revoked")
+	}
+}

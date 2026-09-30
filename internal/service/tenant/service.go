@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/platform"
@@ -28,6 +29,13 @@ func (s *Service) CreateTenant(ctx context.Context, name, slug, adminPassword st
 	if slug == "" {
 		return nil, nil, fmt.Errorf("invalid tenant slug")
 	}
+	if strings.TrimSpace(adminPassword) == "" {
+		return nil, nil, iaerrors.NewBadRequestError("admin password is required")
+	}
+	hash, err := auth.HashPassword(adminPassword)
+	if err != nil {
+		return nil, nil, fmt.Errorf("hash admin password: %w", err)
+	}
 
 	tenantID := store.NewID()
 	res, err := s.k8s.EnsureTenantNamespace(ctx, tenantID, slug, platformk8s.DefaultTenantQuota())
@@ -41,7 +49,6 @@ func (s *Service) CreateTenant(ctx context.Context, name, slug, adminPassword st
 	}
 	s.store.SaveTenant(tenant)
 
-	hash, _ := auth.HashPassword(adminPassword)
 	user := &platform.User{
 		ID: store.NewID(), Username: slug + "-admin",
 		Role: platform.RoleTenantAdmin, RoleID: store.SystemRoleIDTenantAdmin, TenantID: tenantID,
