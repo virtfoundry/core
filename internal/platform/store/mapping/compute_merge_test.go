@@ -95,6 +95,35 @@ func TestInstancePowerStateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestInstanceCloudInitUserDataRoundTrip(t *testing.T) {
+	want := "#cloud-config\ntimezone: UTC"
+	vm := &platform.PlatformVM{
+		Name:              "web-ci",
+		DisplayName:       "Web CI",
+		CloudInitUserData: want + "\n", // trailing newline trimmed on write
+	}
+	obj := InstanceToUnstructured(vm, "default", "small", "ubuntu-2204", nil)
+	gotUD, ok, err := unstructured.NestedString(obj.Object, "spec", "cloudInitUserData")
+	if err != nil || !ok || gotUD != want {
+		t.Fatalf("spec.cloudInitUserData: ok=%v got=%q err=%v", ok, gotUD, err)
+	}
+	got, err := InstanceFromUnstructured(obj, "tenant-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CloudInitUserData != want {
+		t.Fatalf("CloudInitUserData: got %q want %q", got.CloudInitUserData, want)
+	}
+}
+
+func TestInstanceToUnstructuredOmitsEmptyCloudInitUserData(t *testing.T) {
+	vm := &platform.PlatformVM{Name: "web", CloudInitUserData: "  \n"}
+	obj := InstanceToUnstructured(vm, "default", "small", "cirros", nil)
+	if _, ok, _ := unstructured.NestedString(obj.Object, "spec", "cloudInitUserData"); ok {
+		t.Fatal("whitespace-only cloudInitUserData must be omitted from Instance spec")
+	}
+}
+
 func TestInstanceToUnstructuredAnnotatesPodNetworkWhenNoMultusNics(t *testing.T) {
 	vm := &platform.PlatformVM{
 		Name: "teste",

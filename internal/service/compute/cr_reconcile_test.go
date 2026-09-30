@@ -51,6 +51,9 @@ func TestCanDeployViaOperator(t *testing.T) {
 	if s.canDeployViaOperator(linuxTmpl, DeployVMInput{CloudInitPassword: "x"}, nil) {
 		t.Fatal("cloud_init_password must not use CR-first path")
 	}
+	if !s.canDeployViaOperator(linuxTmpl, DeployVMInput{CloudInitUserData: "#cloud-config\ntimezone: UTC\n"}, nil) {
+		t.Fatal("cloud_init_user_data must stay on CR-first path (Instance.spec.cloudInitUserData)")
+	}
 }
 
 func TestOperatorDeployUnsupportedReason(t *testing.T) {

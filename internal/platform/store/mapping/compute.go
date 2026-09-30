@@ -69,6 +69,9 @@ func MergePlatformVM(dst, prior, fromCR *platform.PlatformVM) {
 	if !dst.DedicatedCPU && prior.DedicatedCPU {
 		dst.DedicatedCPU = true
 	}
+	if dst.CloudInitUserData == "" && prior.CloudInitUserData != "" {
+		dst.CloudInitUserData = prior.CloudInitUserData
+	}
 }
 
 func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, templateCR string, networkRefs map[string]string) *unstructured.Unstructured {
@@ -124,6 +127,9 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 		if len(refs) > 0 {
 			spec["sshKeyRefs"] = refs
 		}
+	}
+	if ud := strings.TrimSpace(vm.CloudInitUserData); ud != "" {
+		spec["cloudInitUserData"] = ud
 	}
 	if imp := importMeta(vm.ExternalUUID, vm.ImportSource); imp != nil {
 		spec["import"] = imp
@@ -242,6 +248,13 @@ func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, r
 			}
 		}
 		vm.SSHKeyRefs = out
+	}
+	cloudInit, err := instanceString(obj, "spec", "cloudInitUserData")
+	if err != nil {
+		return nil, fieldError("spec.cloudInitUserData", err)
+	}
+	if cloudInit != "" {
+		vm.CloudInitUserData = cloudInit
 	}
 	return vm, nil
 }

@@ -193,12 +193,14 @@ type PlatformVM struct {
 	PowerState        string    `json:"power_state,omitempty"`
 	DedicatedCPU      bool      `json:"dedicated_cpu,omitempty"`
 	// SSHKeyRefs are SSHKey CR names (metadata.name) on the Instance.
-	SSHKeyRefs   []string `json:"ssh_key_refs,omitempty"`
-	ExternalUUID string   `json:"external_uuid,omitempty"`
-	ImportSource string   `json:"import_source,omitempty"`
-	NICs         []VMNic  `json:"nics,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	SSHKeyRefs []string `json:"ssh_key_refs,omitempty"`
+	// CloudInitUserData maps to Instance.spec.cloudInitUserData (overrides Template when set).
+	CloudInitUserData string `json:"cloud_init_user_data,omitempty"`
+	ExternalUUID      string `json:"external_uuid,omitempty"`
+	ImportSource      string `json:"import_source,omitempty"`
+	NICs              []VMNic `json:"nics,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at,omitempty"`
 }
 
 type VMNic struct {
