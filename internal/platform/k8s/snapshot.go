@@ -53,7 +53,13 @@ func (m *Manager) DeleteVolumeSnapshot(ctx context.Context, namespace, name stri
 }
 
 // VolumeSnapshotReady reports whether a VolumeSnapshot exists and is ReadyToUse.
+// Caps apiserver wait so list endpoints cannot hang behind a gateway timeout.
 func (m *Manager) VolumeSnapshotReady(ctx context.Context, namespace, name string) (bool, error) {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+	}
 	obj, err := m.Dynamic.Resource(volumeSnapshotGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return false, err

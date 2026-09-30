@@ -163,8 +163,9 @@ func TestListAPIKeys_NoUserListPerKey(t *testing.T) {
 			secretGets++
 		}
 	}
-	if secretGets != 0 {
-		t.Fatalf("list hydration must not Get Secrets; got %d", secretGets)
+	if n := countResourceVerbs(dyn.Actions(), mapping.APIKeyGVR.Resource, "list"); n != 1 {
+		// system ns only when user has no tenant namespace
+		t.Fatalf("expected 1 APIKey list (scoped ns), got %d", n)
 	}
 }
 

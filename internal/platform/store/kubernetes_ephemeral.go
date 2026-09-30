@@ -62,7 +62,7 @@ func (k *Kubernetes) ListAPIKeys(userID, username string) []*platform.APIKey {
 	}
 	userCR := mapping.UserCRName(u.Username)
 	var out []*platform.APIKey
-	for _, obj := range k.listNamespacedAll(mapping.APIKeyGVR) {
+	for _, obj := range k.listAPIKeysScoped(u.TenantID) {
 		ref, _, _ := unstructured.NestedString(obj.Object, "spec", "userRef", "name")
 		if ref != userCR {
 			continue
@@ -78,11 +78,31 @@ func (k *Kubernetes) ListAPIKeys(userID, username string) []*platform.APIKey {
 
 func (k *Kubernetes) ListAPIKeysByTenant(tenantID string) []*platform.APIKey {
 	var out []*platform.APIKey
-	for _, obj := range k.listNamespacedAll(mapping.APIKeyGVR) {
+	for _, obj := range k.listAPIKeysScoped(tenantID) {
 		key := k.apiKeyFromCR(&obj, obj.GetNamespace(), false)
 		if key.TenantID == tenantID {
 			out = append(out, key)
 		}
+	}
+	return out
+}
+
+// listAPIKeysScoped lists APIKey CRs only in system + the tenant namespace (not every e2e ns).
+func (k *Kubernetes) listAPIKeysScoped(tenantID string) []unstructured.Unstructured {
+	seen := map[string]struct{}{mapping.SystemNamespace: {}}
+	namespaces := []string{mapping.SystemNamespace}
+	if ns, ok := k.tenantNamespace(tenantID); ok {
+		if _, dup := seen[ns]; !dup {
+			namespaces = append(namespaces, ns)
+		}
+	}
+	var out []unstructured.Unstructured
+	for _, ns := range namespaces {
+		list, err := k.dyn.Resource(mapping.APIKeyGVR).Namespace(ns).List(k.ctx(), metav1.ListOptions{})
+		if err != nil {
+			continue
+		}
+		out = append(out, list.Items...)
 	}
 	return out
 }
