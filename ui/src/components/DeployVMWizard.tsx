@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Shield } from 'lucide-react';
+import { Check, Copy, Monitor, Shield } from 'lucide-react';
 import clsx from 'clsx';
 import {
   deployVM,
@@ -27,6 +27,7 @@ import { SGRulesEditor, defaultSGRules } from './SGRulesEditor';
 import { queryKeys } from '../lib/query-keys';
 import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
+import { openConsole } from '../lib/console-url';
 import {
   formInputClass,
   formSelectClass,
@@ -39,6 +40,8 @@ import {
   deployPhaseFromVm,
   type DeployPhase,
 } from '../lib/vm-display';
+
+const SSH_USER = 'ubuntu';
 
 function optionCardClass(selected: boolean) {
   return clsx(
@@ -93,6 +96,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const [createSgModal, setCreateSgModal] = useState(false);
   const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
   const [trackingName, setTrackingName] = useState<string | null>(null);
+  const [sshCopied, setSshCopied] = useState(false);
 
   const { data: netData } = useQuery({ queryKey: queryKeys.networks, queryFn: listNetworks, enabled: open });
   const { data: sshData } = useQuery({ queryKey: queryKeys.sshKeys, queryFn: listSSHKeys, enabled: open });
@@ -130,6 +134,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       setStep('compute');
       setForm(emptyForm());
       setTrackingName(null);
+      setSshCopied(false);
     }
   }, [open]);
 
@@ -357,6 +362,58 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
             )}
             {phase === 'error' && !trackedVm?.error_message && (
               <InfoBanner variant="warning">Deploy falhou — abra a VM para ver detalhes.</InfoBanner>
+            )}
+
+            {phase !== 'error' && (
+              <div className="rounded-lg border border-outline-variant bg-surface-container-low px-3 py-3 space-y-3">
+                <div>
+                  <p className="text-xs text-on-surface-variant">{t('vmDetail.primaryIp')}</p>
+                  {trackedVm?.ip ? (
+                    <p className="font-data-mono text-sm text-on-surface mt-0.5">{trackedVm.ip}</p>
+                  ) : (
+                    <p className="text-sm text-on-surface-variant mt-0.5">{t('vms.ipPending')}</p>
+                  )}
+                </div>
+                {linux && trackedVm?.ip && (
+                  <p className="font-data-mono text-xs text-on-surface-variant break-all">
+                    ssh {SSH_USER}@{trackedVm.ip}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {linux && (
+                    <button
+                      type="button"
+                      className="btn-outline-sm"
+                      disabled={!trackedVm?.ip}
+                      title={!trackedVm?.ip ? t('vms.ipPending') : undefined}
+                      onClick={async () => {
+                        if (!trackedVm?.ip) return;
+                        try {
+                          await navigator.clipboard.writeText(`ssh ${SSH_USER}@${trackedVm.ip}`);
+                          setSshCopied(true);
+                          window.setTimeout(() => setSshCopied(false), 2000);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    >
+                      <Copy size={14} /> {sshCopied ? t('vms.copied') : t('vms.copySsh')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-outline-sm"
+                    disabled={phase !== 'running'}
+                    title={phase !== 'running' ? t('vmDetail.consoleHint') : undefined}
+                    onClick={() => {
+                      if (!trackingName) return;
+                      openConsole(trackingName, trackedVm?.namespace);
+                    }}
+                  >
+                    <Monitor size={14} /> {t('vmDetail.openConsole')}
+                  </button>
+                </div>
+              </div>
             )}
 
             <div className="flex justify-end gap-3 pt-2">
