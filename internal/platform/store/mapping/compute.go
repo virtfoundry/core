@@ -2,6 +2,7 @@ package mapping
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/virtfoundry/core/internal/platform"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -54,6 +55,9 @@ func MergePlatformVM(dst, prior, fromCR *platform.PlatformVM) {
 	if len(dst.NICs) == 0 && len(prior.NICs) > 0 {
 		dst.NICs = prior.NICs
 	}
+	if len(dst.SSHKeyRefs) == 0 && len(prior.SSHKeyRefs) > 0 {
+		dst.SSHKeyRefs = prior.SSHKeyRefs
+	}
 	if dst.UpdatedAt.IsZero() && !prior.UpdatedAt.IsZero() {
 		dst.UpdatedAt = prior.UpdatedAt
 	}
@@ -105,6 +109,19 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 	}
 	if vm.DedicatedCPU {
 		spec["dedicatedCPU"] = true
+	}
+	if len(vm.SSHKeyRefs) > 0 {
+		refs := make([]interface{}, 0, len(vm.SSHKeyRefs))
+		for _, name := range vm.SSHKeyRefs {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			refs = append(refs, localRef(name))
+		}
+		if len(refs) > 0 {
+			spec["sshKeyRefs"] = refs
+		}
 	}
 	if imp := importMeta(vm.ExternalUUID, vm.ImportSource); imp != nil {
 		spec["import"] = imp
@@ -206,6 +223,23 @@ func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, r
 	}
 	if src != "" {
 		vm.ImportSource = src
+	}
+	if refs, found, err := unstructured.NestedSlice(obj.Object, "spec", "sshKeyRefs"); err != nil {
+		return nil, fieldError("spec.sshKeyRefs", err)
+	} else if found && len(refs) > 0 {
+		out := make([]string, 0, len(refs))
+		for i, raw := range refs {
+			m, ok := raw.(map[string]interface{})
+			if !ok {
+				return nil, fieldError("spec.sshKeyRefs", fmt.Errorf("index %d: expected object", i))
+			}
+			name, _, _ := unstructured.NestedString(m, "name")
+			name = strings.TrimSpace(name)
+			if name != "" {
+				out = append(out, name)
+			}
+		}
+		vm.SSHKeyRefs = out
 	}
 	return vm, nil
 }
