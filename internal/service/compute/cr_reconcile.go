@@ -7,6 +7,8 @@ import (
 
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/platform/store/mapping"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
@@ -30,9 +32,9 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 	if in.DataVolumeID != "" || in.PublicIP || len(networkIDs) > 0 {
 		return false
 	}
-	// Instance CR does not yet carry sshKeyRefs / one-time passwords. Prefer the
-	// hypervisor path so guest credentials from this request are actually injected.
-	if in.SSHKeyID != "" || strings.TrimSpace(in.CloudInitPassword) != "" {
+	// One-time cloud-init passwords are not on the Instance CR yet — keep
+	// those deploys on the hypervisor path. SSH keys go via sshKeyRefs.
+	if strings.TrimSpace(in.CloudInitPassword) != "" {
 		return false
 	}
 	return true
@@ -59,6 +61,18 @@ func (s *Service) deployVMViaOperator(
 	if deployTmpl != nil {
 		templateRef = deployTmpl.Name
 	}
+	var sshKeyRefs []string
+	if in.SSHKeyID != "" {
+		k, ok := s.store.GetSSHKeyPair(in.SSHKeyID)
+		if !ok || k.TenantID != tenantID {
+			return nil, iaerrors.NewBadRequestError("ssh_key_id not found in this tenant")
+		}
+		crName := mapping.SanitizeCRName(k.Name)
+		if crName == "" {
+			return nil, iaerrors.NewBadRequestError("ssh_key_id has empty name")
+		}
+		sshKeyRefs = []string{crName}
+	}
 	vm := &platform.PlatformVM{
 		ID:                store.NewID(),
 		TenantID:          tenantID,
@@ -73,6 +87,7 @@ func (s *Service) deployVMViaOperator(
 		Template:          firstNonEmpty(tmplDisplay, templateLabel(image)),
 		TemplateRef:       templateRef,
 		DedicatedCPU:      dedicated,
+		SSHKeyRefs:        sshKeyRefs,
 		Hypervisor:        "KubeVirt",
 		ServiceOfferingID: in.ServiceOfferingID,
 		CreatedAt:         store.Now(),

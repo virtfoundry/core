@@ -192,11 +192,13 @@ type PlatformVM struct {
 	TemplateRef       string    `json:"template_ref,omitempty"`
 	PowerState        string    `json:"power_state,omitempty"`
 	DedicatedCPU      bool      `json:"dedicated_cpu,omitempty"`
-	ExternalUUID      string    `json:"external_uuid,omitempty"`
-	ImportSource      string    `json:"import_source,omitempty"`
-	NICs              []VMNic   `json:"nics,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at,omitempty"`
+	// SSHKeyRefs are SSHKey CR names (metadata.name) on the Instance.
+	SSHKeyRefs   []string `json:"ssh_key_refs,omitempty"`
+	ExternalUUID string   `json:"external_uuid,omitempty"`
+	ImportSource string   `json:"import_source,omitempty"`
+	NICs         []VMNic  `json:"nics,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 }
 
 type VMNic struct {
