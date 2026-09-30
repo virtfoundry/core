@@ -111,15 +111,21 @@ jobs:
 
           SHORT_SHA="${GITHUB_SHA:0:7}"
           WORKDIR="${RUNNER_TEMP}/argo-homelab"
-          # Prefer Authorization header over embedding the PAT in the clone URL
-          # (avoids process-list / git-remote credential leaks).
-          git -c http.extraHeader="Authorization: Bearer ${ARGO_HOMELAB_TOKEN}" \
-            clone --depth 1 "https://github.com/${ARGO_HOMELAB_REPO}.git" "$WORKDIR"
+          # Basic x-access-token works for classic PAT, fine-grained PAT, and OAuth
+          # tokens. Bearer alone often falls through to interactive username prompt
+          # ("could not read Username for 'https://github.com'").
+          # Keep the token out of the remote URL (process-list / git-remote leaks).
+          BASIC_AUTH="$(printf 'x-access-token:%s' "${ARGO_HOMELAB_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraHeader="Authorization: Basic ${BASIC_AUTH}" \
+            clone --depth 1 "https://github.com/${ARGO_HOMELAB_REPO}.git" "$WORKDIR" \
+            || {
+              echo "::error::Clone of ${ARGO_HOMELAB_REPO} failed. Rotate ARGO_HOMELAB_TOKEN (contents:write on that repo)."
+              exit 1
+            }
           cd "$WORKDIR"
           git config user.name "virtfoundry-ci"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Push uses the same header; do not rewrite origin URL with the token.
-          git config --local http.https://github.com/.extraheader "Authorization: Bearer ${ARGO_HOMELAB_TOKEN}"
+          git config --local http.https://github.com/.extraheader "Authorization: Basic ${BASIC_AUTH}"
 
           VALUES="$ARGO_VALUES_PATH"
           python3 - <<'PY'
