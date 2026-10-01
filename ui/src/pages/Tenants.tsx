@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
 import { listTenants, createTenant, deleteTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -10,6 +10,7 @@ import { queryKeys } from '../lib/query-keys';
 import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
   PageHeader, SearchField, SurfaceCard,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -39,7 +40,7 @@ export function Tenants() {
     slug: string;
     username: string;
   } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { state: copyState, copy: copyToClipboard, reset: resetCopy } = useCopyToClipboard();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; slug: string } | null>(null);
   const queryClient = useQueryClient();
   const isRoot = useAppSelector(selectIsRoot);
@@ -63,7 +64,7 @@ export function Tenants() {
         slug: res.tenant.slug,
         username,
       });
-      setCopied(false);
+      resetCopy();
     },
   });
 
@@ -89,11 +90,9 @@ export function Tenants() {
     tenant.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCopyUsername = async () => {
+  const handleCopyUsername = () => {
     if (!createdAdmin) return;
-    await navigator.clipboard.writeText(createdAdmin.username);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyToClipboard(createdAdmin.username);
   };
 
   return (
@@ -265,8 +264,18 @@ export function Tenants() {
             </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={handleCopyUsername} className="btn-secondary flex items-center gap-2">
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                {copied ? t('common.copied') : t('tenants.copyUsername')}
+                {copyState === 'copied' ? (
+                  <Check size={16} />
+                ) : copyState === 'error' ? (
+                  <AlertCircle size={16} />
+                ) : (
+                  <Copy size={16} />
+                )}
+                {copyState === 'copied'
+                  ? t('common.copied')
+                  : copyState === 'error'
+                    ? t('common.copyError')
+                    : t('tenants.copyUsername')}
               </button>
               <button type="button" onClick={() => setCreatedAdmin(null)} className="btn-primary">
                 {t('common.close')}
