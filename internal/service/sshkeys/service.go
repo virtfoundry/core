@@ -15,9 +15,11 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// CreateResult is returned only from Create. PrivateKey is the one-time PEM;
+// it is never written to the store (list/get expose public material only).
 type CreateResult struct {
 	Key        *platform.SSHKeyPair `json:"key"`
-	PrivateKey string             `json:"private_key_pem"`
+	PrivateKey string               `json:"private_key_pem"`
 }
 
 type Service struct {
