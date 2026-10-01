@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.9.0** — Realtime/gRPC watch, Multus CRD-first networks, powerState Start/Stop, SSH PEM one-shot, security harden (CORS/SSH/Offerings)
 - **0.8.0** — VM create Error / 0 vCPU after operator 0.7.2 (pod-network annotation + list enrichment)
 - **0.7.2** — Security release (audit highs closed; non-root images; console tickets; ISO allowlist; CDI importer egress)
 - **0.7.1** — VM create hides platform Windows ISO until the tenant uploads one
