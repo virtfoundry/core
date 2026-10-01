@@ -77,9 +77,48 @@ func (k *Kubernetes) ListAPIKeys(userID, username string) []*platform.APIKey {
 }
 
 func (k *Kubernetes) ListAPIKeysByTenant(tenantID string) []*platform.APIKey {
+	tenantNS, hasTenantNS := k.tenantNamespace(tenantID)
+	// Cache userRef → identity for this list call (many keys often share one user).
+	type userRefInfo struct{ userID, tenantID string }
+	userCache := map[string]userRefInfo{}
+	resolveUser := func(userRef string) userRefInfo {
+		if userRef == "" {
+			return userRefInfo{}
+		}
+		if info, ok := userCache[userRef]; ok {
+			return info
+		}
+		info := userRefInfo{}
+		if u, ok := k.GetUserForAuth(userRef); ok {
+			info.userID = u.ID
+			info.tenantID = u.TenantID
+		}
+		userCache[userRef] = info
+		return info
+	}
+
 	var out []*platform.APIKey
 	for _, obj := range k.listAPIKeysScoped(tenantID) {
-		key := k.apiKeyFromCR(&obj, obj.GetNamespace(), false)
+		ns := obj.GetNamespace()
+		userRef, _, _ := unstructured.NestedString(obj.Object, "spec", "userRef", "name")
+
+		// Keys in the tenant namespace belong to that tenant — no User/Secret Get per key.
+		if hasTenantNS && ns == tenantNS {
+			key := mapping.APIKeyFromUnstructured(&obj)
+			key.TenantID = tenantID
+			key.UserID = resolveUser(userRef).userID
+			out = append(out, key)
+			continue
+		}
+
+		// System-namespace keys: resolve user once (cached) to learn TenantID.
+		if ns != mapping.SystemNamespace {
+			continue
+		}
+		key := mapping.APIKeyFromUnstructured(&obj)
+		info := resolveUser(userRef)
+		key.UserID = info.userID
+		key.TenantID = info.tenantID
 		if key.TenantID == tenantID {
 			out = append(out, key)
 		}

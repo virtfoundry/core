@@ -26,6 +26,7 @@ func (k *Kubernetes) SaveRole(r *platform.RoleRecord) {
 		if createErr == nil {
 			*r = *mapping.RoleFromUnstructured(created)
 		}
+		k.invalidateRolePermCache()
 		return
 	}
 	if err != nil {
@@ -41,6 +42,7 @@ func (k *Kubernetes) SaveRole(r *platform.RoleRecord) {
 	if updateErr == nil {
 		*r = *mapping.RoleFromUnstructured(updated)
 	}
+	k.invalidateRolePermCache()
 }
 
 func (k *Kubernetes) GetRole(id string) (*platform.RoleRecord, bool) {
@@ -120,15 +122,21 @@ func (k *Kubernetes) DeleteRole(id string) {
 		}
 	}
 	_ = k.dyn.Resource(mapping.RoleGVR).Namespace(ns).Delete(context.Background(), mapping.RoleCRName(r.Name), metav1.DeleteOptions{})
+	k.invalidateRolePermCache()
 }
 
 func (k *Kubernetes) GetRolePermissions(roleID string) ([]string, bool) {
+	if perms, ok := k.cachedRolePermissions(roleID); ok {
+		return perms, true
+	}
 	r, ok := k.GetRole(roleID)
 	if !ok {
 		return nil, false
 	}
 	if len(r.Permissions) > 0 {
-		return append([]string(nil), r.Permissions...), true
+		perms := append([]string(nil), r.Permissions...)
+		k.storeRolePermissionsCache(roleID, perms)
+		return perms, true
 	}
 	return nil, false
 }
@@ -140,4 +148,5 @@ func (k *Kubernetes) SetRolePermissions(roleID string, perms []string) {
 	}
 	r.Permissions = append([]string(nil), perms...)
 	k.SaveRole(r)
+	k.invalidateRolePermCache()
 }

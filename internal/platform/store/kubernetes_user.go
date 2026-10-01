@@ -186,8 +186,9 @@ func (k *Kubernetes) userFromCR(ctx context.Context, obj *unstructured.Unstructu
 
 	tenantRef, _, _ := unstructured.NestedString(obj.Object, "spec", "tenantRef", "name")
 	if tenantRef != "" {
-		if tObj, err := k.dyn.Resource(mapping.TenantGVR).Get(ctx, tenantRef, metav1.GetOptions{}); err == nil {
-			u.TenantID = string(tObj.GetUID())
+		// Tenant CR name == slug; use tenant snapshot cache (no live Get per user hydration).
+		if t, ok := k.tenantSnapshot().bySlug[tenantRef]; ok {
+			u.TenantID = t.ID
 		}
 	}
 	return u
