@@ -26,6 +26,7 @@ import (
 	"github.com/virtfoundry/core/internal/service"
 	"github.com/virtfoundry/core/internal/service/compute"
 	"github.com/virtfoundry/core/internal/service/identity"
+	vkssvc "github.com/virtfoundry/core/internal/service/vks"
 	"go.uber.org/zap"
 )
 
@@ -71,6 +72,7 @@ func main() {
 
 	authSvc := auth.NewService(jwtSecret, cfg.Security.JWTExpire)
 	platformSvc := service.NewPlatformService(repo, k8sMgr, kvDriver, hub)
+	vksSvc := vkssvc.New(repo, k8sMgr.Dynamic, k8sMgr.Clientset)
 	if cfg.Observability.VelasExploreURL != "" {
 		compute.SetVelasConfig(compute.VelasConfig{ExploreURLTemplate: cfg.Observability.VelasExploreURL})
 	}
@@ -146,6 +148,7 @@ func main() {
 	})
 	platformHandler := handler.NewPlatformHandler(authSvc, repo, platformSvc, loginThrottle)
 	iamHandler := handler.NewIAMHandler(repo, platformSvc)
+	vksHandler := handler.NewVKSHandler(platformSvc, vksSvc)
 	identitySvc := identity.New(repo)
 	consoleTickets := auth.NewConsoleTicketStore(auth.DefaultConsoleTicketTTL, []byte(jwtSecret))
 	consoleHandler := handler.NewConsoleHandler(kvDriver, repo, platformSvc, consoleTickets, cfg.Security.AllowedOrigins)
@@ -171,6 +174,12 @@ func main() {
 	consoleAPI.Use(middleware.AuditRootImpersonation(repo))
 	consoleAPI.Use(middleware.RequirePermission(auth.PermVMsConsole))
 	consoleAPI.HandleFunc("/vms/{name}/console-ticket", consoleHandler.IssueConsoleTicket).Methods("POST")
+
+	vksKubeconfigAPI := v1.NewRoute().Subrouter()
+	vksKubeconfigAPI.Use(middleware.Authenticate(authSvc, repo, identitySvc))
+	vksKubeconfigAPI.Use(middleware.AuditRootImpersonation(repo))
+	vksKubeconfigAPI.Use(middleware.RequirePermission(auth.PermVKSKubeconfig))
+	vksKubeconfigAPI.HandleFunc("/vks/clusters/{name}/kubeconfig", vksHandler.GetKubeconfig).Methods("GET")
 
 	eventsAPI := v1.NewRoute().Subrouter()
 	eventsAPI.Use(middleware.Authenticate(authSvc, repo, identitySvc))
@@ -241,6 +250,10 @@ func main() {
 	protected.HandleFunc("/ssh-keys", platformHandler.CreateSSHKey).Methods("POST")
 	protected.HandleFunc("/ssh-keys/register", platformHandler.RegisterSSHKey).Methods("POST")
 	protected.HandleFunc("/ssh-keys/{id}", platformHandler.DeleteSSHKey).Methods("DELETE")
+	protected.HandleFunc("/vks/clusters", vksHandler.ListClusters).Methods("GET")
+	protected.HandleFunc("/vks/clusters", vksHandler.CreateCluster).Methods("POST")
+	protected.HandleFunc("/vks/clusters/{name}", vksHandler.GetCluster).Methods("GET")
+	protected.HandleFunc("/vks/clusters/{name}", vksHandler.DeleteCluster).Methods("DELETE")
 	protected.HandleFunc("/vms/{name}/ssh", platformHandler.GetVMSSH).Methods("GET")
 	protected.HandleFunc("/vms/{name}/ssh", platformHandler.ExposeVMSSH).Methods("POST")
 	protected.HandleFunc("/target-groups", platformHandler.ListTargetGroups).Methods("GET")
@@ -322,16 +335,17 @@ func main() {
 			}
 			return
 		}
-		log.Info("server listening (HTTP+gRPC cmux spike)", zap.String("addr", addr))
+		log.Info("server listening (HTTP+gRPC cmux)", zap.String("addr", addr))
 		err := vfgrpc.ServeDualStack(vfgrpc.DualStackOptions{
 			Listener: ln,
 			HTTP:     srv,
 			Auth: vfgrpc.AuthDeps{
 				Auth: authSvc, Store: repo, Identity: identitySvc,
 			},
-			Backend: platformSvc,
-			Hub:     hub,
-			Log:     log,
+			Backend:  platformSvc,
+			Clusters: vksSvc,
+			Hub:      hub,
+			Log:      log,
 		})
 		if err != nil {
 			log.Error("cmux dual-stack failed; falling back to HTTP-only", zap.Error(err))

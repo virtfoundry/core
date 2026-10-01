@@ -47,6 +47,23 @@ func TestAutoPermissionAllowsMappedRead(t *testing.T) {
 	}
 }
 
+func TestAutoPermissionAllowsVKSRead(t *testing.T) {
+	reached := false
+	h := AutoPermission(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest("GET", "/api/v1/vks/clusters", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ContextActor, &auth.Actor{
+		Role: platform.RoleUser, Permissions: []string{auth.PermVKSRead},
+	}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if !reached || rec.Code != http.StatusOK {
+		t.Fatalf("vks read failed: reached=%v status=%d", reached, rec.Code)
+	}
+}
+
 func TestAutoPermissionAllowsAPIKeysSelfService(t *testing.T) {
 	reached := false
 	h := AutoPermission(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package virtfoundry.vks.v1alpha1;
+
+option go_package = "github.com/virtfoundry/core/api/gen/virtfoundry/vks/v1alpha1;vksv1alpha1";
+
+// LocalObjectRef names a VirtFoundry object (template, offering, network, ssh key).
+message LocalObjectRef {
+  string name = 1;
+}
+
+message WorkersSpec {
+  // Count of worker Instances (1–3).
+  int32 count = 1;
+  LocalObjectRef template_ref = 2;
+  LocalObjectRef offering_ref = 3;
+  LocalObjectRef network_ref = 4;
+  repeated LocalObjectRef ssh_key_refs = 5;
+}
+
+message ControlPlaneSpec {
+  // NodePort only in MVP.
+  string service_type = 1;
+  // Advertised node address; empty → operator default.
+  string address = 2;
+  // NodePort; 0 → operator default.
+  int32 port = 3;
+}
+
+// Cluster is the tenant-facing view of a VKSCluster CR.
+message Cluster {
+  string name = 1;
+  string tenant_id = 2;
+  string namespace = 3;
+  string kubernetes_version = 4;
+  ControlPlaneSpec control_plane = 5;
+  WorkersSpec workers = 6;
+  string phase = 7;
+  string control_plane_endpoint = 8;
+  int32 ready_workers = 9;
+  string kubeconfig_secret_ref = 10;
+}
+
+message ListClustersRequest {
+  int32 page_size = 1;
+}
+
+message ListClustersResponse {
+  repeated Cluster clusters = 1;
+}
+
+message GetClusterRequest {
+  string name = 1;
+}
+
+message GetClusterResponse {
+  Cluster cluster = 1;
+}
+
+message CreateClusterRequest {
+  string name = 1;
+  string kubernetes_version = 2;
+  ControlPlaneSpec control_plane = 3;
+  WorkersSpec workers = 4;
+}
+
+message CreateClusterResponse {
+  Cluster cluster = 1;
+}
+
+message DeleteClusterRequest {
+  string name = 1;
+}
+
+message DeleteClusterResponse {}
+
+message WatchClustersRequest {}
+
+message WatchClustersResponse {
+  Cluster cluster = 1;
+  // ADDED / MODIFIED / DELETED
+  string event_type = 2;
+}
+
+message GetKubeconfigRequest {
+  string name = 1;
+}
+
+message GetKubeconfigResponse {
+  // Raw admin.conf kubeconfig YAML.
+  bytes kubeconfig = 1;
+}
+
+// ClusterService is the canonical VKS API (gRPC). REST /api/v1/vks/* is a thin shim.
+// Auth: metadata authorization: Bearer + x-tenant-id (fail-closed). No ?token=.
+service ClusterService {
+  rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
+  rpc GetCluster(GetClusterRequest) returns (GetClusterResponse);
+  rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
+  rpc DeleteCluster(DeleteClusterRequest) returns (DeleteClusterResponse);
+  rpc WatchClusters(WatchClustersRequest) returns (stream WatchClustersResponse);
+  rpc GetKubeconfig(GetKubeconfigRequest) returns (GetKubeconfigResponse);
+}

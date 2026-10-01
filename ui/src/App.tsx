@@ -18,6 +18,7 @@ import { Offerings } from './pages/Offerings';
 import { VPCs } from './pages/VPCs';
 import { Templates } from './pages/Templates';
 import { SSHKeys } from './pages/SSHKeys';
+import { Clusters } from './pages/Clusters';
 import { IAM } from './pages/IAM';
 import { VMConsole } from './pages/VMConsole';
 
@@ -93,6 +94,7 @@ export default function App() {
                   <Route path="vms/:name" element={<VMDetail />} />
                   <Route path="templates" element={<Templates />} />
                   <Route path="ssh-keys" element={<SSHKeys />} />
+                  <Route path="clusters" element={<Clusters />} />
                   <Route path="volumes" element={<Volumes />} />
                   <Route path="vpcs" element={<VPCs />} />
                   <Route path="networks/public" element={<PublicNetwork />} />

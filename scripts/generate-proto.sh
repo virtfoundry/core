@@ -10,5 +10,6 @@ protoc \
   --proto_path=api/proto \
   --go_out=api/gen --go_opt=module=github.com/virtfoundry/core/api/gen \
   --go-grpc_out=api/gen --go-grpc_opt=module=github.com/virtfoundry/core/api/gen \
-  api/proto/virtfoundry/iaas/v1alpha1/instance.proto
-echo "ok: api/gen/virtfoundry/iaas/v1alpha1"
+  api/proto/virtfoundry/iaas/v1alpha1/instance.proto \
+  api/proto/virtfoundry/vks/v1alpha1/cluster.proto
+echo "ok: api/gen/virtfoundry/iaas/v1alpha1 + vks/v1alpha1"

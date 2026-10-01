@@ -14,6 +14,7 @@ import {
   Key as KeyIcon,
   Disc as DiscIcon,
   Cpu as CpuIcon,
+  Container as ContainerIcon,
   ChevronDown,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -54,6 +55,7 @@ export const menuItems: MenuItem[] = [
       { path: '/vms', icon: ServerIcon, labelKey: 'nav.vms' },
       { path: '/templates', icon: DiscIcon, labelKey: 'nav.templates' },
       { path: '/ssh-keys', icon: KeyIcon, labelKey: 'nav.sshKeys' },
+      { path: '/clusters', icon: ContainerIcon, labelKey: 'nav.clusters' },
       { path: '/vm-snapshots', icon: CameraIcon, labelKey: 'nav.vmSnapshots' },
     ],
   },
