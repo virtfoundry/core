@@ -26,6 +26,18 @@ describe('mergeVmRow', () => {
     });
   });
 
+  it('merges power_state from Instance informer without dropping sizing', () => {
+    const merged = mergeVmRow(runningRow, {
+      name: 'web-01',
+      state: 'Running',
+      power_state: 'Halted',
+    });
+    expect(merged.power_state).toBe('Halted');
+    expect(merged.state).toBe('Running');
+    expect(merged.ip).toBe('10.0.0.5');
+    expect(merged.cpu).toBe(2);
+  });
+
   it('does not overwrite with undefined keys from sparse payload', () => {
     const merged = mergeVmRow(runningRow, {
       name: 'web-01',
@@ -48,6 +60,20 @@ describe('applyVmEventToCache', () => {
     expect(next.vms[0].state).toBe('Stopped');
     expect(next.vms[0].ip).toBe('10.0.0.5');
     expect(next.vms[0].cpu).toBe(2);
+    expect(next.vms[0].memory_mi).toBe(4096);
+  });
+
+  it('patches power_state on vm.updated without list replace', () => {
+    const cache: VMsCache = { vms: [runningRow] };
+    const next = applyVmEventToCache(cache, 'vm.updated', {
+      name: 'web-01',
+      state: 'Running',
+      power_state: 'Halted',
+      id: 'vm-1',
+    });
+    expect(next.vms).toHaveLength(1);
+    expect(next.vms[0].power_state).toBe('Halted');
+    expect(next.vms[0].state).toBe('Running');
     expect(next.vms[0].memory_mi).toBe(4096);
   });
 

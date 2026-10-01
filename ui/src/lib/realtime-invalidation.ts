@@ -40,7 +40,8 @@ function applyVmListPatch(
   );
 }
 
-/** Merge-patch detail cache when present — avoid refetch on every state tick. */
+/** Merge-patch detail cache when present — avoid refetch on every state tick.
+ * Payload may include power_state (#176); callers use effectiveVmState for UX. */
 function applyVmDetailPatch(
   queryClient: QueryClient,
   name: string,
@@ -121,7 +122,7 @@ export function invalidateForPlatformEvent(queryClient: QueryClient, event: Plat
         return;
       }
 
-      // vm.updated (and unknown vm.*): state/id/name patches only —
+      // vm.updated (and unknown vm.*): merge state/power_state/id/name —
       // Phase 1 skips volumes invalidate (cannot distinguish attach/detach).
       // Pure state updates must not touch volumes or dashboard.
       if (name) {

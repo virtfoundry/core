@@ -29,6 +29,30 @@ export function isVmStopped(state?: string) {
   return (state || '').toLowerCase() === 'stopped';
 }
 
+type VmPowerFields = { state?: string; power_state?: string };
+
+/**
+ * Display/action state for Start/Stop under operatorReconcile.
+ * Hub may send observed `state` still Running while desired `power_state` is
+ * Halted (or the reverse) — treat that lag as Starting/Stopping so WS
+ * merge-patch does not flip Start/Stop buttons back to the stale phase.
+ */
+export function effectiveVmState(vm: VmPowerFields | null | undefined): string {
+  if (!vm) return '';
+  const observed = (vm.state || '').trim();
+  const s = observed.toLowerCase();
+  if (s === 'starting' || s === 'stopping' || s === 'creating') {
+    return observed;
+  }
+
+  const desired = (vm.power_state || '').toLowerCase();
+  if (!desired) return observed;
+
+  if (desired === 'halted' && s === 'running') return 'Stopping';
+  if (desired === 'running' && (s === 'stopped' || s === 'halted')) return 'Starting';
+  return observed;
+}
+
 export type DeployPhase = 'creating' | 'scheduling' | 'networking' | 'running' | 'error' | 'unknown';
 
 /** Map Instance state (+ IP) into a coarse deploy progress phase for the UI. */
