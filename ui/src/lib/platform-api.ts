@@ -26,6 +26,8 @@ export interface PlatformVM {
   display_name?: string;
   namespace: string;
   state: string;
+  /** Desired Instance.spec.powerState (Running|Halted). From REST and hub (#176). */
+  power_state?: string;
   error_message?: string;
   cpu: number;
   memory_mi: number;
