@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Upload, Copy, Check, Trash2 } from 'lucide-react';
+import { Plus, Upload, Copy, Check, Trash2, Download } from 'lucide-react';
 import {
   listSSHKeys, createSSHKey, registerSSHKey, deleteSSHKey,
 } from '../lib/platform-api';
@@ -11,7 +11,6 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
@@ -53,6 +52,7 @@ export function SSHKeys() {
       invalidate();
       setCreateModal(false);
       resetForm();
+      // One-time secret: private_key_pem is only present on POST create (never on list).
       setPrivateKeyModal({ name: res.key.name, pem: res.private_key_pem });
       setCopied(false);
     },
@@ -86,6 +86,17 @@ export function SSHKeys() {
     await navigator.clipboard.writeText(privateKeyModal.pem);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPrivateKey = () => {
+    if (!privateKeyModal) return;
+    const blob = new Blob([privateKeyModal.pem], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${privateKeyModal.name}.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -137,8 +148,8 @@ export function SSHKeys() {
           <PageTable>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
-              <PageTableTh>Fingerprint</PageTableTh>
-              <PageTableTh>Public key</PageTableTh>
+              <PageTableTh>{t('ssh.fingerprint')}</PageTableTh>
+              <PageTableTh>{t('ssh.publicKey')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
@@ -245,12 +256,16 @@ export function SSHKeys() {
               {privateKeyModal.pem}
             </pre>
             <div className="flex justify-end gap-3">
+              <button type="button" onClick={handleDownloadPrivateKey} className="btn-secondary">
+                <Download size={16} />
+                {t('ssh.download')}
+              </button>
               <button type="button" onClick={handleCopyPrivateKey} className="btn-primary">
                 {copied ? <Check size={16} /> : <Copy size={16} />}
                 {copied ? t('ssh.copied') : t('ssh.copy')}
               </button>
               <button type="button" onClick={() => setPrivateKeyModal(null)} className="btn-secondary">
-                {t('common.cancel')}
+                {t('ssh.done')}
               </button>
             </div>
           </div>
