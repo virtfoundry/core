@@ -28,7 +28,7 @@ import {
   formInputClass, InfoBanner,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
-import { formatVmOffering, isVmError, isVmRunning } from '../lib/vm-display';
+import { effectiveVmState, formatVmOffering, isVmError, isVmRunning } from '../lib/vm-display';
 import { matchErrorCatalog } from '../lib/error-catalog';
 import {
   getAllVmTags,
@@ -86,7 +86,8 @@ export function VMs() {
     enabled: !needsTenant,
     refetchInterval: (q) => {
       const vms = q.state.data?.vms || [];
-      const transitional = vms.some((vm) => isVMTransitional(vm.state));
+      // power_state lag (Running+Halted) counts as transitional — no list poll while WS up.
+      const transitional = vms.some((vm) => isVMTransitional(effectiveVmState(vm)));
       return realtimePollInterval(wsConnected, transitional, { healthyMs: false });
     },
   });
@@ -112,7 +113,8 @@ export function VMs() {
       if (prev) {
         queryClient.setQueryData(queryKeys.vms, {
           vms: prev.vms.map((vm) =>
-            vm.name === name ? { ...vm, state: 'Starting' } : vm,
+            // Align with Instance.spec.powerState so hub lag cannot revert Start UX.
+            vm.name === name ? { ...vm, state: 'Starting', power_state: 'Running' } : vm,
           ),
         });
       }
@@ -131,7 +133,8 @@ export function VMs() {
       if (prev) {
         queryClient.setQueryData(queryKeys.vms, {
           vms: prev.vms.map((vm) =>
-            vm.name === name ? { ...vm, state: 'Stopping' } : vm,
+            // Align with Instance.spec.powerState so hub lag cannot revert Stop UX.
+            vm.name === name ? { ...vm, state: 'Stopping', power_state: 'Halted' } : vm,
           ),
         });
       }
@@ -180,7 +183,7 @@ export function VMs() {
 
       if (!matchesSearch) return false;
 
-      const st = (vm.state || '').toLowerCase();
+      const st = effectiveVmState(vm).toLowerCase();
       if (stateFilter === 'running' && st !== 'running') return false;
       if (stateFilter === 'error' && st !== 'error') return false;
       if (stateFilter === 'stopped' && st !== 'stopped') return false;
@@ -215,7 +218,7 @@ export function VMs() {
   const filterCounts = useMemo(() => {
     const counts = { all: vms.length, running: 0, error: 0, stopped: 0, other: 0 };
     for (const vm of vms) {
-      const st = (vm.state || '').toLowerCase();
+      const st = effectiveVmState(vm).toLowerCase();
       if (st === 'running') counts.running += 1;
       else if (st === 'error') counts.error += 1;
       else if (st === 'stopped') counts.stopped += 1;
@@ -492,8 +495,9 @@ export function VMs() {
                 </PageTableHead>
                 <PageTableBody>
                   {filteredVMs.map((vm: PlatformVM) => {
-                    const errored = isVmError(vm.state);
-                    const running = isVmRunning(vm.state);
+                    const displayState = effectiveVmState(vm);
+                    const errored = isVmError(displayState);
+                    const running = isVmRunning(displayState);
                     const catalog = matchErrorCatalog(vm.error_message, locale);
                     const tags = tagMap[vm.name] || [];
                     return (
@@ -569,7 +573,7 @@ export function VMs() {
                         </PageTableTd>
                         <PageTableTd>{vm.display_name || vm.name}</PageTableTd>
                         <PageTableTd>
-                          <StatusBadge status={vm.state || 'inactive'} />
+                          <StatusBadge status={displayState || 'inactive'} />
                         </PageTableTd>
                         <PageTableTd className="font-mono text-xs">
                           <span className="inline-flex items-center gap-1">

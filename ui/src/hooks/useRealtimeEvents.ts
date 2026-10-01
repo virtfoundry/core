@@ -153,6 +153,11 @@ export function useRealtimeEvents() {
   }, [handleEvent, queryClient]);
 }
 
+/**
+ * Transitional observed states (optimistic or phase). For Start/Stop lag under
+ * operatorReconcile, pass `effectiveVmState(vm)` so Running+Halted (desired)
+ * from the Instance informer counts as Stopping without list refetch.
+ */
 export function isVMTransitional(state?: string) {
   const s = state?.toLowerCase();
   return s === 'starting' || s === 'stopping' || s === 'creating';
