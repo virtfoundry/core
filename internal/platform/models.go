@@ -261,6 +261,8 @@ type AsyncJob struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// SSHKeyPair stores public material only. The private key PEM is never persisted;
+// it is returned once from POST /ssh-keys (generate) and cannot be re-fetched.
 type SSHKeyPair struct {
 	ID          string    `json:"id"`
 	TenantID    string    `json:"tenant_id"`
