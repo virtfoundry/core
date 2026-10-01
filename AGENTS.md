@@ -19,7 +19,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports`.
 ## VirtFoundry
 
 - SemVer produto **0.9.x** (alinhar CHANGELOG / RELEASES).
-- Testes no **homelab** — nunca Kind.
+- Testes no **homelab Linux** (cluster real ou Kind/Linux com KubeVirt). Gate de produto = homelab; **não** Kind no macOS (KubeVirt não funciona).
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.
 - **CRD-first (`operatorReconcile`):** Start/Stop → só `Instance.spec.powerState`. DeployVM → um actuator (`deployVMViaOperator` / SaveVM) — nunca `CreateVM`+`SaveVM` no mesmo fluxo (core#131).
