@@ -22,6 +22,7 @@ import (
 	"github.com/virtfoundry/core/internal/platform/branding"
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/platform/watch"
 	"github.com/virtfoundry/core/internal/service"
 	"github.com/virtfoundry/core/internal/service/compute"
 	"github.com/virtfoundry/core/internal/service/identity"
@@ -261,6 +262,31 @@ func main() {
 		}
 	}()
 
+	// Phase 2 (core#172): Instance CR SharedInformer → hub with full
+	// power_state + phase semantics. Default on when store=kubernetes;
+	// VF_INSTANCE_INFORMER=0 disables.
+	_, kubernetesStore := repo.(*store.Kubernetes)
+	var stopInformer context.CancelFunc
+	if watch.InstanceInformerEnabled(kubernetesStore) && k8sMgr != nil && k8sMgr.Dynamic != nil {
+		informerCtx, cancel := context.WithCancel(context.Background())
+		stopInformer = cancel
+		go func() {
+			if err := watch.StartInstanceInformer(informerCtx, watch.Options{
+				Dynamic: k8sMgr.Dynamic,
+				Hub:     hub,
+				Resolve: watch.TenantResolverFromStore(repo),
+				Log:     log,
+			}); err != nil && err != context.Canceled {
+				log.Warn("instance informer stopped", zap.Error(err))
+			}
+		}()
+		log.Info("instance informer enabled", zap.Bool("kubernetes_store", kubernetesStore))
+	} else {
+		log.Info("instance informer disabled",
+			zap.Bool("kubernetes_store", kubernetesStore),
+			zap.Bool("flag", watch.InstanceInformerEnabled(kubernetesStore)))
+	}
+
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal("listen", zap.Error(err))
@@ -312,6 +338,10 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+
+	if stopInformer != nil {
+		stopInformer()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
