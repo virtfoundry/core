@@ -227,6 +227,8 @@ func main() {
 	protected.HandleFunc("/vms/start", platformHandler.StartVM).Methods("POST")
 	protected.HandleFunc("/vms/stop", platformHandler.StopVM).Methods("POST")
 	protected.HandleFunc("/vms/delete", platformHandler.DeleteVM).Methods("POST")
+	// SSH keys: list/register return public material only. private_key_pem is
+	// emitted once on POST /ssh-keys (generate). No GET re-fetch of private keys.
 	protected.HandleFunc("/ssh-keys", platformHandler.ListSSHKeys).Methods("GET")
 	protected.HandleFunc("/ssh-keys", platformHandler.CreateSSHKey).Methods("POST")
 	protected.HandleFunc("/ssh-keys/register", platformHandler.RegisterSSHKey).Methods("POST")

@@ -962,9 +962,16 @@ func (h *PlatformHandler) ListSSHKeys(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err)
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]interface{}{"ssh_keys": nonNilSlice(h.svc.ListSSHKeys(tid))})
+	keys := h.svc.ListSSHKeys(tid)
+	out := make([]map[string]interface{}, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, publicSSHKey(k))
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"ssh_keys": out})
 }
 
+// CreateSSHKey generates an Ed25519 keypair. private_key_pem is returned once in
+// this response only (same pattern as API key secret) and is never persisted.
 func (h *PlatformHandler) CreateSSHKey(w http.ResponseWriter, r *http.Request) {
 	tid, err := h.tenantID(r)
 	if err != nil {
@@ -983,7 +990,10 @@ func (h *PlatformHandler) CreateSSHKey(w http.ResponseWriter, r *http.Request) {
 		respondError(w, err)
 		return
 	}
-	respondJSON(w, http.StatusCreated, out)
+	respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"key":             publicSSHKey(out.Key),
+		"private_key_pem": out.PrivateKey,
+	})
 }
 
 func (h *PlatformHandler) RegisterSSHKey(w http.ResponseWriter, r *http.Request) {
@@ -1005,7 +1015,7 @@ func (h *PlatformHandler) RegisterSSHKey(w http.ResponseWriter, r *http.Request)
 		respondError(w, err)
 		return
 	}
-	respondJSON(w, http.StatusCreated, map[string]interface{}{"key": key})
+	respondJSON(w, http.StatusCreated, map[string]interface{}{"key": publicSSHKey(key)})
 }
 
 func (h *PlatformHandler) DeleteSSHKey(w http.ResponseWriter, r *http.Request) {
@@ -1119,6 +1129,18 @@ func publicUser(u *platform.User) map[string]interface{} {
 	return map[string]interface{}{
 		"id": u.ID, "username": u.Username, "role": u.Role,
 		"role_id": u.RoleID, "tenant_id": u.TenantID, "email": u.Email, "state": u.State,
+	}
+}
+
+// publicSSHKey is the list/detail DTO: name, fingerprint, and public_key only.
+// Private key material is never included (it is only emitted once on Create).
+func publicSSHKey(k *platform.SSHKeyPair) map[string]interface{} {
+	if k == nil {
+		return nil
+	}
+	return map[string]interface{}{
+		"id": k.ID, "tenant_id": k.TenantID, "name": k.Name,
+		"public_key": k.PublicKey, "fingerprint": k.Fingerprint, "created_at": k.CreatedAt,
 	}
 }
 
