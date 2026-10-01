@@ -9,6 +9,7 @@ import (
 )
 
 const tenantCacheTTL = 30 * time.Second
+const rolePermCacheTTL = 30 * time.Second
 
 type tenantSnapshot struct {
 	tenants []*platform.Tenant
@@ -21,6 +22,44 @@ func (k *Kubernetes) invalidateTenantCache() {
 	k.tenantCacheMu.Lock()
 	k.tenantCache = nil
 	k.tenantCacheMu.Unlock()
+}
+
+func (k *Kubernetes) invalidateRolePermCache() {
+	k.rolePermCacheMu.Lock()
+	k.rolePermCache = nil
+	k.rolePermCacheMu.Unlock()
+}
+
+func (k *Kubernetes) cachedRolePermissions(roleID string) ([]string, bool) {
+	k.rolePermCacheMu.RLock()
+	c := k.rolePermCache
+	k.rolePermCacheMu.RUnlock()
+	if c == nil || time.Now().After(c.expires) {
+		return nil, false
+	}
+	perms, ok := c.byID[roleID]
+	if !ok {
+		return nil, false
+	}
+	return append([]string(nil), perms...), true
+}
+
+func (k *Kubernetes) storeRolePermissionsCache(roleID string, perms []string) {
+	k.rolePermCacheMu.Lock()
+	defer k.rolePermCacheMu.Unlock()
+	now := time.Now()
+	if k.rolePermCache == nil || now.After(k.rolePermCache.expires) {
+		k.rolePermCache = &cachedRolePerms{
+			byID:    map[string][]string{},
+			expires: now.Add(rolePermCacheTTL),
+		}
+	}
+	k.rolePermCache.byID[roleID] = append([]string(nil), perms...)
+}
+
+type cachedRolePerms struct {
+	byID    map[string][]string
+	expires time.Time
 }
 
 func (k *Kubernetes) tenantSnapshot() *tenantSnapshot {

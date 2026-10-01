@@ -20,24 +20,26 @@ type Kubernetes struct {
 	dyn       dynamic.Interface
 	clientset kubernetes.Interface
 
-	mu            sync.RWMutex
-	jobs          map[string]*platform.AsyncJob
-	targetGroups  map[string]*platform.TargetGroup
-	loadBalancers map[string]*platform.LoadBalancer
-	lbListeners   map[string]*platform.LBListener
-	lbTargets     map[string]*platform.LBTarget
-	auditEvents   []*platform.AuditEvent
-	tenantCacheMu sync.RWMutex
-	tenantCache   *cachedTenants
+	mu              sync.RWMutex
+	jobs            map[string]*platform.AsyncJob
+	targetGroups    map[string]*platform.TargetGroup
+	loadBalancers   map[string]*platform.LoadBalancer
+	lbListeners     map[string]*platform.LBListener
+	lbTargets       map[string]*platform.LBTarget
+	auditEvents     []*platform.AuditEvent
+	tenantCacheMu   sync.RWMutex
+	tenantCache     *cachedTenants
+	rolePermCacheMu sync.RWMutex
+	rolePermCache   *cachedRolePerms
 }
 
 // KubernetesOptions configures the CRD-backed store.
 type KubernetesOptions struct {
-	Kubeconfig  string
-	InCluster   bool
-	RESTConfig  *rest.Config
-	Dynamic     dynamic.Interface
-	Clientset   kubernetes.Interface
+	Kubeconfig string
+	InCluster  bool
+	RESTConfig *rest.Config
+	Dynamic    dynamic.Interface
+	Clientset  kubernetes.Interface
 }
 
 // NewKubernetes opens a Repository backed by virtfoundry.io CRDs.

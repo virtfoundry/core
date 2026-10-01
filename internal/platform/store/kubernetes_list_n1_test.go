@@ -169,6 +169,71 @@ func TestListAPIKeys_NoUserListPerKey(t *testing.T) {
 	}
 }
 
+func TestListAPIKeysByTenant_NoUserGetPerKey(t *testing.T) {
+	dyn := newTestDynamicClient()
+	assignUIDsOnCreate(dyn)
+	cs := kubefake.NewSimpleClientset()
+	repo := &Kubernetes{dyn: dyn, clientset: cs}
+	if err := repo.SeedIAM(); err != nil {
+		t.Fatal(err)
+	}
+
+	tenant := &platform.Tenant{Name: "Acme", Slug: "acme", State: "active"}
+	repo.SaveTenant(tenant)
+
+	user := &platform.User{
+		Username: "ops", PasswordHash: "hash", Role: platform.RoleUser,
+		RoleID: SystemRoleIDTenantViewer, TenantID: tenant.ID, State: "active", CreatedAt: Now(),
+	}
+	repo.SaveUser(user)
+	if user.ID == "" {
+		t.Fatal("expected user ID after SaveUser")
+	}
+
+	for _, name := range []string{"key-a", "key-b", "key-c"} {
+		repo.SaveAPIKey(&platform.APIKey{
+			ID: NewID(), UserID: user.ID, TenantID: tenant.ID, Name: name, Prefix: name[:4],
+			SecretHash: "shh-" + name, CreatedAt: Now(),
+		})
+	}
+
+	dyn.ClearActions()
+	cs.ClearActions()
+
+	keys := repo.ListAPIKeysByTenant(tenant.ID)
+	if len(keys) != 3 {
+		t.Fatalf("keys = %d, want 3", len(keys))
+	}
+	for _, k := range keys {
+		if k.TenantID != tenant.ID {
+			t.Fatalf("TenantID = %q, want %q", k.TenantID, tenant.ID)
+		}
+		if k.UserID != user.ID {
+			t.Fatalf("UserID = %q, want %q", k.UserID, user.ID)
+		}
+		if k.SecretHash != "" {
+			t.Fatalf("list hydration must skip Secret, got hash %q", k.SecretHash)
+		}
+	}
+
+	if n := countResourceVerbs(dyn.Actions(), mapping.UserGVR.Resource, "list"); n != 0 {
+		t.Fatalf("ListAPIKeysByTenant must not ListUsers; got %d", n)
+	}
+	// One User Get for the shared userRef across all keys (not N).
+	if n := countResourceVerbs(dyn.Actions(), mapping.UserGVR.Resource, "get"); n != 1 {
+		t.Fatalf("expected exactly 1 User Get (cached by userRef), got %d", n)
+	}
+	secretGets := 0
+	for _, a := range cs.Actions() {
+		if a.GetVerb() == "get" && a.GetResource().Resource == "secrets" {
+			secretGets++
+		}
+	}
+	if secretGets != 0 {
+		t.Fatalf("ListAPIKeysByTenant must skip Secret Gets; got %d", secretGets)
+	}
+}
+
 func TestAPIKeyFromCR_ResolvesUserByGetNotList(t *testing.T) {
 	dyn := newTestDynamicClient()
 	assignUIDsOnCreate(dyn)

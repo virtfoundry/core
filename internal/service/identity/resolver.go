@@ -21,6 +21,10 @@ func (r *PermissionResolver) ForUser(u *platform.User) []string {
 		return nil
 	}
 	if u.RoleID != "" {
+		// System role IDs are stable — skip store GetRole/GetRolePermissions (K8s RTT on every request).
+		if perms := BuiltinPermissionsForRoleID(u.RoleID); len(perms) > 0 {
+			return perms
+		}
 		if perms, ok := r.store.GetRolePermissions(u.RoleID); ok && len(perms) > 0 {
 			return perms
 		}
@@ -29,6 +33,22 @@ func (r *PermissionResolver) ForUser(u *platform.User) []string {
 		}
 	}
 	return auth.LegacyRolePermissions(u.Role)
+}
+
+// BuiltinPermissionsForRoleID maps fixed system role IDs to builtins without a store round-trip.
+func BuiltinPermissionsForRoleID(roleID string) []string {
+	switch roleID {
+	case store.SystemRoleIDRoot:
+		return BuiltinPermissions(platform.SystemRoleRoot)
+	case store.SystemRoleIDTenantAdmin:
+		return BuiltinPermissions(platform.SystemRoleTenantAdmin)
+	case store.SystemRoleIDTenantOperator:
+		return BuiltinPermissions(platform.SystemRoleTenantOperator)
+	case store.SystemRoleIDTenantViewer:
+		return BuiltinPermissions(platform.SystemRoleTenantViewer)
+	default:
+		return nil
+	}
 }
 
 // ForAPIKey intersects key scopes with user permissions.
