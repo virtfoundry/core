@@ -7,7 +7,10 @@ import (
 
 func OfferingToUnstructured(o *platform.ServiceOffering) *unstructured.Unstructured {
 	obj := newObject("Offering", SanitizeCRName(o.Name), "")
-	obj.SetLabels(map[string]string{LabelPartOf: PartOfValue})
+	obj.SetLabels(map[string]string{
+		LabelPartOf:         PartOfValue,
+		LabelPlatformOwned: "true",
+	})
 	SetLegacyID(obj, o.ID)
 	spec := map[string]interface{}{
 		"displayName":  o.DisplayName,

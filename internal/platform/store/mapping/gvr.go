@@ -12,6 +12,7 @@ const (
 	LabelSlug   = "virtfoundry.io/slug"
 	LabelRoleID = "virtfoundry.io/role-id"
 	LabelTenant = "virtfoundry.io/tenant"
+	LabelPlatformOwned = "virtfoundry.io/platform-owned"
 
 	PartOfValue = "virtfoundry"
 
