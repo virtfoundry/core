@@ -18,7 +18,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports`.
 
 ## VirtFoundry
 
-- SemVer produto **0.8.x** (alinhar CHANGELOG / RELEASES).
+- SemVer produto **0.9.x** (alinhar CHANGELOG / RELEASES).
 - Testes no **homelab** — nunca Kind.
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.

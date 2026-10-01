@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-01
+
+### Added
+
+- **Realtime / gRPC** — Instance CR informer publishes full VM events; `WatchInstances` stream; UI consumes WS `power_state` for Start/Stop; poll backs off when websocket healthy; query invalidation beyond `vm.*`.
+- **CRD-first compute** — isolated Multus networks on deploy; `ssh_key_id` → Instance `sshKeyRefs`; wizard cloud-init persisted; single actuator under `operatorReconcile`.
+- **gRPC spike** — `InstanceService` behind cmux on `:8080`.
+- **UI** — deploy wizard network cards/auto-pick, post-deploy IP/SSH/console CTAs, actions menu / template cards / tenant switcher, onboarding network step, OverflowMenu portal fix, clipboard `execCommand` fallback for one-time secrets (Weslei).
+
+### Security
+
+- SSH private PEM treated as one-time secret (names-only thereafter).
+- CORS OPTIONS preflight on mux method-mismatch routes.
+- HTTP timeouts, body limits, log tail caps.
+- ContainerDisk image allowlist on deploy; events/console ticket hardening; autopermission fail-open closed.
+- Platform-owned label stamped on Offerings (coordinates operator dedicatedCPU gate).
+
+### Fixed
+
+- Cold-path latency on `/api-keys` / snapshots (N+1 hydration, scoped lists, JWT user by username).
+- Unique Network CR names per VPC; refuse delete of default VPC subnet.
+- Honest List/Sync under `operatorReconcile`; CI digest write-back auth.
+
 ## [0.8.0] - 2026-09-28
 
 ### Added
