@@ -122,8 +122,16 @@ func main() {
 	router := mux.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
-	router.Use(middleware.CORS(cfg.Security.AllowedOrigins))
+	cors := middleware.CORS(cfg.Security.AllowedOrigins)
+	router.Use(cors)
 	router.Use(middleware.MaxBodyBytes(middleware.DefaultMaxBodyBytes))
+	// gorilla/mux Use() only wraps matched routes. OPTIONS on POST-only paths
+	// (e.g. /api/v1/auth/login) is a method mismatch and would skip CORS,
+	// returning 404/405 with no ACAO (core#120). Wire fallbacks through CORS.
+	router.MethodNotAllowedHandler = cors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}))
+	router.NotFoundHandler = cors(http.NotFoundHandler())
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
