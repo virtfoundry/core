@@ -60,6 +60,13 @@ func SeedCatalog(r Repository, defaultPassword string) error {
 		Name: "windows-server-2022", DisplayName: "Windows Server 2022 Eval",
 		Image: "windows-server-2022-eval", OSType: "windows", SourceType: "iso", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
 	})
+	// VKS worker node image (image-factory). Pin by digest; bump when CI republishes.
+	ensureTemplate(r, platform.VMTemplate{
+		Name: "ubuntu-node-1-36-5", DisplayName: "Ubuntu Node (K8s 1.36.5)",
+		Image: "ghcr.io/virtfoundry/node-ubuntu:1.36.5@sha256:f7aeb6ee99dfebac922d3c64d443dd01e961deb1eff3446389bd4cd014b2d229",
+		OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
+		CloudInitUserData: ubuntuDefaultUserData(defaultPassword),
+	})
 	// Strip the historical insecure default (password: ubuntu) from ubuntu-2204
 	// templates. Only re-seed password user-data when the operator explicitly
 	// configured VIRTFOUNDRY_VM_DEFAULT_PASSWORD / vm.default_password.

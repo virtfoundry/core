@@ -10,6 +10,7 @@ func TestValidateContainerDiskImage_AllowsDefaults(t *testing.T) {
 		"quay.io/kubevirt/cirros-container-disk-demo",
 		"quay.io/containerdisks/ubuntu:22.04",
 		"quay.io/containerdisks/fedora:40",
+		"ghcr.io/virtfoundry/node-ubuntu:1.36.5@sha256:deadbeef",
 	} {
 		if err := ValidateContainerDiskImage(img, nil); err != nil {
 			t.Fatalf("%q: %v", img, err)
@@ -84,7 +85,7 @@ func TestEffectiveContainerImagePrefixes_OverrideBeatsEnv(t *testing.T) {
 func TestBootstrapContainerImageAllowlist_Defaults(t *testing.T) {
 	t.Setenv(EnvAllowedContainerImagePrefixes, "")
 	got := BootstrapContainerImageAllowlist(nil)
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("got %#v", got)
 	}
 }

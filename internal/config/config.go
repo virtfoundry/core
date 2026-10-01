@@ -115,7 +115,8 @@ type SecurityConfig struct {
 	// ISOImport restricts where CDI may download tenant-supplied ISO URLs from.
 	ISOImport ISOImportConfig `mapstructure:"iso_import"`
 	// ContainerImageAllowlist restricts ContainerDisk image refs on DeployVM.
-	// Empty keeps built-in defaults (quay.io/containerdisks/, quay.io/kubevirt/).
+	// Empty keeps built-in defaults (quay.io/containerdisks/, quay.io/kubevirt/,
+	// ghcr.io/virtfoundry/).
 	ContainerImageAllowlist ContainerImageAllowlistConfig `mapstructure:"container_image_allowlist"`
 }
 
