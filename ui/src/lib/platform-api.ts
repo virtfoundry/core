@@ -127,9 +127,11 @@ export interface SSHKeyPair {
   id: string;
   tenant_id: string;
   name: string;
+  /** Public OpenSSH authorized_keys line — safe to list/display. */
   public_key: string;
   fingerprint: string;
   created_at?: string;
+  // private_key_pem is intentionally absent: only returned once on createSSHKey().
 }
 
 export interface VMSSHInfo {
@@ -451,6 +453,7 @@ export async function listSSHKeys() {
 }
 
 export async function createSSHKey(data: { name: string }) {
+  // private_key_pem is one-shot (API key secret pattern); never available on list/get.
   return platformFetch<{ key: SSHKeyPair; private_key_pem: string }>('/ssh-keys', {
     method: 'POST',
     body: JSON.stringify(data),
