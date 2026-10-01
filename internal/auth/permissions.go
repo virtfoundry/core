@@ -30,6 +30,10 @@ const (
 
 	PermSSHKeysRead  = "ssh_keys:read"
 	PermSSHKeysWrite = "ssh_keys:write"
+
+	PermVKSRead       = "vks:read"
+	PermVKSWrite      = "vks:write"
+	PermVKSKubeconfig = "vks:kubeconfig"
 )
 
 // TenantAdminPermissions is the default set for tenant.admin.
@@ -41,6 +45,7 @@ var TenantAdminPermissions = []string{
 	PermVolumesRead, PermVolumesWrite,
 	PermVMsRead, PermVMsWrite, PermVMsConsole,
 	PermSSHKeysRead, PermSSHKeysWrite,
+	PermVKSRead, PermVKSWrite, PermVKSKubeconfig,
 }
 
 // TenantOperatorPermissions for tenant.operator.
@@ -51,12 +56,14 @@ var TenantOperatorPermissions = []string{
 	PermVolumesRead, PermVolumesWrite,
 	PermVMsRead, PermVMsWrite, PermVMsConsole,
 	PermSSHKeysRead, PermSSHKeysWrite,
+	PermVKSRead, PermVKSWrite, PermVKSKubeconfig,
 }
 
 // TenantViewerPermissions for tenant.viewer.
 var TenantViewerPermissions = []string{
 	PermVPCsRead, PermNetworksRead, PermSecurityGroupsRead,
 	PermVolumesRead, PermVMsRead, PermSSHKeysRead,
+	PermVKSRead,
 }
 
 // HasPermission checks actor permissions including wildcard and *:read for viewers.

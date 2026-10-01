@@ -711,3 +711,81 @@ export async function globalSearch(q: string) {
 export async function listNotifications() {
   return platformFetch<{ notifications: NotificationItem[] }>('/notifications');
 }
+
+export interface VKSCluster {
+  name: string;
+  tenant_id: string;
+  namespace: string;
+  kubernetes_version: string;
+  control_plane?: {
+    service_type?: string;
+    address?: string;
+    port?: number;
+  };
+  workers: {
+    count: number;
+    template_ref: { name: string };
+    offering_ref: { name: string };
+    network_ref: { name: string };
+    ssh_key_refs?: Array<{ name: string }>;
+  };
+  phase?: string;
+  control_plane_endpoint?: string;
+  ready_workers?: number;
+  kubeconfig_secret_ref?: string;
+}
+
+export interface CreateVKSClusterInput {
+  name: string;
+  kubernetes_version: string;
+  control_plane?: {
+    service_type?: string;
+    address?: string;
+    port?: number;
+  };
+  workers: {
+    count: number;
+    template_ref: { name: string };
+    offering_ref: { name: string };
+    network_ref: { name: string };
+    ssh_key_refs?: Array<{ name: string }>;
+  };
+}
+
+export async function listVKSClusters() {
+  const res = await platformFetch<{ clusters: VKSCluster[] | null }>('/vks/clusters');
+  return { clusters: res.clusters ?? [] };
+}
+
+export async function createVKSCluster(data: CreateVKSClusterInput) {
+  return platformFetch<{ cluster: VKSCluster }>('/vks/clusters', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteVKSCluster(name: string) {
+  return platformFetch<{ status: string }>(`/vks/clusters/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Downloads admin kubeconfig YAML (not JSON). */
+export async function downloadVKSKubeconfig(name: string): Promise<Blob> {
+  const token = getToken();
+  const tenantId = getTenantId();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (tenantId) headers['X-Tenant-ID'] = tenantId;
+  const res = await fetch(`${API_BASE}/vks/clusters/${encodeURIComponent(name)}/kubeconfig`, { headers });
+  if (res.status === 401) {
+    dispatchUnauthorized();
+    throw new Error('Session expired');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error || res.statusText);
+  }
+  return res.blob();
+}
+

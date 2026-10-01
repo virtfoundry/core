@@ -25,6 +25,7 @@ var resourcePermMap = map[string]string{
 	"ssh-keys":          "ssh_keys",
 	"service-offerings": "vms",
 	"auth":              "users",
+	"vks":               "vks",
 }
 
 // routes that aggregate multiple resources; authz is enforced inside handlers

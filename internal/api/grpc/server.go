@@ -7,6 +7,7 @@ import (
 
 	"github.com/soheilhy/cmux"
 	iaasv1alpha1 "github.com/virtfoundry/core/api/gen/virtfoundry/iaas/v1alpha1"
+	vksv1alpha1 "github.com/virtfoundry/core/api/gen/virtfoundry/vks/v1alpha1"
 	"github.com/virtfoundry/core/internal/api/ws"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -19,6 +20,8 @@ type DualStackOptions struct {
 	HTTP    *http.Server
 	Auth    AuthDeps
 	Backend InstanceBackend
+	// Clusters backs the canonical VKS ClusterService. Optional until wired.
+	Clusters ClusterBackend
 	// Hub backs WatchInstances (same as /ws/events). Optional for tests.
 	Hub *ws.Hub
 	Log *zap.Logger
@@ -42,12 +45,12 @@ func ServeDualStack(opts DualStackOptions) error {
 	grpcL := mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	httpL := mux.Match(cmux.Any())
 
-	gs := NewGRPCServer(opts.Auth, opts.Backend, opts.Hub)
+	gs := NewGRPCServer(opts.Auth, opts.Backend, opts.Clusters, opts.Hub)
 	hs := opts.HTTP
 
 	errCh := make(chan error, 2)
 	go func() {
-		log.Info("grpc spike listening (cmux HTTP/2)")
+		log.Info("grpc listening (cmux HTTP/2)")
 		if err := gs.Serve(grpcL); err != nil {
 			errCh <- fmt.Errorf("grpc: %w", err)
 		}
@@ -72,12 +75,15 @@ func ServeDualStack(opts DualStackOptions) error {
 	}
 }
 
-// NewGRPCServer builds a gRPC server with auth interceptors and InstanceService.
-func NewGRPCServer(auth AuthDeps, backend InstanceBackend, hub *ws.Hub) *grpc.Server {
+// NewGRPCServer builds a gRPC server with auth interceptors, InstanceService, and ClusterService.
+func NewGRPCServer(auth AuthDeps, backend InstanceBackend, clusters ClusterBackend, hub *ws.Hub) *grpc.Server {
 	gs := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.UnaryAuth),
 		grpc.StreamInterceptor(auth.StreamAuth),
 	)
 	iaasv1alpha1.RegisterInstanceServiceServer(gs, &InstanceServer{Backend: backend, Hub: hub})
+	if clusters != nil {
+		vksv1alpha1.RegisterClusterServiceServer(gs, &ClusterServer{Backend: clusters})
+	}
 	return gs
 }

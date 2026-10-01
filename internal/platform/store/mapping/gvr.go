@@ -38,4 +38,5 @@ var (
 	IPAddressGVR         = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "ipaddresses"}
 	APIKeyGVR            = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "apikeys"}
 	SSHKeyGVR            = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "sshkeys"}
+	VKSClusterGVR        = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "vksclusters"}
 )

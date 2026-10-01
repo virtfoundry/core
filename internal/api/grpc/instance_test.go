@@ -49,7 +49,7 @@ func (f *fakeBackend) GetVM(ctx context.Context, tenantID, name string) (*platfo
 func startTestServer(t *testing.T, authDeps vfgrpc.AuthDeps, backend vfgrpc.InstanceBackend, hub *ws.Hub) iaasv1alpha1.InstanceServiceClient {
 	t.Helper()
 	lis := bufconn.Listen(bufSize)
-	gs := vfgrpc.NewGRPCServer(authDeps, backend, hub)
+	gs := vfgrpc.NewGRPCServer(authDeps, backend, nil, hub)
 	go func() {
 		_ = gs.Serve(lis)
 	}()
