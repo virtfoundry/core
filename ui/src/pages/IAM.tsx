@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Key, Users, Shield, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, Key, Users, Shield, Copy, Check, AlertCircle } from 'lucide-react';
 import {
   listIAMUsers, createIAMUser, deleteIAMUser,
   listIAMRoles,
@@ -13,6 +13,7 @@ import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
   PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -30,7 +31,7 @@ export function IAM() {
   const [userModal, setUserModal] = useState(false);
   const [keyModal, setKeyModal] = useState(false);
   const [secretModal, setSecretModal] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { state: copyState, copy: copyToClipboard, reset: resetCopy } = useCopyToClipboard();
   const [deleteUser, setDeleteUser] = useState<{ id: string; name: string } | null>(null);
   const [userForm, setUserForm] = useState({ username: '', password: '', email: '', role_name: 'tenant.operator' });
   const [keyForm, setKeyForm] = useState({ name: '', expires_in_days: 90 });
@@ -69,18 +70,16 @@ export function IAM() {
   });
   const createKeyMut = useMutation({
     mutationFn: createIAMAPIKey,
-    onSuccess: (res) => { inv(); setKeyModal(false); setSecretModal(res.secret); setCopied(false); },
+    onSuccess: (res) => { inv(); setKeyModal(false); setSecretModal(res.secret); resetCopy(); },
   });
   const revokeKeyMut = useMutation({
     mutationFn: revokeIAMAPIKey,
     onSuccess: inv,
   });
 
-  const handleCopySecret = async () => {
+  const handleCopySecret = () => {
     if (!secretModal) return;
-    await navigator.clipboard.writeText(secretModal);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyToClipboard(secretModal);
   };
 
   if (needsTenant) {
@@ -287,8 +286,18 @@ export function IAM() {
           </pre>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={handleCopySecret} className="btn-primary">
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? t('ssh.copied') : t('ssh.copy')}
+              {copyState === 'copied' ? (
+                <Check size={16} />
+              ) : copyState === 'error' ? (
+                <AlertCircle size={16} />
+              ) : (
+                <Copy size={16} />
+              )}
+              {copyState === 'copied'
+                ? t('ssh.copied')
+                : copyState === 'error'
+                  ? t('common.copyError')
+                  : t('ssh.copy')}
             </button>
             <button type="button" onClick={() => setSecretModal(null)} className="btn-secondary">
               {t('common.cancel')}
