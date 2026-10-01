@@ -158,10 +158,15 @@ func (s *InstanceServer) mapHubEvent(ctx context.Context, tenantID string, ev ws
 	}
 
 	inst := &iaasv1alpha1.Instance{
-		Id:       payload.ID,
-		TenantId: tenantID,
-		Name:     payload.Name,
-		State:    payload.State,
+		Id:         payload.ID,
+		TenantId:   tenantID,
+		Name:       payload.Name,
+		State:      payload.State,
+		PowerState: payload.PowerState,
+		Ip:         payload.IP,
+	}
+	if payload.TenantID != "" {
+		inst.TenantId = payload.TenantID
 	}
 	if eventType != "DELETED" && s.Backend != nil {
 		if vm, err := s.Backend.GetVM(ctx, tenantID, payload.Name); err == nil && vm != nil {
@@ -188,9 +193,12 @@ func watchEventType(hubType string) (string, bool) {
 }
 
 type vmEventPayload struct {
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name"`
-	State string `json:"state,omitempty"`
+	ID         string `json:"id,omitempty"`
+	Name       string `json:"name"`
+	State      string `json:"state,omitempty"`
+	PowerState string `json:"power_state,omitempty"`
+	IP         string `json:"ip,omitempty"`
+	TenantID   string `json:"tenant_id,omitempty"`
 }
 
 func parseVMEventPayload(payload interface{}) vmEventPayload {
