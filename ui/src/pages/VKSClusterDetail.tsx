@@ -43,7 +43,12 @@ export function VKSClusterDetail() {
 
   const cluster = data?.cluster;
 
-  const { data: vmsData, isLoading: vmsLoading } = useQuery({
+  const {
+    data: vmsData,
+    isLoading: vmsLoading,
+    isError: vmsIsError,
+    error: vmsError,
+  } = useQuery({
     queryKey: queryKeys.vms,
     queryFn: listVMs,
     enabled: !needsTenant && !!name && tab === 'nodes',
@@ -285,6 +290,10 @@ export function VKSClusterDetail() {
               </div>
               {vmsLoading ? (
                 <p className="px-6 py-8 text-sm text-on-surface-variant">{t('common.loading')}</p>
+              ) : vmsIsError ? (
+                <p className="px-6 py-8 text-sm text-error">
+                  {t('common.errorLoad')}: {(vmsError as Error)?.message}
+                </p>
               ) : workerVMs.length === 0 ? (
                 <p className="px-6 py-8 text-sm text-on-surface-variant">{t('vks.detail.noWorkers')}</p>
               ) : (
@@ -311,7 +320,7 @@ export function VKSClusterDetail() {
                             </Link>
                           </PageTableTd>
                           <PageTableTd>
-                            <StatusBadge status={displayState.toLowerCase()} pulse={false} />
+                            <StatusBadge status={(displayState || 'inactive').toLowerCase()} pulse={false} />
                           </PageTableTd>
                           <PageTableTd className="font-mono text-sm">{offering}</PageTableTd>
                           <PageTableTd className="font-mono text-sm">{ip}</PageTableTd>
