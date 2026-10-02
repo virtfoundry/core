@@ -49,8 +49,8 @@ func TestBuildSummaryFromClient(t *testing.T) {
 			{Name: "empty", PodCount: 0},
 			{Name: "kube-system", PodCount: 2},
 		},
-		Pods: PodTotals{Running: 2, Pending: 1, Failed: 1, Other: 1},
-		Nodes: []GuestNode{
+		PodTotals: PodTotals{Running: 2, Pending: 1, Failed: 1, Other: 1},
+		GuestNodes: []GuestNode{
 			{Name: "w1", Ready: true},
 			{Name: "w2", Ready: false},
 			{Name: "w3", Ready: false},
@@ -66,7 +66,7 @@ func TestBuildSummaryFromClientEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Namespaces == nil || got.Nodes == nil || len(got.Namespaces) != 0 || len(got.Nodes) != 0 {
+	if got.Namespaces == nil || got.GuestNodes == nil || len(got.Namespaces) != 0 || len(got.GuestNodes) != 0 {
 		t.Fatalf("want empty non-nil slices, got %+v", got)
 	}
 }

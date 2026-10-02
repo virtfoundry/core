@@ -55,8 +55,9 @@ type CreateInput struct {
 // Summary is the guest-cluster overview (namespaces, pods, nodes) for the console.
 type Summary struct {
 	Namespaces []NamespaceSummary `json:"namespaces"`
-	Pods       PodTotals          `json:"pods"`
-	Nodes      []GuestNode        `json:"nodes"`
+	PodTotals  PodTotals          `json:"pod_totals"`
+	GuestNodes []GuestNode        `json:"guest_nodes"`
+	Message    string             `json:"message,omitempty"`
 }
 
 // NamespaceSummary is a guest namespace with its pod count.

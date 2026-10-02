@@ -75,8 +75,8 @@ func buildSummaryFromClient(ctx context.Context, cs kubernetes.Interface) (*Summ
 
 	out := &Summary{
 		Namespaces: make([]NamespaceSummary, 0, len(nsList.Items)),
-		Pods:       totals,
-		Nodes:      make([]GuestNode, 0, len(nodeList.Items)),
+		PodTotals:  totals,
+		GuestNodes: make([]GuestNode, 0, len(nodeList.Items)),
 	}
 	for i := range nsList.Items {
 		n := nsList.Items[i].Name
@@ -86,9 +86,9 @@ func buildSummaryFromClient(ctx context.Context, cs kubernetes.Interface) (*Summ
 
 	for i := range nodeList.Items {
 		node := &nodeList.Items[i]
-		out.Nodes = append(out.Nodes, GuestNode{Name: node.Name, Ready: nodeReady(node)})
+		out.GuestNodes = append(out.GuestNodes, GuestNode{Name: node.Name, Ready: nodeReady(node)})
 	}
-	sort.Slice(out.Nodes, func(i, j int) bool { return out.Nodes[i].Name < out.Nodes[j].Name })
+	sort.Slice(out.GuestNodes, func(i, j int) bool { return out.GuestNodes[i].Name < out.GuestNodes[j].Name })
 	return out, nil
 }
 
