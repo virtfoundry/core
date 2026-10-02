@@ -63,7 +63,7 @@ func SeedCatalog(r Repository, defaultPassword string) error {
 	// VKS worker node image (image-factory). Pin by digest; bump when CI republishes.
 	ensureTemplate(r, platform.VMTemplate{
 		Name: "ubuntu-node-1-36-5", DisplayName: "Ubuntu Node (K8s 1.36.5)",
-		Image: "ghcr.io/virtfoundry/node-ubuntu:1.36.5@sha256:f7aeb6ee99dfebac922d3c64d443dd01e961deb1eff3446389bd4cd014b2d229",
+		Image: "ghcr.io/virtfoundry/node-ubuntu:1.36.5@sha256:0189707919212fe3a104d64fa31b88d1752c39eb94c3044bce1a3242da8a0c02",
 		OSType: "linux", SourceType: "container", Hypervisor: "KubeVirt", State: "Active", CreatedAt: now,
 		CloudInitUserData: ubuntuDefaultUserData(defaultPassword),
 	})
