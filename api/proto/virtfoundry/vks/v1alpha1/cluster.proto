@@ -39,6 +39,19 @@ message Cluster {
   string control_plane_endpoint = 8;
   int32 ready_workers = 9;
   string kubeconfig_secret_ref = 10;
+  string tcp_namespace = 11;
+  string tcp_name = 12;
+  // RFC3339 creation timestamp from the CR.
+  string created_at = 13;
+  repeated Condition conditions = 14;
+}
+
+// Condition mirrors Kubernetes metav1.Condition for console status.
+message Condition {
+  string type = 1;
+  string status = 2;
+  string reason = 3;
+  string message = 4;
 }
 
 message ListClustersRequest {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"time"
 
 	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform/store"
@@ -227,8 +228,29 @@ func fromUnstructured(tenantID string, obj *unstructured.Unstructured) Cluster {
 	c.Phase, _, _ = unstructured.NestedString(obj.Object, "status", "phase")
 	c.ControlPlaneEndpoint, _, _ = unstructured.NestedString(obj.Object, "status", "controlPlaneEndpoint")
 	c.KubeconfigSecretRef, _, _ = unstructured.NestedString(obj.Object, "status", "kubeconfigSecretRef")
+	c.TCPNamespace, _, _ = unstructured.NestedString(obj.Object, "status", "tcpNamespace")
+	c.TCPName, _, _ = unstructured.NestedString(obj.Object, "status", "tcpName")
 	if rw, ok, _ := unstructured.NestedInt64(obj.Object, "status", "readyWorkers"); ok {
 		c.ReadyWorkers = int32(rw)
+	}
+	if t := obj.GetCreationTimestamp(); !t.IsZero() {
+		c.CreatedAt = t.UTC().Format(time.RFC3339)
+	}
+	if conds, ok, _ := unstructured.NestedSlice(obj.Object, "status", "conditions"); ok {
+		for _, item := range conds {
+			m, _ := item.(map[string]interface{})
+			if m == nil {
+				continue
+			}
+			cond := Condition{}
+			cond.Type, _ = m["type"].(string)
+			cond.Status, _ = m["status"].(string)
+			cond.Reason, _ = m["reason"].(string)
+			cond.Message, _ = m["message"].(string)
+			if cond.Type != "" {
+				c.Conditions = append(c.Conditions, cond)
+			}
+		}
 	}
 	return c
 }

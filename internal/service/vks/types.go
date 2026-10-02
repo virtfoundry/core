@@ -12,6 +12,18 @@ type Cluster struct {
 	ControlPlaneEndpoint string           `json:"control_plane_endpoint,omitempty"`
 	ReadyWorkers         int32            `json:"ready_workers,omitempty"`
 	KubeconfigSecretRef  string           `json:"kubeconfig_secret_ref,omitempty"`
+	TCPNamespace         string           `json:"tcp_namespace,omitempty"`
+	TCPName              string           `json:"tcp_name,omitempty"`
+	CreatedAt            string           `json:"created_at,omitempty"`
+	Conditions           []Condition      `json:"conditions,omitempty"`
+}
+
+// Condition mirrors metav1.Condition for the console (GKE-style status).
+type Condition struct {
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type ControlPlaneSpec struct {
@@ -25,10 +37,10 @@ type LocalObjectRef struct {
 }
 
 type WorkersSpec struct {
-	Count       int32           `json:"count"`
-	TemplateRef LocalObjectRef  `json:"template_ref"`
-	OfferingRef LocalObjectRef  `json:"offering_ref"`
-	NetworkRef  LocalObjectRef  `json:"network_ref"`
+	Count       int32            `json:"count"`
+	TemplateRef LocalObjectRef   `json:"template_ref"`
+	OfferingRef LocalObjectRef   `json:"offering_ref"`
+	NetworkRef  LocalObjectRef   `json:"network_ref"`
 	SSHKeyRefs  []LocalObjectRef `json:"ssh_key_refs,omitempty"`
 }
 
