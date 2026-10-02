@@ -229,6 +229,9 @@ func toProtoCluster(c *vkssvc.Cluster) *vksv1alpha1.Cluster {
 		ControlPlaneEndpoint: c.ControlPlaneEndpoint,
 		ReadyWorkers:         c.ReadyWorkers,
 		KubeconfigSecretRef:  c.KubeconfigSecretRef,
+		TcpNamespace:         c.TCPNamespace,
+		TcpName:              c.TCPName,
+		CreatedAt:            c.CreatedAt,
 		ControlPlane: &vksv1alpha1.ControlPlaneSpec{
 			ServiceType: c.ControlPlane.ServiceType,
 			Address:     c.ControlPlane.Address,
@@ -243,6 +246,14 @@ func toProtoCluster(c *vkssvc.Cluster) *vksv1alpha1.Cluster {
 	}
 	for _, r := range c.Workers.SSHKeyRefs {
 		out.Workers.SshKeyRefs = append(out.Workers.SshKeyRefs, &vksv1alpha1.LocalObjectRef{Name: r.Name})
+	}
+	for _, cond := range c.Conditions {
+		out.Conditions = append(out.Conditions, &vksv1alpha1.Condition{
+			Type:    cond.Type,
+			Status:  cond.Status,
+			Reason:  cond.Reason,
+			Message: cond.Message,
+		})
 	}
 	return out
 }

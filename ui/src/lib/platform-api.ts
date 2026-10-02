@@ -712,6 +712,13 @@ export async function listNotifications() {
   return platformFetch<{ notifications: NotificationItem[] }>('/notifications');
 }
 
+export interface VKSCondition {
+  type: string;
+  status: string;
+  reason?: string;
+  message?: string;
+}
+
 export interface VKSCluster {
   name: string;
   tenant_id: string;
@@ -733,6 +740,10 @@ export interface VKSCluster {
   control_plane_endpoint?: string;
   ready_workers?: number;
   kubeconfig_secret_ref?: string;
+  tcp_namespace?: string;
+  tcp_name?: string;
+  created_at?: string;
+  conditions?: VKSCondition[];
 }
 
 export interface CreateVKSClusterInput {
@@ -755,6 +766,10 @@ export interface CreateVKSClusterInput {
 export async function listVKSClusters() {
   const res = await platformFetch<{ clusters: VKSCluster[] | null }>('/vks/clusters');
   return { clusters: res.clusters ?? [] };
+}
+
+export async function getVKSCluster(name: string) {
+  return platformFetch<{ cluster: VKSCluster }>(`/vks/clusters/${encodeURIComponent(name)}`);
 }
 
 export async function createVKSCluster(data: CreateVKSClusterInput) {

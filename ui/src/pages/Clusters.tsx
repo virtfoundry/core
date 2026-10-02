@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Download } from 'lucide-react';
 import {
@@ -8,9 +9,13 @@ import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
+import { StatusBadge } from '../components/StatusBadge';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import {
+  vksCanDownloadKubeconfig, vksNodesLabel, vksPhaseBadgeStatus,
+} from '../lib/vks-display';
 import {
   PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -23,6 +28,7 @@ const DEFAULTS = {
   offering: 'medium',
   network: 'default',
   workers: 1,
+  port: '' as string,
 };
 
 export function Clusters() {
@@ -36,6 +42,7 @@ export function Clusters() {
     template: DEFAULTS.template,
     offering: DEFAULTS.offering,
     network: DEFAULTS.network,
+    port: DEFAULTS.port,
   });
   const [deleteTarget, setDeleteTarget] = useState<{ name: string } | null>(null);
   const queryClient = useQueryClient();
@@ -48,21 +55,26 @@ export function Clusters() {
     refetchInterval: 10_000,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.vksClusters });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.vksClusters });
+  };
+
+  const resetForm = () => setForm({
+    name: '',
+    kubernetes_version: DEFAULTS.kubernetes_version,
+    workers: DEFAULTS.workers,
+    template: DEFAULTS.template,
+    offering: DEFAULTS.offering,
+    network: DEFAULTS.network,
+    port: DEFAULTS.port,
+  });
 
   const createMutation = useMutation({
     mutationFn: createVKSCluster,
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
-      setForm({
-        name: '',
-        kubernetes_version: DEFAULTS.kubernetes_version,
-        workers: DEFAULTS.workers,
-        template: DEFAULTS.template,
-        offering: DEFAULTS.offering,
-        network: DEFAULTS.network,
-      });
+      resetForm();
     },
   });
 
@@ -87,16 +99,25 @@ export function Clusters() {
   });
 
   const clusters = data?.clusters || [];
-  const filtered = clusters.filter((c) =>
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.phase?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = clusters.filter((c) => {
+    const q = search.toLowerCase();
+    return (
+      c.name?.toLowerCase().includes(q) ||
+      c.phase?.toLowerCase().includes(q) ||
+      c.kubernetes_version?.toLowerCase().includes(q) ||
+      c.workers?.network_ref?.name?.toLowerCase().includes(q)
+    );
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const port = form.port.trim() ? Number(form.port) : undefined;
     createMutation.mutate({
       name: form.name,
       kubernetes_version: form.kubernetes_version,
+      control_plane: port
+        ? { service_type: 'NodePort', port }
+        : undefined,
       workers: {
         count: form.workers,
         template_ref: { name: form.template },
@@ -129,9 +150,13 @@ export function Clusters() {
 
       <SurfaceCard>
         <div className="mb-4">
-          <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
+          <SearchField
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`${t('common.search')}...`}
+          />
         </div>
-        <RefreshingPanel refreshing={isFetching && !isLoading} updatedAt={dataUpdatedAt}>
+        <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
           {isLoading ? (
             <p className="text-sm text-on-surface-variant">{t('common.loading')}</p>
           ) : filtered.length === 0 ? (
@@ -140,26 +165,47 @@ export function Clusters() {
             <PageTable>
               <PageTableHead>
                 <PageTableTh>{t('vks.col.name')}</PageTableTh>
-                <PageTableTh>{t('vks.col.phase')}</PageTableTh>
-                <PageTableTh>{t('vks.col.endpoint')}</PageTableTh>
-                <PageTableTh>{t('vks.col.workers')}</PageTableTh>
+                <PageTableTh>{t('vks.col.status')}</PageTableTh>
+                <PageTableTh>{t('vks.col.version')}</PageTableTh>
+                <PageTableTh>{t('vks.col.location')}</PageTableTh>
+                <PageTableTh>{t('vks.col.nodes')}</PageTableTh>
+                <PageTableTh>{t('vks.col.machineType')}</PageTableTh>
+                <PageTableTh>{t('vks.col.network')}</PageTableTh>
                 <PageTableTh>{t('vks.col.actions')}</PageTableTh>
               </PageTableHead>
               <PageTableBody>
                 {filtered.map((c) => (
                   <PageTableRow key={c.name}>
-                    <PageTableTd className="font-mono">{c.name}</PageTableTd>
-                    <PageTableTd>{c.phase || '—'}</PageTableTd>
-                    <PageTableTd className="font-mono text-sm">{c.control_plane_endpoint || '—'}</PageTableTd>
                     <PageTableTd>
-                      {c.ready_workers ?? 0}/{c.workers?.count ?? 0}
+                      <Link
+                        to={`/clusters/${encodeURIComponent(c.name)}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                    </PageTableTd>
+                    <PageTableTd>
+                      <StatusBadge status={vksPhaseBadgeStatus(c.phase)} />
+                    </PageTableTd>
+                    <PageTableTd className="font-mono text-sm">{c.kubernetes_version || '—'}</PageTableTd>
+                    <PageTableTd className="font-mono text-sm">
+                      {c.control_plane_endpoint || '—'}
+                    </PageTableTd>
+                    <PageTableTd>
+                      {vksNodesLabel(c.ready_workers, c.workers?.count)}
+                    </PageTableTd>
+                    <PageTableTd className="font-mono text-sm">
+                      {c.workers?.offering_ref?.name || '—'}
+                    </PageTableTd>
+                    <PageTableTd className="font-mono text-sm">
+                      {c.workers?.network_ref?.name || '—'}
                     </PageTableTd>
                     <PageTableTd>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 text-sm text-primary disabled:opacity-40"
-                          disabled={c.phase !== 'Ready' && c.phase !== 'ControlPlaneReady'}
+                          disabled={!vksCanDownloadKubeconfig(c.phase) || downloadMutation.isPending}
                           onClick={() => downloadMutation.mutate(c.name)}
                           title={t('vks.downloadKubeconfig')}
                         >
@@ -241,6 +287,19 @@ export function Clusters() {
               value={form.network}
               onChange={(e) => setForm((f) => ({ ...f, network: e.target.value }))}
             />
+          </label>
+          <label className="block text-sm">
+            {t('vks.form.nodePort')}
+            <input
+              type="number"
+              min={30000}
+              max={32767}
+              className={formInputClass}
+              placeholder={t('vks.form.nodePortHint')}
+              value={form.port}
+              onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
+            />
+            <span className="mt-1 block text-xs text-on-surface-variant">{t('vks.form.nodePortHelp')}</span>
           </label>
           {createMutation.error && (
             <p className="text-sm text-error">{(createMutation.error as Error).message}</p>
