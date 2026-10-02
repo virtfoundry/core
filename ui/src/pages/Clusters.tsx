@@ -198,7 +198,7 @@ export function Clusters() {
       kubernetes_version: form.kubernetes_version,
       control_plane: port
         ? { service_type: 'NodePort', port }
-        : undefined,
+        : { service_type: 'LoadBalancer' },
       workers: {
         count: form.workers,
         template_ref: { name: form.template },
