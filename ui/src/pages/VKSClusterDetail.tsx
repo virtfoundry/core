@@ -489,7 +489,7 @@ export function VKSClusterDetail() {
                 <div>
                   <dt className="text-on-surface-variant">{t('vks.detail.serviceType')}</dt>
                   <dd className="text-on-surface">
-                    {cluster.control_plane?.service_type || 'NodePort'}
+                    {cluster.control_plane?.service_type || 'LoadBalancer'}
                   </dd>
                 </div>
                 <div>
