@@ -26,3 +26,7 @@ export function vksNodesLabel(ready?: number, desired?: number): string {
   const d = desired ?? 0;
   return `${r} / ${d}`;
 }
+
+export function isVKSWorkerVM(clusterName: string, vmName: string): boolean {
+  return vmName.startsWith(`${clusterName}-worker-`);
+}

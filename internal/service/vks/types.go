@@ -51,3 +51,31 @@ type CreateInput struct {
 	ControlPlane      ControlPlaneSpec
 	Workers           WorkersSpec
 }
+
+// Summary is the guest-cluster overview (namespaces, pods, nodes) for the console.
+type Summary struct {
+	Namespaces []NamespaceSummary `json:"namespaces"`
+	PodTotals  PodTotals          `json:"pod_totals"`
+	GuestNodes []GuestNode        `json:"guest_nodes"`
+	Message    string             `json:"message,omitempty"`
+}
+
+// NamespaceSummary is a guest namespace with its pod count.
+type NamespaceSummary struct {
+	Name     string `json:"name"`
+	PodCount int32  `json:"pod_count"`
+}
+
+// PodTotals aggregates pods across all guest namespaces by phase.
+type PodTotals struct {
+	Running int32 `json:"running"`
+	Pending int32 `json:"pending"`
+	Failed  int32 `json:"failed"`
+	Other   int32 `json:"other"`
+}
+
+// GuestNode is a guest cluster node and its Ready condition.
+type GuestNode struct {
+	Name  string `json:"name"`
+	Ready bool   `json:"ready"`
+}

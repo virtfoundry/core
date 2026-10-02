@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Download } from 'lucide-react';
 import {
   listVKSClusters, createVKSCluster, deleteVKSCluster, downloadVKSKubeconfig,
+  listNetworks, listSSHKeys, listVMTemplates, listServiceOfferings,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -16,34 +17,46 @@ import { useI18n } from '../lib/i18n';
 import {
   vksCanDownloadKubeconfig, vksNodesLabel, vksPhaseBadgeStatus,
 } from '../lib/vks-display';
+import { resolveVKSVersionOptions } from '../lib/vks-catalog';
+import { findOfferingByName, offeringLabel } from '../lib/offerings';
 import {
   PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
-  formInputClass, InfoBanner,
+  formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
 
-const DEFAULTS = {
-  kubernetes_version: 'v1.36.5',
-  template: 'ubuntu-node-1-36-5',
-  offering: 'medium',
-  network: 'default',
-  workers: 1,
-  port: '' as string,
+const DEFAULT_NETWORK = 'default';
+const DEFAULT_WORKERS = 1;
+
+type CreateFormState = {
+  name: string;
+  kubernetes_version: string;
+  template: string;
+  offering: string;
+  network: string;
+  workers: number;
+  port: string;
+  sshKeyNames: string[];
 };
+
+function emptyCreateForm(): CreateFormState {
+  return {
+    name: '',
+    kubernetes_version: '',
+    template: '',
+    offering: '',
+    network: DEFAULT_NETWORK,
+    workers: DEFAULT_WORKERS,
+    port: '',
+    sshKeyNames: [],
+  };
+}
 
 export function Clusters() {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    kubernetes_version: DEFAULTS.kubernetes_version,
-    workers: DEFAULTS.workers,
-    template: DEFAULTS.template,
-    offering: DEFAULTS.offering,
-    network: DEFAULTS.network,
-    port: DEFAULTS.port,
-  });
+  const [form, setForm] = useState<CreateFormState>(emptyCreateForm);
   const [deleteTarget, setDeleteTarget] = useState<{ name: string } | null>(null);
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
@@ -55,19 +68,86 @@ export function Clusters() {
     refetchInterval: 10_000,
   });
 
+  const catalogEnabled = !needsTenant;
+  const { data: networksData } = useQuery({
+    queryKey: queryKeys.networks,
+    queryFn: listNetworks,
+    enabled: catalogEnabled,
+  });
+  const { data: templatesData, isFetched: templatesFetched } = useQuery({
+    queryKey: queryKeys.templates,
+    queryFn: listVMTemplates,
+    enabled: catalogEnabled,
+  });
+  const { data: offeringsData } = useQuery({
+    queryKey: queryKeys.offerings,
+    queryFn: listServiceOfferings,
+    enabled: catalogEnabled,
+  });
+  const { data: sshData } = useQuery({
+    queryKey: queryKeys.sshKeys,
+    queryFn: listSSHKeys,
+    enabled: catalogEnabled,
+  });
+
+  const networkList = networksData?.networks;
+  const offeringList = offeringsData?.service_offerings;
+  const networks = networkList ?? [];
+  const offerings = offeringList ?? [];
+  const sshKeys = sshData?.ssh_keys ?? [];
+  const versionOptions = useMemo(
+    () => resolveVKSVersionOptions(templatesData?.vm_templates ?? []),
+    [templatesData?.vm_templates],
+  );
+  const canSubmitCreate =
+    templatesFetched &&
+    versionOptions.length > 0 &&
+    !!form.kubernetes_version &&
+    !!form.template &&
+    !!form.offering;
+
+  useEffect(() => {
+    if (!createModal) return;
+    setForm((f) => {
+      const next = { ...f };
+
+      if (versionOptions.length > 0) {
+        const match = versionOptions.find((v) => v.kubernetes_version === f.kubernetes_version);
+        if (!match) {
+          next.kubernetes_version = versionOptions[0].kubernetes_version;
+          next.template = versionOptions[0].template;
+        } else if (f.template !== match.template) {
+          next.template = match.template;
+        }
+      } else {
+        next.kubernetes_version = '';
+        next.template = '';
+      }
+
+      const nets = networkList ?? [];
+      if (nets.length > 0) {
+        if (!nets.some((n) => n.name === f.network)) {
+          next.network = nets[0].name;
+        }
+      } else {
+        next.network = DEFAULT_NETWORK;
+      }
+
+      const offs = offeringList ?? [];
+      if (offs.length > 0 && !offs.some((o) => o.name === f.offering)) {
+        const medium = findOfferingByName(offs, 'medium');
+        next.offering = medium?.name ?? offs[0].name;
+      }
+
+      return next;
+    });
+  }, [createModal, versionOptions, networkList, offeringList]);
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.vksClusters });
   };
 
-  const resetForm = () => setForm({
-    name: '',
-    kubernetes_version: DEFAULTS.kubernetes_version,
-    workers: DEFAULTS.workers,
-    template: DEFAULTS.template,
-    offering: DEFAULTS.offering,
-    network: DEFAULTS.network,
-    port: DEFAULTS.port,
-  });
+  const resetForm = () => setForm(emptyCreateForm());
 
   const createMutation = useMutation({
     mutationFn: createVKSCluster,
@@ -111,6 +191,7 @@ export function Clusters() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmitCreate) return;
     const port = form.port.trim() ? Number(form.port) : undefined;
     createMutation.mutate({
       name: form.name,
@@ -123,6 +204,9 @@ export function Clusters() {
         template_ref: { name: form.template },
         offering_ref: { name: form.offering },
         network_ref: { name: form.network },
+        ...(form.sshKeyNames.length > 0
+          ? { ssh_key_refs: form.sshKeyNames.map((name) => ({ name })) }
+          : {}),
       },
     });
   };
@@ -242,12 +326,37 @@ export function Clusters() {
           </label>
           <label className="block text-sm">
             {t('vks.form.version')}
-            <input
-              className={formInputClass}
+            <select
+              className={formSelectClass}
               required
+              disabled={!templatesFetched || versionOptions.length === 0}
               value={form.kubernetes_version}
-              onChange={(e) => setForm((f) => ({ ...f, kubernetes_version: e.target.value }))}
-            />
+              onChange={(e) => {
+                const opt = versionOptions.find((v) => v.kubernetes_version === e.target.value);
+                if (!opt) return;
+                setForm((f) => ({
+                  ...f,
+                  kubernetes_version: opt.kubernetes_version,
+                  template: opt.template,
+                }));
+              }}
+            >
+              {versionOptions.length === 0 ? (
+                <option value="">{t('vks.form.selectVersion')}</option>
+              ) : (
+                versionOptions.map((v) => (
+                  <option key={v.kubernetes_version} value={v.kubernetes_version}>
+                    {v.kubernetes_version}
+                  </option>
+                ))
+              )}
+            </select>
+            {templatesFetched && versionOptions.length === 0 && (
+              <span className="mt-1 block text-xs text-error">{t('vks.form.noNodeImage')}</span>
+            )}
+            {form.template && versionOptions.length > 0 && (
+              <span className="mt-1 block text-xs text-on-surface-variant font-mono">{form.template}</span>
+            )}
           </label>
           <label className="block text-sm">
             {t('vks.form.workers')}
@@ -262,32 +371,66 @@ export function Clusters() {
             />
           </label>
           <label className="block text-sm">
-            {t('vks.form.template')}
-            <input
-              className={formInputClass}
-              required
-              value={form.template}
-              onChange={(e) => setForm((f) => ({ ...f, template: e.target.value }))}
-            />
-          </label>
-          <label className="block text-sm">
             {t('vks.form.offering')}
-            <input
-              className={formInputClass}
+            <select
+              className={formSelectClass}
               required
+              disabled={offerings.length === 0}
               value={form.offering}
               onChange={(e) => setForm((f) => ({ ...f, offering: e.target.value }))}
-            />
+            >
+              {offerings.length === 0 ? (
+                <option value="">{t('vks.form.selectOffering')}</option>
+              ) : (
+                offerings.map((o) => (
+                  <option key={o.id} value={o.name}>{offeringLabel(o)}</option>
+                ))
+              )}
+            </select>
           </label>
           <label className="block text-sm">
             {t('vks.form.network')}
-            <input
-              className={formInputClass}
+            <select
+              className={formSelectClass}
               required
               value={form.network}
               onChange={(e) => setForm((f) => ({ ...f, network: e.target.value }))}
-            />
+            >
+              {networks.length === 0 ? (
+                <option value={DEFAULT_NETWORK}>{DEFAULT_NETWORK}</option>
+              ) : (
+                networks.map((n) => (
+                  <option key={n.id} value={n.name}>{n.name}</option>
+                ))
+              )}
+            </select>
           </label>
+          <fieldset className="block text-sm">
+            <legend className="mb-1">{t('vks.form.sshKeys')}</legend>
+            {sshKeys.length === 0 ? (
+              <p className="text-xs text-on-surface-variant">{t('vks.form.sshKeysEmpty')}</p>
+            ) : (
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-outline-variant p-2">
+                {sshKeys.map((k) => (
+                  <label key={k.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.sshKeyNames.includes(k.name)}
+                      onChange={(e) => {
+                        setForm((f) => ({
+                          ...f,
+                          sshKeyNames: e.target.checked
+                            ? [...f.sshKeyNames, k.name]
+                            : f.sshKeyNames.filter((n) => n !== k.name),
+                        }));
+                      }}
+                    />
+                    <span className="font-mono">{k.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
           <label className="block text-sm">
             {t('vks.form.nodePort')}
             <input
@@ -308,7 +451,11 @@ export function Clusters() {
             <button type="button" className="rounded-lg px-3 py-2 text-sm" onClick={() => setCreateModal(false)}>
               {t('common.cancel')}
             </button>
-            <button type="submit" disabled={createMutation.isPending} className="btn-primary disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={createMutation.isPending || !canSubmitCreate}
+              className="btn-primary disabled:opacity-50"
+            >
               {t('vks.create')}
             </button>
           </div>

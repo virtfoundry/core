@@ -92,6 +92,21 @@ func (h *VKSHandler) DeleteCluster(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "deleting"})
 }
 
+func (h *VKSHandler) GetClusterSummary(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	name := mux.Vars(r)["name"]
+	sum, err := h.vks.GetSummary(r.Context(), tid, name)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"summary": sum})
+}
+
 func (h *VKSHandler) GetKubeconfig(w http.ResponseWriter, r *http.Request) {
 	tid, err := h.tenantID(r)
 	if err != nil {

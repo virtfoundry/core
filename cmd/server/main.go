@@ -253,6 +253,7 @@ func main() {
 	protected.HandleFunc("/vks/clusters", vksHandler.ListClusters).Methods("GET")
 	protected.HandleFunc("/vks/clusters", vksHandler.CreateCluster).Methods("POST")
 	protected.HandleFunc("/vks/clusters/{name}", vksHandler.GetCluster).Methods("GET")
+	protected.HandleFunc("/vks/clusters/{name}/summary", vksHandler.GetClusterSummary).Methods("GET")
 	protected.HandleFunc("/vks/clusters/{name}", vksHandler.DeleteCluster).Methods("DELETE")
 	protected.HandleFunc("/vms/{name}/ssh", platformHandler.GetVMSSH).Methods("GET")
 	protected.HandleFunc("/vms/{name}/ssh", platformHandler.ExposeVMSSH).Methods("POST")
