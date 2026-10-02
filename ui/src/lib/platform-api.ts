@@ -746,6 +746,30 @@ export interface VKSCluster {
   conditions?: VKSCondition[];
 }
 
+export interface VKSNamespaceSummary {
+  name: string;
+  pod_count: number;
+}
+
+export interface VKSPodTotals {
+  running: number;
+  pending: number;
+  failed: number;
+  other: number;
+}
+
+export interface VKSGuestNode {
+  name: string;
+  ready: boolean;
+}
+
+export interface VKSClusterSummary {
+  namespaces?: VKSNamespaceSummary[];
+  pod_totals?: VKSPodTotals;
+  guest_nodes?: VKSGuestNode[];
+  message?: string;
+}
+
 export interface CreateVKSClusterInput {
   name: string;
   kubernetes_version: string;
@@ -770,6 +794,12 @@ export async function listVKSClusters() {
 
 export async function getVKSCluster(name: string) {
   return platformFetch<{ cluster: VKSCluster }>(`/vks/clusters/${encodeURIComponent(name)}`);
+}
+
+export async function getVKSClusterSummary(name: string) {
+  return platformFetch<{ summary: VKSClusterSummary }>(
+    `/vks/clusters/${encodeURIComponent(name)}/summary`,
+  );
 }
 
 export async function createVKSCluster(data: CreateVKSClusterInput) {

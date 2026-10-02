@@ -15,6 +15,7 @@ export const queryKeys = {
   sshKeys: ['platform-ssh-keys'] as const,
   vksClusters: ['platform-vks-clusters'] as const,
   vksCluster: (name: string) => ['platform-vks-cluster', name] as const,
+  vksClusterSummary: (name: string) => ['platform-vks-cluster-summary', name] as const,
   offerings: ['platform-offerings'] as const,
   allOfferings: ['platform-offerings', 'all'] as const,
   templates: ['platform-templates'] as const,
