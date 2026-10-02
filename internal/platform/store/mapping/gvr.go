@@ -1,6 +1,9 @@
 package mapping
 
-import "k8s.io/apimachinery/pkg/runtime/schema"
+import (
+	"github.com/virtfoundry/core/internal/platform/branding"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+)
 
 const (
 	Group   = "virtfoundry.io"
@@ -8,13 +11,13 @@ const (
 
 	SystemNamespace = "virtfoundry-system"
 
-	LabelPartOf = "app.kubernetes.io/part-of"
-	LabelSlug   = "virtfoundry.io/slug"
-	LabelRoleID = "virtfoundry.io/role-id"
-	LabelTenant = "virtfoundry.io/tenant"
+	LabelPartOf        = branding.LabelPartOf
+	LabelSlug          = "virtfoundry.io/slug"
+	LabelRoleID        = "virtfoundry.io/role-id"
+	LabelTenant        = branding.LabelTenant
 	LabelPlatformOwned = "virtfoundry.io/platform-owned"
 
-	PartOfValue = "virtfoundry"
+	PartOfValue = branding.PartOfValue
 
 	AnnRoleID = "virtfoundry.io/role-id"
 
@@ -23,20 +26,20 @@ const (
 )
 
 var (
-	TenantGVR            = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "tenants"}
-	UserGVR              = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "users"}
-	RoleGVR              = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "roles"}
-	VPCGVR               = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "vpcs"}
-	SecurityGroupGVR     = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "securitygroups"}
-	NetworkGVR           = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "networks"}
-	OfferingGVR          = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "offerings"}
-	TemplateGVR          = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "templates"}
-	InstanceGVR          = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "instances"}
-	DiskGVR              = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "disks"}
-	DiskSnapshotGVR      = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "disksnapshots"}
-	InstanceSnapshotGVR  = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "instancesnapshots"}
-	IPAddressGVR         = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "ipaddresses"}
-	APIKeyGVR            = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "apikeys"}
-	SSHKeyGVR            = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "sshkeys"}
-	VKSClusterGVR        = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "vksclusters"}
+	TenantGVR           = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "tenants"}
+	UserGVR             = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "users"}
+	RoleGVR             = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "roles"}
+	VPCGVR              = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "vpcs"}
+	SecurityGroupGVR    = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "securitygroups"}
+	NetworkGVR          = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "networks"}
+	OfferingGVR         = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "offerings"}
+	TemplateGVR         = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "templates"}
+	InstanceGVR         = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "instances"}
+	DiskGVR             = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "disks"}
+	DiskSnapshotGVR     = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "disksnapshots"}
+	InstanceSnapshotGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "instancesnapshots"}
+	IPAddressGVR        = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "ipaddresses"}
+	APIKeyGVR           = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "apikeys"}
+	SSHKeyGVR           = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "sshkeys"}
+	VKSClusterGVR       = schema.GroupVersionResource{Group: Group, Version: Version, Resource: "vksclusters"}
 )

@@ -8,20 +8,29 @@ const (
 
 	ManagedByValue = "virtfoundry"
 
-	LabelManagedBy    = Domain + "/managed-by"
-	LabelTenantID     = Domain + "/tenant-id"
-	LabelTenantSlug   = Domain + "/tenant-slug"
-	LabelVPCID        = Domain + "/vpc-id"
-	LabelVPCName      = Domain + "/vpc-name"
-	LabelCIDR         = Domain + "/cidr"
-	LabelNetworkRole  = Domain + "/network-role"
-	LabelSGID         = Domain + "/sg-id"
-	LabelSGName       = Domain + "/sg-name"
-	LabelSG           = Domain + "/sg"
-	LabelVM           = Domain + "/vm"
-	LabelOS           = Domain + "/os"
-	LabelLogSource    = Domain + "/log-source"
-	LabelVMSSH        = Domain + "/vm-ssh"
+	// LabelPartOf and LabelTenant are the ownership contract between the API and
+	// virtfoundry-operator for a tenant namespace: the operator refuses to adopt
+	// a namespace that does not carry both (assertTenantNamespaceOwned), so
+	// anything writing a virtfoundry-tenant-* namespace must stamp them.
+	// PartOfValue is the only value LabelPartOf ever takes.
+	LabelPartOf = "app.kubernetes.io/part-of"
+	PartOfValue = "virtfoundry"
+
+	LabelManagedBy   = Domain + "/managed-by"
+	LabelTenantID    = Domain + "/tenant-id"
+	LabelTenant      = Domain + "/tenant"
+	LabelTenantSlug  = Domain + "/tenant-slug"
+	LabelVPCID       = Domain + "/vpc-id"
+	LabelVPCName     = Domain + "/vpc-name"
+	LabelCIDR        = Domain + "/cidr"
+	LabelNetworkRole = Domain + "/network-role"
+	LabelSGID        = Domain + "/sg-id"
+	LabelSGName      = Domain + "/sg-name"
+	LabelSG          = Domain + "/sg"
+	LabelVM          = Domain + "/vm"
+	LabelOS          = Domain + "/os"
+	LabelLogSource   = Domain + "/log-source"
+	LabelVMSSH       = Domain + "/vm-ssh"
 
 	AppManagedByKey = "app.kubernetes.io/managed-by"
 
@@ -29,7 +38,7 @@ const (
 	TenantNamespacePrefix = "virtfoundry-tenant-"
 	VPCNamespacePrefix    = "virtfoundry-vpc-"
 
-	ResourceQuotaName  = "virtfoundry-quota"
+	ResourceQuotaName = "virtfoundry-quota"
 	// CDIImporterEgressPolicyName is the egress NetworkPolicy applied in each
 	// tenant namespace so CDI HTTP importer pods cannot reach RFC1918 / link-local
 	// / CGNAT destinations (defense in depth after the ISO URL allowlist).
@@ -37,15 +46,15 @@ const (
 	BridgeName                  = "virtfoundry-br0"
 	KubeVirtSecretName          = "virtfoundry-kubevirt"
 
-	DefaultRootPassword     = "virtfoundry"
-	DefaultTenantSlug       = "default"
-	DefaultTenantName       = "Default"
+	DefaultRootPassword      = "virtfoundry"
+	DefaultTenantSlug        = "default"
+	DefaultTenantName        = "Default"
 	DefaultSecurityGroupName = "default"
 	DefaultVPCName           = "default"
 	DefaultVPCCIDR           = "10.0.0.0/16"
-	ServiceName         = "virtfoundry-iaas"
-	EmailDomain         = "virtfoundry.local"
-	DBName              = "virtfoundry"
+	ServiceName              = "virtfoundry-iaas"
+	EmailDomain              = "virtfoundry.local"
+	DBName                   = "virtfoundry"
 
 	LogLabelVM     = "virtfoundry_vm"
 	LogLabelTenant = "virtfoundry_tenant"
