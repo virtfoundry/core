@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ClusterService_ListClusters_FullMethodName  = "/virtfoundry.vks.v1alpha1.ClusterService/ListClusters"
-	ClusterService_GetCluster_FullMethodName    = "/virtfoundry.vks.v1alpha1.ClusterService/GetCluster"
-	ClusterService_CreateCluster_FullMethodName = "/virtfoundry.vks.v1alpha1.ClusterService/CreateCluster"
-	ClusterService_DeleteCluster_FullMethodName = "/virtfoundry.vks.v1alpha1.ClusterService/DeleteCluster"
-	ClusterService_WatchClusters_FullMethodName = "/virtfoundry.vks.v1alpha1.ClusterService/WatchClusters"
-	ClusterService_GetKubeconfig_FullMethodName = "/virtfoundry.vks.v1alpha1.ClusterService/GetKubeconfig"
+	ClusterService_ListClusters_FullMethodName      = "/virtfoundry.vks.v1alpha1.ClusterService/ListClusters"
+	ClusterService_GetCluster_FullMethodName        = "/virtfoundry.vks.v1alpha1.ClusterService/GetCluster"
+	ClusterService_CreateCluster_FullMethodName     = "/virtfoundry.vks.v1alpha1.ClusterService/CreateCluster"
+	ClusterService_DeleteCluster_FullMethodName     = "/virtfoundry.vks.v1alpha1.ClusterService/DeleteCluster"
+	ClusterService_WatchClusters_FullMethodName     = "/virtfoundry.vks.v1alpha1.ClusterService/WatchClusters"
+	ClusterService_GetKubeconfig_FullMethodName     = "/virtfoundry.vks.v1alpha1.ClusterService/GetKubeconfig"
+	ClusterService_GetClusterSummary_FullMethodName = "/virtfoundry.vks.v1alpha1.ClusterService/GetClusterSummary"
 )
 
 // ClusterServiceClient is the client API for ClusterService service.
@@ -40,6 +41,7 @@ type ClusterServiceClient interface {
 	DeleteCluster(ctx context.Context, in *DeleteClusterRequest, opts ...grpc.CallOption) (*DeleteClusterResponse, error)
 	WatchClusters(ctx context.Context, in *WatchClustersRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchClustersResponse], error)
 	GetKubeconfig(ctx context.Context, in *GetKubeconfigRequest, opts ...grpc.CallOption) (*GetKubeconfigResponse, error)
+	GetClusterSummary(ctx context.Context, in *GetClusterSummaryRequest, opts ...grpc.CallOption) (*GetClusterSummaryResponse, error)
 }
 
 type clusterServiceClient struct {
@@ -119,6 +121,16 @@ func (c *clusterServiceClient) GetKubeconfig(ctx context.Context, in *GetKubecon
 	return out, nil
 }
 
+func (c *clusterServiceClient) GetClusterSummary(ctx context.Context, in *GetClusterSummaryRequest, opts ...grpc.CallOption) (*GetClusterSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetClusterSummaryResponse)
+	err := c.cc.Invoke(ctx, ClusterService_GetClusterSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ClusterServiceServer is the server API for ClusterService service.
 // All implementations must embed UnimplementedClusterServiceServer
 // for forward compatibility.
@@ -132,6 +144,7 @@ type ClusterServiceServer interface {
 	DeleteCluster(context.Context, *DeleteClusterRequest) (*DeleteClusterResponse, error)
 	WatchClusters(*WatchClustersRequest, grpc.ServerStreamingServer[WatchClustersResponse]) error
 	GetKubeconfig(context.Context, *GetKubeconfigRequest) (*GetKubeconfigResponse, error)
+	GetClusterSummary(context.Context, *GetClusterSummaryRequest) (*GetClusterSummaryResponse, error)
 	mustEmbedUnimplementedClusterServiceServer()
 }
 
@@ -159,6 +172,9 @@ func (UnimplementedClusterServiceServer) WatchClusters(*WatchClustersRequest, gr
 }
 func (UnimplementedClusterServiceServer) GetKubeconfig(context.Context, *GetKubeconfigRequest) (*GetKubeconfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetKubeconfig not implemented")
+}
+func (UnimplementedClusterServiceServer) GetClusterSummary(context.Context, *GetClusterSummaryRequest) (*GetClusterSummaryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClusterSummary not implemented")
 }
 func (UnimplementedClusterServiceServer) mustEmbedUnimplementedClusterServiceServer() {}
 func (UnimplementedClusterServiceServer) testEmbeddedByValue()                        {}
@@ -282,6 +298,24 @@ func _ClusterService_GetKubeconfig_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ClusterService_GetClusterSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClusterSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClusterServiceServer).GetClusterSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ClusterService_GetClusterSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClusterServiceServer).GetClusterSummary(ctx, req.(*GetClusterSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ClusterService_ServiceDesc is the grpc.ServiceDesc for ClusterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -308,6 +342,10 @@ var ClusterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetKubeconfig",
 			Handler:    _ClusterService_GetKubeconfig_Handler,
+		},
+		{
+			MethodName: "GetClusterSummary",
+			Handler:    _ClusterService_GetClusterSummary_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

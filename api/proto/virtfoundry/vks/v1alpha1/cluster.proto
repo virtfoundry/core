@@ -104,6 +104,39 @@ message GetKubeconfigResponse {
   bytes kubeconfig = 1;
 }
 
+message ClusterSummary {
+  repeated NamespaceSummary namespaces = 1;
+  PodTotals pod_totals = 2;
+  repeated GuestNode guest_nodes = 3;
+  // Optional soft warning (e.g. partial list failure).
+  string message = 4;
+}
+
+message NamespaceSummary {
+  string name = 1;
+  int32 pod_count = 2;
+}
+
+message PodTotals {
+  int32 running = 1;
+  int32 pending = 2;
+  int32 failed = 3;
+  int32 other = 4;
+}
+
+message GuestNode {
+  string name = 1;
+  bool ready = 2;
+}
+
+message GetClusterSummaryRequest {
+  string name = 1;
+}
+
+message GetClusterSummaryResponse {
+  ClusterSummary summary = 1;
+}
+
 // ClusterService is the canonical VKS API (gRPC). REST /api/v1/vks/* is a thin shim.
 // Auth: metadata authorization: Bearer + x-tenant-id (fail-closed). No ?token=.
 service ClusterService {
@@ -113,4 +146,5 @@ service ClusterService {
   rpc DeleteCluster(DeleteClusterRequest) returns (DeleteClusterResponse);
   rpc WatchClusters(WatchClustersRequest) returns (stream WatchClustersResponse);
   rpc GetKubeconfig(GetKubeconfigRequest) returns (GetKubeconfigResponse);
+  rpc GetClusterSummary(GetClusterSummaryRequest) returns (GetClusterSummaryResponse);
 }
