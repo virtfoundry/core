@@ -74,7 +74,7 @@ export function Clusters() {
     queryFn: listNetworks,
     enabled: catalogEnabled,
   });
-  const { data: templatesData } = useQuery({
+  const { data: templatesData, isFetched: templatesFetched } = useQuery({
     queryKey: queryKeys.templates,
     queryFn: listVMTemplates,
     enabled: catalogEnabled,
@@ -99,7 +99,12 @@ export function Clusters() {
     () => resolveVKSVersionOptions(templatesData?.vm_templates ?? []),
     [templatesData?.vm_templates],
   );
-  const canSubmitCreate = versionOptions.length > 0 && !!form.kubernetes_version && !!form.template;
+  const canSubmitCreate =
+    templatesFetched &&
+    versionOptions.length > 0 &&
+    !!form.kubernetes_version &&
+    !!form.template &&
+    !!form.offering;
 
   useEffect(() => {
     if (!createModal) return;
@@ -186,6 +191,7 @@ export function Clusters() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmitCreate) return;
     const port = form.port.trim() ? Number(form.port) : undefined;
     createMutation.mutate({
       name: form.name,
@@ -323,7 +329,7 @@ export function Clusters() {
             <select
               className={formSelectClass}
               required
-              disabled={versionOptions.length === 0}
+              disabled={!templatesFetched || versionOptions.length === 0}
               value={form.kubernetes_version}
               onChange={(e) => {
                 const opt = versionOptions.find((v) => v.kubernetes_version === e.target.value);
@@ -345,7 +351,7 @@ export function Clusters() {
                 ))
               )}
             </select>
-            {versionOptions.length === 0 && (
+            {templatesFetched && versionOptions.length === 0 && (
               <span className="mt-1 block text-xs text-error">{t('vks.form.noNodeImage')}</span>
             )}
             {form.template && versionOptions.length > 0 && (
@@ -447,7 +453,7 @@ export function Clusters() {
             </button>
             <button
               type="submit"
-              disabled={createMutation.isPending || !canSubmitCreate || offerings.length === 0}
+              disabled={createMutation.isPending || !canSubmitCreate}
               className="btn-primary disabled:opacity-50"
             >
               {t('vks.create')}
