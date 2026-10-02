@@ -20,6 +20,7 @@ type ClusterBackend interface {
 	Create(ctx context.Context, tenantID string, in vkssvc.CreateInput) (*vkssvc.Cluster, error)
 	Delete(ctx context.Context, tenantID, name string) error
 	GetKubeconfig(ctx context.Context, tenantID, name string) ([]byte, error)
+	GetSummary(ctx context.Context, tenantID, name string) (*vkssvc.Summary, error)
 }
 
 // ClusterServer implements virtfoundry.vks.v1alpha1.ClusterService.
@@ -72,6 +73,24 @@ func (s *ClusterServer) GetCluster(ctx context.Context, req *vksv1alpha1.GetClus
 		return nil, mapSvcErr(err)
 	}
 	return &vksv1alpha1.GetClusterResponse{Cluster: toProtoCluster(c)}, nil
+}
+
+func (s *ClusterServer) GetClusterSummary(ctx context.Context, req *vksv1alpha1.GetClusterSummaryRequest) (*vksv1alpha1.GetClusterSummaryResponse, error) {
+	if err := requirePerm(ctx, auth.PermVKSRead); err != nil {
+		return nil, err
+	}
+	tid := TenantIDFromContext(ctx)
+	if tid == "" || req == nil || req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "name and tenant required")
+	}
+	if s.Backend == nil {
+		return nil, status.Error(codes.Internal, "cluster backend not configured")
+	}
+	sum, err := s.Backend.GetSummary(ctx, tid, req.Name)
+	if err != nil {
+		return nil, mapSvcErr(err)
+	}
+	return &vksv1alpha1.GetClusterSummaryResponse{Summary: toProtoSummary(sum)}, nil
 }
 
 func (s *ClusterServer) CreateCluster(ctx context.Context, req *vksv1alpha1.CreateClusterRequest) (*vksv1alpha1.CreateClusterResponse, error) {
@@ -254,6 +273,28 @@ func toProtoCluster(c *vkssvc.Cluster) *vksv1alpha1.Cluster {
 			Reason:  cond.Reason,
 			Message: cond.Message,
 		})
+	}
+	return out
+}
+
+func toProtoSummary(sum *vkssvc.Summary) *vksv1alpha1.ClusterSummary {
+	if sum == nil {
+		return nil
+	}
+	out := &vksv1alpha1.ClusterSummary{
+		PodTotals: &vksv1alpha1.PodTotals{
+			Running: sum.PodTotals.Running,
+			Pending: sum.PodTotals.Pending,
+			Failed:  sum.PodTotals.Failed,
+			Other:   sum.PodTotals.Other,
+		},
+		Message: sum.Message,
+	}
+	for _, ns := range sum.Namespaces {
+		out.Namespaces = append(out.Namespaces, &vksv1alpha1.NamespaceSummary{Name: ns.Name, PodCount: ns.PodCount})
+	}
+	for _, n := range sum.GuestNodes {
+		out.GuestNodes = append(out.GuestNodes, &vksv1alpha1.GuestNode{Name: n.Name, Ready: n.Ready})
 	}
 	return out
 }
