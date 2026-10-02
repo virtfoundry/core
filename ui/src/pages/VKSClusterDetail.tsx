@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Download, Trash2, Copy, Check } from 'lucide-react';
 import {
-  getVKSCluster, deleteVKSCluster, downloadVKSKubeconfig,
+  getVKSCluster, deleteVKSCluster, downloadVKSKubeconfig, listVMs,
 } from '../lib/platform-api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
@@ -14,10 +14,12 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  vksCanDownloadKubeconfig, vksNodesLabel, vksPhaseBadgeStatus,
+  vksCanDownloadKubeconfig, isVKSWorkerVM, vksNodesLabel, vksPhaseBadgeStatus,
 } from '../lib/vks-display';
+import { effectiveVmState, formatVmOffering } from '../lib/vm-display';
 import {
   PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, InfoBanner,
+  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
 } from '../components/shell';
 
 type Tab = 'overview' | 'nodes' | 'networking' | 'status';
@@ -40,6 +42,17 @@ export function VKSClusterDetail() {
   });
 
   const cluster = data?.cluster;
+
+  const { data: vmsData, isLoading: vmsLoading } = useQuery({
+    queryKey: queryKeys.vms,
+    queryFn: listVMs,
+    enabled: !needsTenant && !!name && tab === 'nodes',
+  });
+
+  const workerVMs = useMemo(
+    () => (vmsData?.vms || []).filter((vm) => isVKSWorkerVM(name, vm.name)),
+    [vmsData?.vms, name],
+  );
 
   const downloadMutation = useMutation({
     mutationFn: async () => {
@@ -216,46 +229,100 @@ export function VKSClusterDetail() {
         )}
 
         {tab === 'nodes' && (
-          <SurfaceCard>
-            <h2 className="mb-2 font-headline text-headline-md font-semibold text-on-surface">
-              {t('vks.detail.nodePool')}
-            </h2>
-            <p className="mb-4 text-sm text-on-surface-variant">{t('vks.detail.nodePoolHint')}</p>
-            <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.detail.poolName')}</dt>
-                <dd className="font-mono text-on-surface">default-pool</dd>
+          <div className="space-y-6">
+            <SurfaceCard>
+              <h2 className="mb-2 font-headline text-headline-md font-semibold text-on-surface">
+                {t('vks.detail.nodePool')}
+              </h2>
+              <p className="mb-4 text-sm text-on-surface-variant">{t('vks.detail.nodePoolHint')}</p>
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.detail.poolName')}</dt>
+                  <dd className="font-mono text-on-surface">default-pool</dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.col.nodes')}</dt>
+                  <dd className="text-on-surface">
+                    {vksNodesLabel(cluster.ready_workers, cluster.workers?.count)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.col.machineType')}</dt>
+                  <dd className="font-mono text-on-surface">
+                    {cluster.workers?.offering_ref?.name || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.detail.nodeImage')}</dt>
+                  <dd className="font-mono text-on-surface">
+                    {cluster.workers?.template_ref?.name || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.form.workers')}</dt>
+                  <dd className="text-on-surface">{cluster.workers?.count ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.col.network')}</dt>
+                  <dd className="font-mono text-on-surface">
+                    {cluster.workers?.network_ref?.name || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vks.detail.sshKeys')}</dt>
+                  <dd className="font-mono text-xs text-on-surface">
+                    {(cluster.workers?.ssh_key_refs || []).map((r) => r.name).join(', ') || '—'}
+                  </dd>
+                </div>
+              </dl>
+            </SurfaceCard>
+
+            <SurfaceCard padding="none" className="overflow-hidden">
+              <div className="border-b border-outline-variant/40 px-6 py-4">
+                <h2 className="font-headline text-headline-md font-semibold text-on-surface">
+                  {t('vks.detail.workerInstances')}
+                </h2>
               </div>
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.col.nodes')}</dt>
-                <dd className="text-on-surface">
-                  {vksNodesLabel(cluster.ready_workers, cluster.workers?.count)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.col.machineType')}</dt>
-                <dd className="font-mono text-on-surface">
-                  {cluster.workers?.offering_ref?.name || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.detail.nodeImage')}</dt>
-                <dd className="font-mono text-on-surface">
-                  {cluster.workers?.template_ref?.name || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.form.workers')}</dt>
-                <dd className="text-on-surface">{cluster.workers?.count ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">{t('vks.detail.sshKeys')}</dt>
-                <dd className="font-mono text-xs text-on-surface">
-                  {(cluster.workers?.ssh_key_refs || []).map((r) => r.name).join(', ') || '—'}
-                </dd>
-              </div>
-            </dl>
-          </SurfaceCard>
+              {vmsLoading ? (
+                <p className="px-6 py-8 text-sm text-on-surface-variant">{t('common.loading')}</p>
+              ) : workerVMs.length === 0 ? (
+                <p className="px-6 py-8 text-sm text-on-surface-variant">{t('vks.detail.noWorkers')}</p>
+              ) : (
+                <PageTable>
+                  <PageTableHead>
+                    <PageTableTh>{t('vks.col.name')}</PageTableTh>
+                    <PageTableTh>{t('vks.col.status')}</PageTableTh>
+                    <PageTableTh>{t('vks.detail.colOffering')}</PageTableTh>
+                    <PageTableTh>{t('vks.detail.colIp')}</PageTableTh>
+                  </PageTableHead>
+                  <PageTableBody>
+                    {workerVMs.map((vm) => {
+                      const displayState = effectiveVmState(vm);
+                      const offering = vm.service_offering_id || formatVmOffering(vm);
+                      const ip = vm.ip || vm.nics?.find((n) => n.ip)?.ip || '—';
+                      return (
+                        <PageTableRow key={vm.id || vm.name}>
+                          <PageTableTd>
+                            <Link
+                              to={`/vms/${encodeURIComponent(vm.name)}`}
+                              className="font-mono text-sm text-primary hover:underline"
+                            >
+                              {vm.name}
+                            </Link>
+                          </PageTableTd>
+                          <PageTableTd>
+                            <StatusBadge status={displayState.toLowerCase()} pulse={false} />
+                          </PageTableTd>
+                          <PageTableTd className="font-mono text-sm">{offering}</PageTableTd>
+                          <PageTableTd className="font-mono text-sm">{ip}</PageTableTd>
+                        </PageTableRow>
+                      );
+                    })}
+                  </PageTableBody>
+                </PageTable>
+              )}
+            </SurfaceCard>
+          </div>
         )}
 
         {tab === 'networking' && (
