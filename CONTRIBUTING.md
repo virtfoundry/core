@@ -26,10 +26,22 @@ chore(deploy): bump KubeVirt chart reference
 
 ```bash
 cp config/config.yaml.example config/config.yaml   # optional
+make help          # list all targets (UI-focused)
+make test          # run UI tests (vitest)
+make build         # build UI production bundle
+```
+
+Direct commands (if you prefer not to use the Makefile):
+
+```bash
 go build ./...
 go test ./...
-cd ui && npm install && npm run build
+cd ui && npm ci && npm test && npm run build
 ```
+
+The root `Makefile` covers the UI workflow (`make test`, `make build`,
+`make ci`, `make clean`). Backend commands (`go build`, `go test`) are
+run directly until a Go runner is added.
 
 Cluster deploy and testing: [helm-charts](https://github.com/virtfoundry/helm-charts) (`helm install` or `make lint`).
 
@@ -38,7 +50,7 @@ Cluster deploy and testing: [helm-charts](https://github.com/virtfoundry/helm-ch
 **Do not commit directly to `main`.** Every feature or fix uses its own branch:
 
 1. Branch from `main`: `feat/<name>`, `fix/<name>`, or `chore/<name>`
-2. Implement + local tests (`go test ./...`, UI build if touched)
+2. Implement + local tests (`make test`, `make build` if UI touched; `go test ./...` if backend touched)
 3. Deploy and validate on a **Kubernetes cluster** before opening a PR when behavior changes
 4. Open PR → maintainer reviews and tests on a cluster → **merge only after approval**
 5. After merge: **delete the feature branch** (remote + local). Org repos keep GitHub “Automatically delete head branches” enabled
@@ -49,7 +61,7 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` 
 
 1. Fork [virtfoundry/core](https://github.com/virtfoundry/core) (or the relevant repo) and create a feature branch
 2. Keep changes focused; match existing code style
-3. Run `go test ./...` and UI build when touching those areas (see [docs/CI.md](docs/CI.md))
+3. Run `make test` / `make build` for UI changes and `go test ./...` for backend changes (see [docs/CI.md](docs/CI.md))
 4. Update docs when behavior or deploy steps change
 5. Open a PR with a clear summary and test plan — required CI checks must be green before merge
 
