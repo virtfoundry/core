@@ -37,6 +37,45 @@ func (s *Service) BootstrapRoot(username, password string) (*platform.User, erro
 	return u, nil
 }
 
+// EnsureRootPasswordHash restores the root credential hash when the root User
+// record exists but its credential Secret is missing or unreadable. The
+// password is the bootstrap ROOT_PASSWORD value; callers must not pass a
+// generated password for an existing root user, since that would rotate the
+// credential unexpectedly.
+//
+// It returns true only when it had to persist a new hash.
+func (s *Service) EnsureRootPasswordHash(username, password string) (bool, error) {
+	u, ok := s.store.GetUserByUsername(username)
+	if !ok {
+		return false, fmt.Errorf("root user %q not found while verifying credential hash", username)
+	}
+	if u.PasswordHash != "" {
+		return false, nil
+	}
+	if password == "" {
+		return false, fmt.Errorf("root user %q has no password hash; ROOT_PASSWORD is required to restore its credential Secret", username)
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return false, fmt.Errorf("hash root password: %w", err)
+	}
+	u.PasswordHash = hash
+	s.store.SaveUser(u)
+
+	// SaveUser implementations intentionally have no error return. Read back
+	// the hash so a failed Secret write is surfaced during startup instead of
+	// becoming a later, opaque login failure.
+	stored, ok := s.store.GetUserByUsername(username)
+	if !ok || stored.PasswordHash == "" {
+		return false, fmt.Errorf("root user %q credential hash was not persisted", username)
+	}
+	if !auth.CheckPassword(stored.PasswordHash, password) {
+		return false, fmt.Errorf("root user %q persisted credential hash does not match ROOT_PASSWORD", username)
+	}
+	return true, nil
+}
+
 // LinkRootToTenant assigns the default tenant to root when not yet set.
 func (s *Service) LinkRootToTenant(tenantID string) {
 	root, ok := s.store.GetUserByUsername("root")

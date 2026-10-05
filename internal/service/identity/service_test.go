@@ -1,12 +1,51 @@
 package identity
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
 )
+
+func TestEnsureRootPasswordHashRestoresMissingHash(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st)
+	root, err := svc.BootstrapRoot("root", "initial-root-password")
+	if err != nil {
+		t.Fatalf("bootstrap root: %v", err)
+	}
+
+	// Simulate the Kubernetes User CR surviving while vf-user-root is missing.
+	root.PasswordHash = ""
+	restored, err := svc.EnsureRootPasswordHash("root", "initial-root-password")
+	if err != nil {
+		t.Fatalf("restore root password hash: %v", err)
+	}
+	if !restored {
+		t.Fatal("expected missing root password hash to be restored")
+	}
+
+	stored, ok := st.GetUserByUsername("root")
+	if !ok || stored.PasswordHash == "" {
+		t.Fatalf("stored root hash = %#v, want non-empty hash", stored)
+	}
+	if !auth.CheckPassword(stored.PasswordHash, "initial-root-password") {
+		t.Fatal("restored root hash does not match ROOT_PASSWORD")
+	}
+}
+
+func TestEnsureRootPasswordHashFailsWithoutBootstrapPassword(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st)
+	st.SaveUser(&platform.User{ID: store.NewID(), Username: "root", Role: platform.RoleRoot})
+
+	_, err := svc.EnsureRootPasswordHash("root", "")
+	if err == nil || !strings.Contains(err.Error(), "ROOT_PASSWORD") {
+		t.Fatalf("error = %v, want ROOT_PASSWORD recovery error", err)
+	}
+}
 
 func TestResolveTenantID_RootUsesDefaultTenant(t *testing.T) {
 	st := store.NewMemory()
