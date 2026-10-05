@@ -95,6 +95,17 @@ func main() {
 		} else {
 			log.Info("root user bootstrapped", zap.String("username", "root"))
 		}
+	} else {
+		restored, err := platformSvc.EnsureRootPasswordHash("root", rootPass)
+		if err != nil {
+			log.Fatal("verify root credential hash", zap.Error(err), zap.String("username", "root"))
+		}
+		if restored {
+			log.Warn("root credential Secret was missing or unreadable and has been restored from ROOT_PASSWORD",
+				zap.String("username", "root"),
+				zap.String("secret", "vf-user-root"),
+				zap.String("key", "password_hash"))
+		}
 	}
 
 	if tenant, err := platformSvc.BootstrapRootDefaultTenant(context.Background()); err != nil {

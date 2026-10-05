@@ -63,6 +63,10 @@ func (s *PlatformService) BootstrapRoot(username, password string) (*platform.Us
 	return s.identity.BootstrapRoot(username, password)
 }
 
+func (s *PlatformService) EnsureRootPasswordHash(username, password string) (bool, error) {
+	return s.identity.EnsureRootPasswordHash(username, password)
+}
+
 func (s *PlatformService) BootstrapRootDefaultTenant(ctx context.Context) (*platform.Tenant, error) {
 	tenant, err := s.tenant.EnsureTenant(ctx, branding.DefaultTenantName, branding.DefaultTenantSlug)
 	if err != nil {
