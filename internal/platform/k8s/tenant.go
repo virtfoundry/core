@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
+	"go.uber.org/zap"
+
+	"github.com/virtfoundry/core/internal/pkg/logger"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -128,9 +132,28 @@ func (m *Manager) backfillTenantNamespaceLabels(ctx context.Context, nsName stri
 	if _, err := m.Clientset.CoreV1().Namespaces().Patch(
 		ctx, nsName, types.MergePatchType, patch, metav1.PatchOptions{},
 	); err != nil {
+		// The backfill is a best-effort migration for namespaces created before the
+		// ownership contract existed. The API deliberately has no namespaces/patch
+		// grant (least privilege; the operator owns tenant namespaces), so a legacy
+		// namespace is labelled by hand once. Failing here would crash-loop API
+		// startup through the default tenant bootstrap, so warn instead.
+		if errors.IsForbidden(err) {
+			logger.Warn("tenant namespace is missing operator ownership labels and the API cannot patch namespaces; label it manually (see helm-charts docs: operator recovery)",
+				zap.String("namespace", nsName), zap.Strings("missing_labels", missingKeys(missing)), zap.Error(err))
+			return nil
+		}
 		return fmt.Errorf("patch labels on namespace %s: %w", nsName, err)
 	}
 	return nil
+}
+
+func missingKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 type TenantQuotaSpec struct {
