@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/virtfoundry/core/internal/platform/branding"
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type TenantResources struct {
@@ -16,13 +18,29 @@ type TenantResources struct {
 	Quota     *corev1.ResourceQuota
 }
 
-func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug string, quota TenantQuotaSpec) (*TenantResources, error) {
-	nsName := TenantNamespace(slug)
-	labels := map[string]string{
+// tenantNamespaceLabels is the full label set for a virtfoundry-tenant-*
+// namespace. app.kubernetes.io/part-of and virtfoundry.io/tenant are the
+// ownership contract with virtfoundry-operator: it refuses to adopt a
+// namespace without both (operator/internal/controller/tenant_namespace.go,
+// assertTenantNamespaceOwned), fails the Tenant terminally, and rejects every
+// Instance in it with "namespace %q is missing label
+// app.kubernetes.io/part-of=virtfoundry".
+//
+// app.kubernetes.io/managed-by is deliberately omitted: the operator owns that
+// key and rewrites it to "virtfoundry-operator" in stampNamespace.
+func tenantNamespaceLabels(tenantID, slug string) map[string]string {
+	return map[string]string{
 		LabelManagedBy:           ManagedByValue,
 		LabelTenantID:            tenantID,
 		branding.LabelTenantSlug: slug,
+		branding.LabelPartOf:     branding.PartOfValue,
+		branding.LabelTenant:     slug,
 	}
+}
+
+func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug string, quota TenantQuotaSpec) (*TenantResources, error) {
+	nsName := TenantNamespace(slug)
+	labels := tenantNamespaceLabels(tenantID, slug)
 
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -31,7 +49,17 @@ func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug stri
 		},
 	}
 	_, err := m.Clientset.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-	if err != nil && !isAlreadyExists(err) {
+	switch {
+	case err == nil:
+		// Created with the full label set.
+	case isAlreadyExists(err):
+		// Namespaces created before the operator label contract existed are
+		// missing those labels, and Create cannot heal them. Backfill so an
+		// upgrade converges instead of leaving the Tenant terminally Failed.
+		if err := m.backfillTenantNamespaceLabels(ctx, nsName, labels); err != nil {
+			return nil, err
+		}
+	default:
 		return nil, fmt.Errorf("create namespace: %w", err)
 	}
 
@@ -65,6 +93,44 @@ func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug stri
 	}
 
 	return &TenantResources{Namespace: nsName, Quota: createdRQ}, nil
+}
+
+// backfillTenantNamespaceLabels adds labels an existing tenant namespace is
+// missing. A JSON merge patch merges metadata.labels key by key, so labels the
+// API does not manage (including the ones the operator stamps) are preserved.
+func (m *Manager) backfillTenantNamespaceLabels(ctx context.Context, nsName string, want map[string]string) error {
+	ns, err := m.Clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get namespace %s: %w", nsName, err)
+	}
+	// A namespace being torn down cannot take new labels, and the Tenant record
+	// is about to be recreated with a fresh namespace.
+	if ns.DeletionTimestamp != nil {
+		return nil
+	}
+
+	missing := map[string]string{}
+	for k, v := range want {
+		if ns.Labels[k] != v {
+			missing[k] = v
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{"labels": missing},
+	})
+	if err != nil {
+		return fmt.Errorf("marshal labels for namespace %s: %w", nsName, err)
+	}
+	if _, err := m.Clientset.CoreV1().Namespaces().Patch(
+		ctx, nsName, types.MergePatchType, patch, metav1.PatchOptions{},
+	); err != nil {
+		return fmt.Errorf("patch labels on namespace %s: %w", nsName, err)
+	}
+	return nil
 }
 
 type TenantQuotaSpec struct {
