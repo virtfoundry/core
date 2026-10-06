@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
 
       - name: Generate and attach SPDX SBOM
-        uses: anchore/sbom-action@e11c554f704a0b820cbf8c51673f6945e0731532 # v0.20.0
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           format: spdx-json
           artifact-name: core-${{ github.event.release.tag_name }}.spdx.json
