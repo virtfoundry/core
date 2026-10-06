@@ -58,16 +58,15 @@ Reviewers look at how the project is built and shipped. Tracked in [#200](https:
 
 | # | Item | Status |
 |---|------|--------|
-| 1.5.1 | Dependabot, CodeQL, OpenSSF Scorecard, dependency review (AGPL/GPL/BUSL deny list) on every official repo | 🟡 PRs open: core#199, operator#55, vks#9, helm-charts#90, terraform-provider#30, vks-image-factory#13 |
-| 1.5.2 | SPDX SBOM attached to each release | 🟡 same PRs (core, operator, helm-charts, terraform-provider) |
-| 1.5.3 | Community health files and full Apache-2.0 `LICENSE` on `vks` and `vks-image-factory` | 🟡 vks#9, vks-image-factory#13 |
-| 1.5.4 | `protect-main` ruleset on every official repo, with force-push and deletion protection | ⬜ (missing on operator, vks, vks-image-factory) |
-| 1.5.5 | Secret scanning and push protection on every repo | ⬜ |
-| 1.5.6 | Replace the `ARGO_HOMELAB_TOKEN` OAuth token with a fine-grained PAT | ⬜ |
-| 1.5.7 | Signed images and release artifacts (cosign keyless) with provenance | ⬜ |
-| 1.5.8 | RBAC contract check in CI (API calls vs `virtfoundry-api` ClusterRole) | ⬜ |
-| 1.5.9 | Resolve stale security PRs core#103 and terraform-provider#15 | ⬜ |
-
+| 1.5.1 | Dependabot (grouped, monthly), CodeQL, OpenSSF Scorecard and dependency review (AGPL/GPL/BUSL deny list) on every official repo | ✅ merged in all six repos; `dependency-review` is non-blocking until 1.5.9 |
+| 1.5.2 | SPDX SBOM attached to each release | ✅ merged (core, operator, helm-charts, terraform-provider); attaches from the next release |
+| 1.5.3 | Community health files and full Apache-2.0 `LICENSE` on `vks` and `vks-image-factory` | ✅ merged |
+| 1.5.4 | `protect-main` ruleset on every official repo, with force-push and deletion protection | ✅ all six repos |
+| 1.5.5 | Secret scanning, push protection, private vulnerability reporting, Dependabot security updates | ✅ all six repos |
+| 1.5.6 | Signed images and release artifacts (cosign keyless; terraform releases are GPG-signed) | 🟡 operator already signs; core (API, UI) in core#221, vks in vks#21 |
+| 1.5.7 | RBAC contract check: the API's typed Kubernetes calls vs the `virtfoundry-api` roles | 🟡 core side merged (core#220); chart side in helm-charts#100 |
+| 1.5.8 | Resolve the stale security PRs | ✅ core#103 was already on `main` (closed as superseded); terraform-provider#15 landed as #40 with authorship preserved |
+| 1.5.9 | Enable the dependency graph in each repository's settings, then drop `continue-on-error` from `dependency-review` | ⬜ |
 ---
 
 ## Phase 2 — CNCF Sandbox application prep (when Phase 1 exits)
