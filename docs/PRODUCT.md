@@ -33,11 +33,12 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 ## What we are not (yet)
 
 - Serverless / Knative — separate future line, not core IaaS
-- Managed Kubernetes (CKE) — backlog
+- Managed Kubernetes (VKS) — shipped in 0.10.0 (see Versioning)
 - Object storage (S3-like) — backlog
 
 ## Versioning
 
+- **0.10.0** — VKS (Kubernetes clusters): gRPC ClusterService, console create/detail, node image seed; tenant ownership labels; image signing
 - **0.9.0** — Realtime/gRPC watch, Multus CRD-first networks, powerState Start/Stop, SSH PEM one-shot, security harden (CORS/SSH/Offerings)
 - **0.8.0** — VM create Error / 0 vCPU after operator 0.7.2 (pod-network annotation + list enrichment)
 - **0.7.2** — Security release (audit highs closed; non-root images; console tickets; ISO allowlist; CDI importer egress)
