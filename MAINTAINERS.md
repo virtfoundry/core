@@ -4,7 +4,7 @@ VirtFoundry follows [CNCF](https://www.cncf.io/) project conventions. This file 
 
 Aligned with the [CNCF project template](https://github.com/cncf/project-template) `MAINTAINERS.md` shape (Name / GitHub ID / Company).
 
-<!-- Sandbox applications require a minimum of 3 maintainers from 2+ organizations (employers). Affiliations must be updated within 30 days of employment changes. -->
+<!-- The CNCF Sandbox README requires this Name / ID / Company table and says employer diversity is considered, not required. Keep affiliations current: update within 30 days of employment changes. -->
 
 ## Active maintainers
 
@@ -16,7 +16,7 @@ Aligned with the [CNCF project template](https://github.com/cncf/project-templat
 
 Matheus is the primary contact for security advisories and CNCF application topics. Weslei and Rodrigo support day-to-day review, testing, and technical decisions alongside the lead maintainer.
 
-**CNCF Sandbox gate:** ≥3 maintainers from ≥2 employers — **met** (CI&T + SYS MANAGER INFORMATICA LTDA).
+**CNCF Sandbox:** reviewers consider employer diversity (not required). Current spread: 3 maintainers from 2 employers (CI&T and SYS MANAGER INFORMATICA LTDA).
 
 ## Official repositories
 
@@ -26,6 +26,8 @@ Matheus is the primary contact for security advisories and CNCF application topi
 | [operator](https://github.com/virtfoundry/operator) | Matheus (lead), Weslei, Rodrigo |
 | [helm-charts](https://github.com/virtfoundry/helm-charts) | Matheus (lead), Weslei, Rodrigo |
 | [terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Matheus (lead), Weslei, Rodrigo |
+| [vks](https://github.com/virtfoundry/vks) | Matheus (lead), Weslei, Rodrigo |
+| [vks-image-factory](https://github.com/virtfoundry/vks-image-factory) | Matheus (lead), Weslei, Rodrigo |
 
 ## How to become a maintainer
 
