@@ -5,8 +5,12 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/virtfoundry/core/internal/platform/branding"
 )
@@ -122,5 +126,29 @@ func TestEnsureTenantNamespaceToleratesTerminatingNamespace(t *testing.T) {
 	ns := mustGetNamespace(t, cs, nsName)
 	if got := ns.Labels[branding.LabelPartOf]; got != "" {
 		t.Errorf("%s = %q, want backfill skipped on a terminating namespace", branding.LabelPartOf, got)
+	}
+}
+
+// A missing namespaces/patch grant must not abort startup: the backfill is best
+// effort, and EnsureTenantNamespace still has to return the tenant resources.
+func TestEnsureTenantNamespaceToleratesForbiddenLabelBackfill(t *testing.T) {
+	cs := fake.NewSimpleClientset(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   TenantNamespace("legacy"),
+			Labels: map[string]string{LabelManagedBy: ManagedByValue},
+		},
+	})
+	cs.PrependReactor("patch", "namespaces", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewForbidden(
+			schema.GroupResource{Resource: "namespaces"}, TenantNamespace("legacy"), nil)
+	})
+	m := &Manager{Clientset: cs}
+
+	res, err := m.EnsureTenantNamespace(context.Background(), "tenant-id", "legacy", TenantQuotaSpec{})
+	if err != nil {
+		t.Fatalf("EnsureTenantNamespace with forbidden backfill = %v, want nil", err)
+	}
+	if res == nil || res.Namespace != TenantNamespace("legacy") {
+		t.Fatalf("resources = %#v, want namespace %s", res, TenantNamespace("legacy"))
 	}
 }
