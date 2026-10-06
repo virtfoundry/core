@@ -168,3 +168,31 @@ func TestTenantMapping(t *testing.T) {
 		t.Fatalf("unexpected mapped tenant: %#v", got)
 	}
 }
+
+// Tenant CRs created before the slug label existed are named after something other
+// than the slug (homelab-smoke has spec.slug=smoke) and carry no virtfoundry.io/slug
+// label. GetTenantBySlug must still find them: startup re-runs EnsureTenant for
+// every tenant, and a miss makes it create a duplicate CR named after the slug that
+// the operator then fails on a slug collision.
+func TestKubernetesStore_GetTenantBySlugFindsLegacyCRWithoutSlugLabel(t *testing.T) {
+	dyn := newTestDynamicClient()
+	repo := &Kubernetes{dyn: dyn, clientset: kubefake.NewSimpleClientset()}
+
+	legacy := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": mapping.Group + "/" + mapping.Version,
+		"kind":       "Tenant",
+		"metadata":   map[string]interface{}{"name": "homelab-smoke"},
+		"spec":       map[string]interface{}{"name": "Homelab Smoke", "slug": "smoke"},
+	}}
+	if _, err := dyn.Resource(mapping.TenantGVR).Create(context.Background(), legacy, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := repo.GetTenantBySlug("smoke")
+	if !ok {
+		t.Fatal("GetTenantBySlug(smoke) did not find the legacy CR homelab-smoke")
+	}
+	if got.Slug != "smoke" || got.Name != "Homelab Smoke" {
+		t.Fatalf("tenant = %#v, want slug=smoke name=%q", got, "Homelab Smoke")
+	}
+}

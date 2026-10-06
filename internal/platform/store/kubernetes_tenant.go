@@ -51,16 +51,23 @@ func (k *Kubernetes) GetTenantBySlug(slug string) (*platform.Tenant, bool) {
 		return nil, false
 	}
 
-	list, listErr := k.dyn.Resource(mapping.TenantGVR).List(ctx, metav1.ListOptions{
-		LabelSelector: mapping.LabelSlug + "=" + slug,
-	})
-	if listErr != nil {
-		return nil, false
-	}
-	for i := range list.Items {
-		specSlug, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "slug")
-		if specSlug == slug {
-			return mapping.TenantFromUnstructured(&list.Items[i]), true
+	// The CR is not named after the slug. Try the slug label first, then fall back
+	// to every Tenant: CRs created before the label existed (homelab-smoke) have
+	// neither the label nor a slug-shaped name, and missing them makes callers
+	// create a duplicate CR that fails on a slug collision.
+	for _, opts := range []metav1.ListOptions{
+		{LabelSelector: mapping.LabelSlug + "=" + slug},
+		{},
+	} {
+		list, listErr := k.dyn.Resource(mapping.TenantGVR).List(ctx, opts)
+		if listErr != nil {
+			return nil, false
+		}
+		for i := range list.Items {
+			specSlug, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "slug")
+			if specSlug == slug {
+				return mapping.TenantFromUnstructured(&list.Items[i]), true
+			}
 		}
 	}
 	return nil, false
