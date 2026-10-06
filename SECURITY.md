@@ -37,6 +37,18 @@ When an issue is confirmed:
 3. Release a patched version
 4. Publish a security advisory
 
+## Verifying released images
+
+Images published to `ghcr.io/virtfoundry/` are signed keyless with [cosign](https://github.com/sigstore/cosign) from the GitHub Actions workflow that built them. Verify a digest before you deploy it (replace `<digest>`):
+
+```bash
+cosign verify ghcr.io/virtfoundry/core@<digest> \
+  --certificate-identity-regexp '^https://github.com/virtfoundry/core/.github/workflows/build-push.yaml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The same command works for `ghcr.io/virtfoundry/ui` (workflow in `virtfoundry/core`), `ghcr.io/virtfoundry/operator` (workflow in `virtfoundry/operator`) and `ghcr.io/virtfoundry/vks` (workflow in `virtfoundry/vks`); change the repository in the identity. Pin by digest, never by tag.
+
 ## Security Response Team
 
 Lead maintainer (see [MAINTAINERS.md](MAINTAINERS.md)). Additional maintainers may assist as needed.
