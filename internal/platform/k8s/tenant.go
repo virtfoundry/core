@@ -42,6 +42,15 @@ func tenantNamespaceLabels(tenantID, slug string) map[string]string {
 	}
 }
 
+// operatorOwnershipLabels is the subset of tenantNamespaceLabels the operator
+// requires before it adopts a tenant namespace (assertTenantNamespaceOwned).
+func operatorOwnershipLabels(slug string) map[string]string {
+	return map[string]string{
+		branding.LabelPartOf: branding.PartOfValue,
+		branding.LabelTenant: slug,
+	}
+}
+
 func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug string, quota TenantQuotaSpec) (*TenantResources, error) {
 	nsName := TenantNamespace(slug)
 	labels := tenantNamespaceLabels(tenantID, slug)
@@ -60,7 +69,9 @@ func (m *Manager) EnsureTenantNamespace(ctx context.Context, tenantID, slug stri
 		// Namespaces created before the operator label contract existed are
 		// missing those labels, and Create cannot heal them. Backfill so an
 		// upgrade converges instead of leaving the Tenant terminally Failed.
-		if err := m.backfillTenantNamespaceLabels(ctx, nsName, labels); err != nil {
+		// Only the contract labels: the API's own identity labels are not
+		// something the operator reads and are not reliably reproducible.
+		if err := m.backfillTenantNamespaceLabels(ctx, nsName, operatorOwnershipLabels(slug)); err != nil {
 			return nil, err
 		}
 	default:

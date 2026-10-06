@@ -152,3 +152,38 @@ func TestEnsureTenantNamespaceToleratesForbiddenLabelBackfill(t *testing.T) {
 		t.Fatalf("resources = %#v, want namespace %s", res, TenantNamespace("legacy"))
 	}
 }
+
+// The backfill exists for the operator ownership contract (part-of + tenant)
+// only. The API's own identity labels (tenant-id, tenant-slug, managed-by) are not
+// part of that contract and cannot be backfilled reliably: with the Kubernetes
+// store the tenant ID is the CR UID, assigned after the namespace is created. A
+// namespace the operator already owns must not be patched on every boot.
+func TestEnsureTenantNamespaceDoesNotPatchWhenOperatorContractIsMet(t *testing.T) {
+	const nsName = "virtfoundry-tenant-default"
+
+	cs := fake.NewSimpleClientset(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nsName,
+			Labels: map[string]string{
+				branding.LabelPartOf: branding.PartOfValue,
+				branding.LabelTenant: "default",
+				// Stamped before the CR UID existed, so it never equals the tenant ID.
+				LabelTenantID: "stale-uuid-from-creation",
+			},
+		},
+	})
+	m := &Manager{Clientset: cs}
+
+	if _, err := m.EnsureTenantNamespace(context.Background(), "cr-uid", "default", DefaultTenantQuota()); err != nil {
+		t.Fatalf("EnsureTenantNamespace: %v", err)
+	}
+
+	for _, a := range cs.Actions() {
+		if a.GetVerb() == "patch" && a.GetResource().Resource == "namespaces" {
+			t.Fatalf("unexpected namespace patch %v: operator contract was already met", a)
+		}
+	}
+	if got := mustGetNamespace(t, cs, nsName).Labels[LabelTenantID]; got != "stale-uuid-from-creation" {
+		t.Errorf("%s = %q, API identity label must be left alone", LabelTenantID, got)
+	}
+}
