@@ -76,6 +76,16 @@ Cross-repo changes: use the same branch name in `virtfoundry` and `helm-charts` 
 
 Roles: [CONTRIBUTOR_LADDER.md](CONTRIBUTOR_LADDER.md) · Releases: [RELEASES.md](RELEASES.md)
 
+## Kubernetes API access (RBAC contract)
+
+The API's access to the Kubernetes API is declared in [docs/rbac-contract.yaml](docs/rbac-contract.yaml). `go test ./internal/platform/k8s/` fails if the code makes a typed client-go call that is not listed there, or if an entry is no longer used. When you add such a call:
+
+1. Add the `group/resource/verb` to the contract.
+2. Grant it in the `virtfoundry-api` ClusterRole in [helm-charts](https://github.com/virtfoundry/helm-charts) (its `chart-lint` workflow checks the chart against this contract).
+3. If the call tolerates `Forbidden` and you do not want to widen the role, list it under `bestEffortVerbs` instead.
+
+Unit tests use fake clients and cannot see RBAC, so this is the only check before a deploy.
+
 ## Code of conduct
 
 This project follows the [CNCF Code of Conduct](CODE_OF_CONDUCT.md). Be respectful and constructive.

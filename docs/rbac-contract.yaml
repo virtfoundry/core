@@ -1,0 +1,59 @@
+# Kubernetes API access the virtfoundry-api ServiceAccount needs for typed (client-go)
+# calls. Single source of truth for two checks:
+#
+#   1. core:        internal/platform/k8s/rbac_contract_test.go fails when the code calls a
+#                   (group, resource, verb) that is not listed here, or lists one it no longer
+#                   uses.
+#   2. helm-charts: scripts/ci/verify-api-rbac-contract.sh fails when the rendered API
+#                   ClusterRole/Roles do not grant `verbs`, or grant a `bestEffortVerbs` entry.
+#
+# Unit tests use fake clients and cannot see RBAC, so a new call without a matching grant only
+# fails at deploy time (core#196 to core#198 came from exactly that).
+#
+# Not covered: dynamic-client access (virtfoundry.io CRDs, KubeVirt, CDI, Multus), which is
+# granted per resource in the chart, and calls made through a stored client variable.
+#
+#   scope: cluster     the grant must be in the ClusterRole (tenant namespaces are created at
+#                      runtime, so RBAC cannot name them). This is the default.
+#   scope: namespaced  a Role in the API namespace is enough.
+#   verbs              required: the chart must grant them.
+#   bestEffortVerbs    the code calls them but tolerates Forbidden; the chart must NOT grant
+#                      them (least privilege, see MAINTAINERS and core#196/#198).
+version: 1
+rules:
+  - apiGroup: ""
+    resource: namespaces
+    verbs: [get, list, create, delete]
+    bestEffortVerbs: [patch]
+    note: >-
+      patch is the legacy label backfill on existing tenant namespaces. The operator owns
+      tenant namespaces, so the API is deliberately not granted it; a legacy namespace is
+      labelled by hand (helm-charts docs, operator recovery).
+  - apiGroup: ""
+    resource: pods
+    verbs: [list]
+  - apiGroup: ""
+    resource: pods/log
+    verbs: [get]
+  - apiGroup: ""
+    resource: services
+    verbs: [get, create, update, delete]
+  - apiGroup: ""
+    resource: endpoints
+    verbs: [create, update, delete]
+  - apiGroup: ""
+    resource: persistentvolumeclaims
+    verbs: [list, create, delete]
+  - apiGroup: ""
+    resource: resourcequotas
+    verbs: [get, create]
+  - apiGroup: ""
+    resource: nodes
+    verbs: [list]
+  - apiGroup: ""
+    resource: secrets
+    scope: namespaced
+    verbs: [get, create, update, delete]
+  - apiGroup: networking.k8s.io
+    resource: networkpolicies
+    verbs: [get, create, update, delete]
