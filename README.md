@@ -94,7 +94,7 @@ See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/
 | [ROADMAP.md](ROADMAP.md) | Near-term product themes |
 | [docs/GRPC-SPIKE.md](docs/GRPC-SPIKE.md) | Experimental gRPC InstanceService + cmux (:8080) |
 | [docs/CNCF-CHECKLIST.md](docs/CNCF-CHECKLIST.md) | Traction & CNCF Sandbox checklist |
-| [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) | Sandbox application draft (do not submit before 6‑month gate) |
+| [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) | Sandbox application draft (tracked in [#200](https://github.com/virtfoundry/core/issues/200)) |
 | [GOVERNANCE.md](GOVERNANCE.md) | How decisions are made |
 | [MAINTAINERS.md](MAINTAINERS.md) | Lead (Matheus) and maintainers (Weslei, Rodrigo) |
 | [ADOPTERS.md](ADOPTERS.md) | Who runs VirtFoundry |

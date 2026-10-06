@@ -30,7 +30,7 @@ Status: **M** = must for traction · **S** = stretch
 |-------|--------|
 | SSO / OIDC | Enterprise-adjacent; keep core clean |
 | Billing hooks | Optional / enterprise |
-| CNCF Sandbox | After Phase 1 exit **and** ≥6 months repo age (~2027-02); draft: [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) |
+| CNCF Sandbox | When Phase 1 exits and the items in [#200](https://github.com/virtfoundry/core/issues/200) are done (soft target ~2027-02; the TOC reviews about every two months); draft: [docs/CNCF-SANDBOX-APPLICATION.md](docs/CNCF-SANDBOX-APPLICATION.md) |
 
 ## Non-goals (near term)
 

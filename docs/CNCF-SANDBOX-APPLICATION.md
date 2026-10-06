@@ -1,7 +1,7 @@
 # CNCF Sandbox application — draft answers
 
 Living draft for the [cncf/sandbox](https://github.com/cncf/sandbox) issue form.  
-**Do not submit** until the pre-submission checklist below is green (especially **repo age ≥6 months**).
+**Do not submit** until the pre-submission checklist below is green (especially the positioning answers and traction evidence tracked in [#200](https://github.com/virtfoundry/core/issues/200); repo age is a soft signal).
 
 Process: [Sandbox README](https://github.com/cncf/sandbox/blob/main/README.md) · TOC lifecycle: [cncf/toc process](https://github.com/cncf/toc/blob/main/process/README.md)  
 Form: [New Sandbox Application](https://github.com/cncf/sandbox/issues/new?template=application.yml)
@@ -14,7 +14,7 @@ Form: [New Sandbox Application](https://github.com/cncf/sandbox/issues/new?templ
 |------|--------|-------|
 | Full Apache-2.0 `LICENSE` (not “convert later”) | ✅ | Official text in all official repos; copyright in `NOTICE` |
 | `MAINTAINERS.md` Name / GitHub ID / Company + `/blob/` link | ✅ | https://github.com/virtfoundry/core/blob/main/MAINTAINERS.md |
-| Repository **6+ months** old with active development | ⬜ | `core` created **2026-08-03** → earliest ~**2027-02-03** |
+| Repository age and active development | 🟡 | No minimum in the cncf/sandbox README (checked 2026-10-05), but reviewers have flagged projects under six months. `core` created **2026-08-03**, soft target ~**2027-02** |
 | Reusable project (not reference architecture) | ✅ | Control plane + operator + Helm + Terraform |
 | Not a KubeVirt “operator-only” subproject candidate without narrative | 🟡 | See overlap / Why not KubeVirt subproject below |
 | CoC + CONTRIBUTING + SECURITY | ✅ | Linked below |
@@ -49,6 +49,8 @@ https://github.com/virtfoundry/core
 - https://github.com/virtfoundry/operator  
 - https://github.com/virtfoundry/helm-charts  
 - https://github.com/virtfoundry/terraform-provider-virtfoundry  
+- https://github.com/virtfoundry/vks (managed Kubernetes clusters: `VKSCluster` CRD and controller)  
+- https://github.com/virtfoundry/vks-image-factory (node containerDisk images)  
 
 ### Website URL
 
@@ -60,7 +62,7 @@ https://github.com/virtfoundry/core/blob/main/ROADMAP.md
 
 ### Roadmap context
 
-Near-term focus: install UX, snapshot/volume reliability, L4 load balancer UX, docs for Proxmox migrants, and community onboarding (Discussions, good first issues, adopters). CNCF Sandbox submission is planned only after traction checklist Phase 1 exit and the 6-month maturity gate.
+Near-term focus: install UX, snapshot/volume reliability, L4 load balancer UX, docs for Proxmox migrants, and community onboarding (Discussions, good first issues, adopters). CNCF Sandbox submission is planned only after traction checklist Phase 1 exit and the open items in the readiness tracker (core#200).
 
 ### Contributing guide
 
@@ -113,7 +115,7 @@ VirtFoundry is cloud native by composition: declarative CRDs, operator pattern, 
 ### Cloud native overlap
 
 - **KubeVirt** — VirtFoundry *depends on* KubeVirt; it does not replace it. Overlap is intentional layering (product/control plane vs hypervisor API).  
-- **Cluster API** — different problem (cluster lifecycle vs tenant IaaS on an existing cluster).  
+- **Kamaji and Cluster API** — `vks` provisions Kamaji `TenantControlPlane`s and runs the worker nodes as VirtFoundry Instances that join with kubeadm. Overlap with cluster lifecycle tooling is real and intentional layering (tenant-facing cluster service on top of the IaaS), not a reimplementation; we will ask both communities for feedback before applying.  
 - Other CNCF projects may provide pieces (networking, storage, observability); VirtFoundry orchestrates tenant-facing IaaS resources on top.
 
 ### Similar projects
@@ -152,6 +154,10 @@ Not yet. Planned: Day 0 of the [General Technical Review](https://github.com/cnc
 VirtFoundry is a multi-repo product (API, UI, Helm docs, Terraform) with its own tenant model and governance. It *consumes* KubeVirt as the hypervisor API rather than extending a single KubeVirt controller. We will engage the KubeVirt community for alignment; if maintainers there prefer a tighter relationship later, we remain open — but Sandbox as an independent project matches the current scope and contributor surface.
 
 ---
+
+## Known gaps before submitting
+
+Tracked in [#200](https://github.com/virtfoundry/core/issues/200). In short: no external adopters yet, contributor concentration, positioning answers still to be validated with the KubeVirt community and TAG Runtime, signatory and contact emails unfilled. The README says reviewers weigh employer diversity (not required), so keep the affiliations in `MAINTAINERS.md` current.
 
 ## After TOC approval
 

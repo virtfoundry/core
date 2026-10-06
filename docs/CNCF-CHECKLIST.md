@@ -52,21 +52,48 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 
 ---
 
+## Phase 1.5 — Supply chain and repo hygiene
+
+Reviewers look at how the project is built and shipped. Tracked in [#200](https://github.com/virtfoundry/core/issues/200).
+
+| # | Item | Status |
+|---|------|--------|
+| 1.5.1 | Dependabot, CodeQL, OpenSSF Scorecard, dependency review (AGPL/GPL/BUSL deny list) on every official repo | 🟡 PRs open: core#199, operator#55, vks#9, helm-charts#90, terraform-provider#30, vks-image-factory#13 |
+| 1.5.2 | SPDX SBOM attached to each release | 🟡 same PRs (core, operator, helm-charts, terraform-provider) |
+| 1.5.3 | Community health files and full Apache-2.0 `LICENSE` on `vks` and `vks-image-factory` | 🟡 vks#9, vks-image-factory#13 |
+| 1.5.4 | `protect-main` ruleset on every official repo, with force-push and deletion protection | ⬜ (missing on operator, vks, vks-image-factory) |
+| 1.5.5 | Secret scanning and push protection on every repo | ⬜ |
+| 1.5.6 | Replace the `ARGO_HOMELAB_TOKEN` OAuth token with a fine-grained PAT | ⬜ |
+| 1.5.7 | Signed images and release artifacts (cosign keyless) with provenance | ⬜ |
+| 1.5.8 | RBAC contract check in CI (API calls vs `virtfoundry-api` ClusterRole) | ⬜ |
+| 1.5.9 | Resolve stale security PRs core#103 and terraform-provider#15 | ⬜ |
+
+---
+
 ## Phase 2 — CNCF Sandbox application prep (when Phase 1 exits)
 
 | # | Item | Status |
 |---|------|--------|
 | 2.1 | Sandbox proposal draft (problem, differentiation, alignment) | ✅ [CNCF-SANDBOX-APPLICATION.md](CNCF-SANDBOX-APPLICATION.md) |
-| 2.1b | Repo age ≥6 months (cncf/sandbox hard checklist) | ⬜ (`core` since 2026-08-03 → ~2027-02) |
+| 2.1b | Repo age (soft signal): the cncf/sandbox README states no minimum, but reviewers have flagged projects under six months | 🟡 (`core` since 2026-08-03; soft target ~2027-02) |
 | 2.2 | Adopters statement + logos (if any) | 🟡 (statement in ADOPTERS.md; need non-maintainer adopters) |
 | 2.3 | Multiple contributors with merged PRs | 🟡 (Rodrigo + Weslei maintainers; grow more external contributors) |
-| 2.3b | Sandbox maintainer gate: ≥3 maintainers, ≥2 orgs | ✅ (Matheus + Weslei @ CI&T; Rodrigo @ SYS MANAGER) |
+| 2.3b | Maintainer spread (the README says employer diversity is considered, not required) | 🟡 3 maintainers, 2 employers (Matheus + Weslei @ CI&T; Rodrigo @ SYS MANAGER); see employer-consent item in #200 |
 | 2.4 | Security contact + advisory process practiced once | ⬜ |
 | 2.5 | Signatory + contact emails filled for Contribution Agreement | 🟡 (placeholders in draft) |
 | 2.6 | Optional Day 0 GTR / TAG Runtime intro | ⬜ |
-| 2.7 | Submit via [cncf/sandbox](https://github.com/cncf/sandbox) issue form | ⬜ **blocked by 2.1b** |
+| 2.7 | Submit via [cncf/sandbox](https://github.com/cncf/sandbox) issue form | ⬜ **blocked by Phase 1 exit and [#200](https://github.com/virtfoundry/core/issues/200)**, not by repo age alone |
 
-**Do not apply early** without 0+1 exit criteria and the **6-month** repo-age gate.
+**Do not apply early** without 0+1 exit criteria and the open items in [#200](https://github.com/virtfoundry/core/issues/200).
+
+How review works (cncf/sandbox README, checked 2026-10-05): the TOC reviews applications about every two months, first in first out. Outcomes are Approved, Declined, Need-Info, Postponed and Returning. A Postponed result costs a cycle, so apply when ready rather than as early as possible.
+
+### Known risks, stated plainly
+
+- **Positioning.** The README says operators that enable another OSS project should join it as a subproject, and that only reusable projects (not reference architectures) are accepted. The answer to "why not a KubeVirt subproject" and the overlap with Kamaji and Cluster API (now that `vks` exists) carry the application.
+- **Concentration.** About 93% of commits in `core` come from one person, and every listed adopter is a maintainer's homelab.
+- **Employer diversity.** It is considered, not required, and GitHub org membership does not count. Two of the three maintainers share an employer. Confirm no employer claims rights, because the Contribution Agreement transfers trademark and domain.
+- **Governance.** The lead maintainer's final merge authority sits awkwardly next to the vendor-neutrality claim; GOVERNANCE.md already says it moves toward council decisions as the council grows.
 
 ---
 
@@ -90,7 +117,7 @@ Goal: demos, adopters, discoverability — *not* the CNCF application yet.
 6. Ask 2 friends/homelabs to try install and file issues (non-maintainer ADOPTERS)  
 7. ~~Homelab E2E suite green (CR store)~~ — done 2026-09  
 8. ~~Full Apache-2.0 LICENSE text + Sandbox application draft~~  
-9. Wait for **6-month** repo age before opening cncf/sandbox issue (~2027-02)  
+9. Work the open items in [#200](https://github.com/virtfoundry/core/issues/200); open the cncf/sandbox issue when Phase 1 exits and those are done (soft target ~2027-02, no hard minimum age)  
 
 ## Related docs
 
