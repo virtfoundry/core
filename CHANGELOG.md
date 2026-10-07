@@ -6,6 +6,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-07
+
+### Fixed
+
+- **VKS:** creating a cluster with `network_ref` set to the network display name (for example `default`) made the worker Instances fail with `network "default" not found`. The API now resolves the name to the Network CR (`default-default`); an unknown or ambiguous name returns 400 ([#249](https://github.com/virtfoundry/core/issues/249)).
+- **UI proxy:** the bundled nginx kept the port out of the `Host` header, so the console WebSocket failed the origin check (403) when the UI was served on a non-default port ([#246](https://github.com/virtfoundry/core/pull/246)).
+
+### Added
+
+- `GET /api/v1/healthz` (and `/health`) for load balancer and install checks ([#248](https://github.com/virtfoundry/core/pull/248)).
+
 ## [0.11.2] - 2026-10-07
 
 ### Fixed
