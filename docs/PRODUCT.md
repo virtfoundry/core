@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.11.0** — CRDs move to the `virtfoundry-crds` chart (upgraded by Helm, protected from uninstall); umbrella chart `virtfoundry-platform`; VKS chart published as OCI
 - **0.10.0** — VKS (Kubernetes clusters): gRPC ClusterService, console create/detail, node image seed; tenant ownership labels; image signing
 - **0.9.0** — Realtime/gRPC watch, Multus CRD-first networks, powerState Start/Stop, SSH PEM one-shot, security harden (CORS/SSH/Offerings)
 - **0.8.0** — VM create Error / 0 vCPU after operator 0.7.2 (pod-network annotation + list enrichment)

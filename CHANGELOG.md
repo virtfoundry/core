@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-07
+
+### Changed
+
+- Version alignment with operator, vks and the charts. No code changes since 0.10.0. **The CRDs now come from the `virtfoundry-crds` chart**, so install it before core: see [CRDs and upgrades](https://virtfoundry.github.io/helm-charts/docs/guide/crds/).
+
 ## [0.10.0] - 2026-10-06
 
 ### Added
