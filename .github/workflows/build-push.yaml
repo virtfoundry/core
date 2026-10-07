@@ -160,3 +160,26 @@ jobs:
           fi
           git commit -m "chore(virtfoundry): pin images to ${SHORT_SHA}"
           git push origin HEAD:main
+
+      # Keyless signatures are separate OCI artifacts (<digest>.sig tags): they do not change
+      # the image, so the homelab containerd is unaffected. Placed after the Argo pin so a
+      # signing failure can never block a rollout.
+      - name: Install Cosign
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
+
+      - name: Sign API image (keyless)
+        if: ${{ !cancelled() && steps.build-api.outputs.digest != '' && github.event_name != 'pull_request' }}
+        env:
+          DIGEST: ${{ steps.build-api.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${API_IMAGE}@${DIGEST}"
+
+      - name: Sign UI image (keyless)
+        if: ${{ !cancelled() && steps.build-ui.outputs.digest != '' && github.event_name != 'pull_request' }}
+        env:
+          DIGEST: ${{ steps.build-ui.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${UI_IMAGE}@${DIGEST}"

@@ -1,6 +1,7 @@
 package mapping
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/virtfoundry/core/internal/platform"
@@ -203,5 +204,23 @@ func TestMergeUnstructuredSpecKeepsExistingKeys(t *testing.T) {
 	tmpl, _, _ := unstructured.NestedString(existing.Object, "spec", "templateRef", "name")
 	if tmpl != "cirros" {
 		t.Fatalf("templateRef wiped: %#v", spec["templateRef"])
+	}
+}
+
+func TestSSHKeyFromUnstructured_DerivesFingerprint(t *testing.T) {
+	const pub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILEsOd/tTVAiSwkljELmGFn/5GZ7wkeuUnCw1DhRowNE test"
+	obj := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "virtfoundry.io/v1alpha1", "kind": "SSHKey",
+		"metadata": map[string]interface{}{"name": "k"},
+		"spec":     map[string]interface{}{"publicKey": pub},
+	}}
+	got := SSHKeyFromUnstructured(obj, "t1")
+	if !strings.HasPrefix(got.Fingerprint, "SHA256:") {
+		t.Fatalf("fingerprint not derived from the public key: %q", got.Fingerprint)
+	}
+
+	obj.Object["spec"] = map[string]interface{}{"publicKey": "not a key"}
+	if fp := SSHKeyFromUnstructured(obj, "t1").Fingerprint; fp != "" {
+		t.Fatalf("an unparsable key must leave the fingerprint empty, got %q", fp)
 	}
 }
