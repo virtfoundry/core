@@ -196,3 +196,22 @@ func TestKubernetesStore_GetTenantBySlugFindsLegacyCRWithoutSlugLabel(t *testing
 		t.Fatalf("tenant = %#v, want slug=smoke name=%q", got, "Homelab Smoke")
 	}
 }
+
+func TestKubernetesStore_SaveVMSnapshotKeepsPhaseAndVMName(t *testing.T) {
+	repo := &Kubernetes{dyn: newTestDynamicClient(), clientset: kubefake.NewSimpleClientset()}
+	repo.SaveTenant(&platform.Tenant{
+		Name: "Acme", Slug: "acme", Namespace: "virtfoundry-tenant-acme", State: "active", CreatedAt: Now(),
+	})
+	tenant, ok := repo.GetTenantBySlug("acme")
+	if !ok {
+		t.Fatal("tenant not found")
+	}
+
+	// The InstanceSnapshot CR stores neither the KubeVirt phase nor the VM name:
+	// reading it back after save must not blank what the caller just set.
+	snap := &platform.VMSnapshot{ID: NewID(), TenantID: tenant.ID, VMName: "web", Name: "baseline", Phase: "Succeeded"}
+	repo.SaveVMSnapshot(snap)
+	if snap.Phase != "Succeeded" || snap.VMName != "web" {
+		t.Fatalf("SaveVMSnapshot blanked transient fields: phase=%q vm=%q", snap.Phase, snap.VMName)
+	}
+}

@@ -287,3 +287,18 @@ func TestSyncAllVMStates_OperatorReconcileBroadcastsPhaseChange(t *testing.T) {
 		t.Fatalf("expected Starting broadcast, got %+v", hub.events[1].payload)
 	}
 }
+
+func TestRequireOperatorTemplate(t *testing.T) {
+	tmpl := &platform.VMTemplate{Name: "cirros", SourceType: "container"}
+
+	err := requireOperatorTemplate(true, nil)
+	if err == nil || !strings.Contains(err.Error(), "template_id is required") {
+		t.Fatalf("operator reconcile without a template must be a 400 naming template_id, got %v", err)
+	}
+	if err := requireOperatorTemplate(true, tmpl); err != nil {
+		t.Fatalf("a deploy with a template must pass: %v", err)
+	}
+	if err := requireOperatorTemplate(false, nil); err != nil {
+		t.Fatalf("the legacy hypervisor path may deploy from an image: %v", err)
+	}
+}
