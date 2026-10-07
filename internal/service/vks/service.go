@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
@@ -70,6 +71,11 @@ func (s *Service) Create(ctx context.Context, tenantID string, in CreateInput) (
 	if err != nil {
 		return nil, err
 	}
+	netRef, err := s.resolveNetworkRef(ctx, ns, in.Workers.NetworkRef.Name)
+	if err != nil {
+		return nil, err
+	}
+	in.Workers.NetworkRef.Name = netRef
 	obj := toUnstructured(ns, in)
 	created, err := s.dyn.Resource(mapping.VKSClusterGVR).Namespace(ns).Create(ctx, obj, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
@@ -122,6 +128,36 @@ func (s *Service) GetKubeconfig(ctx context.Context, tenantID, name string) ([]b
 		return nil, iaerrors.NewInternalError("admin.conf missing in kubeconfig secret")
 	}
 	return raw, nil
+}
+
+// resolveNetworkRef turns the network name the API and the UI show ("default") into the name of the
+// Network CR ("default-default": <vpc>-<network>), which is what the worker Instances reference. A
+// name that already is a CR name is kept, so kubectl users and the Terraform provider keep working.
+// Without this, a cluster created from the UI got a worker stuck in Failed with
+// "Network ... not found" (the CR is never called just "default" on a fresh install).
+func (s *Service) resolveNetworkRef(ctx context.Context, ns, name string) (string, error) {
+	list, err := s.dyn.Resource(mapping.NetworkGVR).Namespace(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("list networks: %w", err)
+	}
+	var byDisplayName []string
+	for i := range list.Items {
+		cr := list.Items[i].GetName()
+		if cr == name {
+			return name, nil
+		}
+		if dn, _, _ := unstructured.NestedString(list.Items[i].Object, "spec", "name"); dn == name {
+			byDisplayName = append(byDisplayName, cr)
+		}
+	}
+	switch len(byDisplayName) {
+	case 1:
+		return byDisplayName[0], nil
+	case 0:
+		return "", iaerrors.NewBadRequestError(fmt.Sprintf("network %q not found in this tenant", name))
+	default:
+		return "", iaerrors.NewBadRequestError(fmt.Sprintf("network name %q matches %d networks (%s); use the Network CR name", name, len(byDisplayName), strings.Join(byDisplayName, ", ")))
+	}
 }
 
 func validateCreate(in CreateInput) error {
