@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { useI18n, type TranslationKey } from '../lib/i18n';
 
 type Status =
   | 'running'
@@ -25,19 +26,6 @@ const statusStyles: Record<Status, string> = {
   inactive: 'bg-surface-container border border-outline-variant text-on-surface-variant',
 };
 
-const statusLabels: Record<Status, string> = {
-  running: 'Running',
-  stopped: 'Stopped',
-  starting: 'Starting',
-  stopping: 'Stopping',
-  creating: 'Creating',
-  error: 'Error',
-  enabled: 'Enabled',
-  disabled: 'Disabled',
-  active: 'Active',
-  inactive: 'Inactive',
-};
-
 interface StatusBadgeProps {
   status: string;
   className?: string;
@@ -45,9 +33,10 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className, pulse = true }: StatusBadgeProps) {
+  const { t } = useI18n();
   const normalizedStatus = status.toLowerCase() as Status;
   const style = statusStyles[normalizedStatus] || statusStyles.inactive;
-  const label = statusLabels[normalizedStatus] || status;
+  const label = normalizedStatus in statusStyles ? t(`status.${normalizedStatus}` as TranslationKey) : status;
   const showPulse = pulse && (
     normalizedStatus === 'running'
     || normalizedStatus === 'starting'
