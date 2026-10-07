@@ -237,10 +237,11 @@ func (k *Kubernetes) SaveVMSnapshot(s *platform.VMSnapshot) {
 	if vm, ok := k.GetVM(s.VMID); ok {
 		instanceCR = mapping.InstanceCRName(vm)
 	}
+	prior := *s
 	k.saveNamespacedMapped(mapping.InstanceSnapshotGVR, ns, func() *unstructured.Unstructured {
 		return mapping.InstanceSnapshotToUnstructured(s, instanceCR)
 	}, func(saved *unstructured.Unstructured) {
-		*s = *mapping.InstanceSnapshotFromUnstructured(saved, s.TenantID, s.VMID)
+		mapping.MergeVMSnapshot(s, &prior, mapping.InstanceSnapshotFromUnstructured(saved, s.TenantID, s.VMID))
 	})
 }
 
