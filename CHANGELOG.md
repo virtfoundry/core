@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-07
+
+### Fixed
+
+- **UI:** the login page showed made-up figures (99.9% SLA, 10K+ managed VMs, 24/7 support). It now shows verifiable facts: Apache 2.0, KubeVirt, CRDs ([#239](https://github.com/virtfoundry/core/issues/239)).
+- **UI:** the four "Copy ssh" buttons (deploy wizard, VM detail, VM list) did nothing on a page served over plain HTTP, because `navigator.clipboard` does not exist there. They use the clipboard fallback and show Copied only when the copy worked ([#242](https://github.com/virtfoundry/core/issues/242)).
+
 ## [0.11.1] - 2026-10-07
 
 ### Fixed

@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.11.2** — UI fixes: honest login page, Copy ssh over HTTP
 - **0.11.1** — fixes: deploy needs template_id, VM snapshot phase/vm_name, SSH fingerprint, wizard loading state, PT labels; dependency updates
 - **0.11.0** — CRDs move to the `virtfoundry-crds` chart (upgraded by Helm, protected from uninstall); umbrella chart `virtfoundry-platform`; VKS chart published as OCI
 - **0.10.0** — VKS (Kubernetes clusters): gRPC ClusterService, console create/detail, node image seed; tenant ownership labels; image signing
