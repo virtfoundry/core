@@ -41,9 +41,12 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(deps)"
+    # Majors (React, react-router, Tailwind, Vite, recharts...) are migrations, not
+    # bumps: they come as separate PRs. Only minor and patch updates are grouped.
     groups:
-      all-npm:
+      npm-minor-patch:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
