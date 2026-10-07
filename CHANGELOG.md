@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-07
+
+### Fixed
+
+- **API:** a deploy without `template_id` under operator reconcile answers `400` instead of `201` followed by a failed Instance ([#229](https://github.com/virtfoundry/core/issues/229)).
+- **API:** the VM snapshot list keeps `phase` and `vm_name`; the CR round-trip no longer blanks them ([#230](https://github.com/virtfoundry/core/issues/230)).
+- **API:** the SSH key fingerprint is derived from the public key when the CR has none, also for existing keys ([#231](https://github.com/virtfoundry/core/issues/231)).
+- **UI:** the deploy wizard shows a loading line instead of "no templates" while the catalog loads ([#226](https://github.com/virtfoundry/core/issues/226)).
+- **UI:** status badges, the wizard review (Offering, Deploy, GPU / host-device) and the PT `vks.form.offering` are translated; a test checks pt/en key parity ([#227](https://github.com/virtfoundry/core/issues/227)).
+
+### Changed
+
+- Dependency updates: Go modules (gRPC 1.84, zap, viper, x/crypto, KubeVirt client 1.9; the k8s libraries stay on the minor the KubeVirt client is built against), Docker base images, GitHub Actions. CI uses the Go version from `go.mod`.
+- Dependabot groups only minor and patch npm updates (majors arrive as separate PRs) and ignores minor/major bumps of single `k8s.io/*` libraries.
+
 ## [0.11.0] - 2026-10-07
 
 ### Changed
