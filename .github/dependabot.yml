@@ -19,6 +19,18 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(deps)"
+    # The k8s.io libraries must move together with kubevirt.io/client-go (it is built
+    # against one k8s minor). Bumping one of them alone breaks the build, so only
+    # patch updates come from here; minor bumps follow a KubeVirt client upgrade.
+    ignore:
+      - dependency-name: "k8s.io/api"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "k8s.io/apimachinery"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "k8s.io/client-go"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "k8s.io/apiextensions-apiserver"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       all-gomod:
         patterns: ["*"]
