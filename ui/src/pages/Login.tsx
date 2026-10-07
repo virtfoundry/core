@@ -119,21 +119,21 @@ export function Login() {
             }
           >
             <div>
-              <div className="font-headline text-headline-lg font-bold">99.9%</div>
+              <div className="font-headline text-headline-lg font-bold">{t('login.factLicense')}</div>
               <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
-                {t('login.uptimeSla')}
+                {t('login.factLicenseLabel')}
               </div>
             </div>
             <div>
-              <div className="font-headline text-headline-lg font-bold">10K+</div>
+              <div className="font-headline text-headline-lg font-bold">{t('login.factEngine')}</div>
               <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
-                {t('login.managedVms')}
+                {t('login.factEngineLabel')}
               </div>
             </div>
             <div>
-              <div className="font-headline text-headline-lg font-bold">24/7</div>
+              <div className="font-headline text-headline-lg font-bold">{t('login.factState')}</div>
               <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
-                {t('login.support')}
+                {t('login.factStateLabel')}
               </div>
             </div>
           </footer>
