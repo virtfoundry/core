@@ -146,10 +146,10 @@ func main() {
 	}))
 	router.NotFoundHandler = cors(http.NotFoundHandler())
 
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok","service":"virtfoundry-iaas","hypervisor":"kubevirt"}`))
-	}).Methods("GET")
+	// /health serves the kubelet probes; /api/v1/healthz is the same answer under /api/, the only
+	// prefix the UI proxy forwards, so a user can check the API through the UI (quickstart).
+	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/api/v1/healthz", healthHandler).Methods("GET")
 
 	loginThrottle := auth.NewLoginThrottle(auth.ThrottleParams{
 		UserMaxFailures: cfg.Security.LoginThrottle.UserMaxFailures,
@@ -430,4 +430,9 @@ func resolveRootPassword(repo store.Repository) (string, bool, error) {
 		return "", false, err
 	}
 	return generated, true, nil
+}
+
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write([]byte(`{"status":"ok","service":"virtfoundry-iaas","hypervisor":"kubevirt"}`))
 }
