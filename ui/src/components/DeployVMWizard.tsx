@@ -116,7 +116,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const { data: sshData } = useQuery({ queryKey: queryKeys.sshKeys, queryFn: listSSHKeys, enabled: open });
   const { data: volData } = useQuery({ queryKey: queryKeys.volumes, queryFn: listVolumes, enabled: open });
   const { data: sgData } = useQuery({ queryKey: queryKeys.securityGroups, queryFn: listSecurityGroups, enabled: open });
-  const { data: tmplData } = useQuery({ queryKey: queryKeys.templates, queryFn: listVMTemplates, enabled: open });
+  const { data: tmplData, isPending: tmplLoading } = useQuery({ queryKey: queryKeys.templates, queryFn: listVMTemplates, enabled: open });
   const { data: offeringsData } = useQuery({ queryKey: queryKeys.offerings, queryFn: listServiceOfferings, enabled: open });
 
   const templates = (tmplData?.vm_templates || []).filter(isDeployableImage);
@@ -484,7 +484,9 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                 <div>
                   <label className="block text-sm font-medium mb-2">{t('common.image')}</label>
                   {templates.length === 0 ? (
-                    <InfoBanner variant="warning">{t('vms.noTemplates')}</InfoBanner>
+                    tmplLoading
+                      ? <p className="text-sm text-on-surface-variant">{t('common.loading')}</p>
+                      : <InfoBanner variant="warning">{t('vms.noTemplates')}</InfoBanner>
                   ) : (
                     <div className="space-y-3">
                       {linuxTemplates.length > 0 && (
@@ -852,7 +854,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div><dt className="text-on-surface-variant">{t('common.name')}</dt><dd className="font-data-mono">{form.name || '—'}</dd></div>
                   <div><dt className="text-on-surface-variant">{t('common.image')}</dt><dd>{selectedTemplate?.display_name || '—'}</dd></div>
-                  <div><dt className="text-on-surface-variant">Offering</dt><dd>{(() => {
+                  <div><dt className="text-on-surface-variant">{t('vms.offering')}</dt><dd>{(() => {
                     const off = templateOfferings.find((o) => o.id === form.offering) || templateOfferings[0];
                     return off ? offeringLabel(off) : '—';
                   })()}</dd></div>
@@ -896,7 +898,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                         {t('vms.affinity')} <ComingSoonBadge />
                       </span>
                       <span className="inline-flex items-center gap-1 border border-outline-variant rounded px-2 py-1">
-                        GPU / host-device <ComingSoonBadge />
+                        {t('vms.gpuHostDevice')} <ComingSoonBadge />
                       </span>
                     </div>
                   </div>
@@ -944,7 +946,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     disabled={deployMutation.isPending || prechecks.length > 0}
                     onClick={handleDeploy}
                   >
-                    {deployMutation.isPending ? t('common.deploying') : 'Deploy'}
+                    {deployMutation.isPending ? t('common.deploying') : t('vms.deployAction')}
                   </button>
                 )}
               </div>

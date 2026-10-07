@@ -45,6 +45,17 @@ func (s *Service) canDeployViaOperator(deployTmpl *platform.VMTemplate, in Deplo
 	return true
 }
 
+// requireOperatorTemplate refuses a deploy without a Template under
+// operatorReconcile. The Instance references a Template CR; without one the
+// request used to answer 201 and the Instance failed later with
+// "template ... not found", far from the cause.
+func requireOperatorTemplate(operatorReconcile bool, deployTmpl *platform.VMTemplate) error {
+	if operatorReconcile && deployTmpl == nil {
+		return iaerrors.NewBadRequestError("template_id is required: with operator reconcile an Instance is deployed from a Template (GET /api/v1/vm-templates lists them)")
+	}
+	return nil
+}
+
 // networksAllIsolated reports whether every ID is an isolated tenant network.
 // Unknown / missing IDs are not isolated (refuse CR-first).
 func (s *Service) networksAllIsolated(networkIDs []string) bool {

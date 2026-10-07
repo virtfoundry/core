@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/virtfoundry/core/internal/platform"
+	"golang.org/x/crypto/ssh"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -343,6 +344,22 @@ func InstanceSnapshotToUnstructured(s *platform.VMSnapshot, instanceCR string) *
 	return obj
 }
 
+// MergeVMSnapshot sets dst to the snapshot read back from the CR, keeping the
+// fields the InstanceSnapshot CR does not persist (the KubeVirt phase and the
+// source VM name). Reading the CR back would otherwise blank them.
+func MergeVMSnapshot(dst, prior, fromCR *platform.VMSnapshot) {
+	*dst = *fromCR
+	if dst.Phase == "" {
+		dst.Phase = prior.Phase
+	}
+	if dst.VMName == "" {
+		dst.VMName = prior.VMName
+	}
+	if dst.VMID == "" {
+		dst.VMID = prior.VMID
+	}
+}
+
 func InstanceSnapshotFromUnstructured(obj *unstructured.Unstructured, tenantID, vmID string) *platform.VMSnapshot {
 	return &platform.VMSnapshot{
 		ID:          ResourceID(obj),
@@ -366,7 +383,7 @@ func SSHKeyToUnstructured(k *platform.SSHKeyPair, tenantSlug string) *unstructur
 }
 
 func SSHKeyFromUnstructured(obj *unstructured.Unstructured, tenantID string) *platform.SSHKeyPair {
-	return &platform.SSHKeyPair{
+	k := &platform.SSHKeyPair{
 		ID:          ResourceID(obj),
 		TenantID:    tenantID,
 		Name:        obj.GetName(),
@@ -374,6 +391,21 @@ func SSHKeyFromUnstructured(obj *unstructured.Unstructured, tenantID string) *pl
 		Fingerprint: stringFromStatus(obj, "fingerprint"),
 		CreatedAt:   obj.GetCreationTimestamp().Time,
 	}
+	// Nothing writes status.fingerprint, so derive it from the public key.
+	if k.Fingerprint == "" {
+		k.Fingerprint = sshFingerprint(k.PublicKey)
+	}
+	return k
+}
+
+// sshFingerprint returns the OpenSSH SHA256 fingerprint of an authorized_keys
+// line, or "" when the key does not parse.
+func sshFingerprint(authorizedKey string) string {
+	pub, _, _, _, err := ssh.ParseAuthorizedKey([]byte(authorizedKey))
+	if err != nil {
+		return ""
+	}
+	return ssh.FingerprintSHA256(pub)
 }
 
 func stringFromSpec(obj *unstructured.Unstructured, key string) string {

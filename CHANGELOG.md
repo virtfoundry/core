@@ -6,6 +6,35 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-07
+
+### Changed
+
+- Version alignment with operator, vks and the charts. No code changes since 0.10.0. **The CRDs now come from the `virtfoundry-crds` chart**, so install it before core: see [CRDs and upgrades](https://virtfoundry.github.io/helm-charts/docs/guide/crds/).
+
+## [0.10.0] - 2026-10-06
+
+### Added
+
+- **VKS (Kubernetes clusters)** — gRPC `ClusterService` on cmux `:8080` with a thin REST shim; `GetClusterSummary` for the guest cluster; console create form driven by the version/template catalog, cluster detail page, worker VMs on the Nodes tab, Workloads tab; control plane defaults to `LoadBalancer`.
+- **Node image** — `ghcr.io/virtfoundry/` containerDisk images pass the allowlist; seeded `ubuntu-node-1-36-5` template (digest-pinned).
+
+### Security
+
+- Container images signed with cosign keyless on release.
+- CodeQL, Scorecard, Dependabot (grouped monthly) and dependency review.
+- RBAC contract test for the API's typed Kubernetes calls.
+
+### Fixed
+
+- Tenant namespaces get the operator ownership labels; backfill touches only those labels, never crashes the API when forbidden, and finds legacy Tenant CRs by `spec.slug`.
+- Root credential Secret is recovered on server start.
+- Seeded node template pinned to the working containerDisk digest.
+
+### Changed
+
+- CNCF readiness docs and supply-chain checklist updated.
+
 ## [0.9.0] - 2026-10-01
 
 ### Added

@@ -144,6 +144,9 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 			tmplDisplay = tmpl.DisplayName
 		}
 	}
+	if err := requireOperatorTemplate(s.operatorReconcile, deployTmpl); err != nil {
+		return nil, err
+	}
 	// Deploy userdata overrides template (operator Instance > Template; hypervisor CloudInitExtra).
 	if ud := strings.TrimSpace(in.CloudInitUserData); ud != "" {
 		cloudInitExtra = ud
@@ -635,6 +638,9 @@ func (s *Service) ListVMSnapshots(ctx context.Context, tenantID string) ([]*plat
 				ID: store.NewID(), TenantID: tenantID, VMID: vmID, VMName: info.VMName,
 				Name: info.Name, Namespace: ns, CreatedAt: info.Created,
 			}
+		}
+		if snap.VMName == "" {
+			snap.VMName = info.VMName
 		}
 		snap.Phase = mapVMSnapshotPhase(info.Phase)
 		s.store.SaveVMSnapshot(snap)
