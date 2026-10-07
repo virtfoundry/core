@@ -17,6 +17,7 @@ import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { isVMTransitional, realtimePollInterval, useRealtimeConnected } from '../hooks/useRealtimeEvents';
+import { copyTextWithFallback } from '../hooks/useCopyToClipboard';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useAppSelector } from '../store/hooks';
@@ -272,14 +273,10 @@ export function VMs() {
   const copySsh = async (vm: PlatformVM) => {
     if (!vm.ip) return;
     const line = `ssh ubuntu@${vm.ip}`;
-    try {
-      await navigator.clipboard.writeText(line);
-      setCopiedSsh(vm.name);
-      pushRecentAction({ label: `SSH ${vm.name}`, path: `/vms/${vm.name}` });
-      window.setTimeout(() => setCopiedSsh(null), 2000);
-    } catch {
-      /* ignore */
-    }
+    if (!(await copyTextWithFallback(line))) return;
+    setCopiedSsh(vm.name);
+    pushRecentAction({ label: `SSH ${vm.name}`, path: `/vms/${vm.name}` });
+    window.setTimeout(() => setCopiedSsh(null), 2000);
   };
 
   const exportCsv = () => {

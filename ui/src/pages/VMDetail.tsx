@@ -31,6 +31,7 @@ import {
 } from '../hooks/useRealtimeEvents';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
+import { copyTextWithFallback } from '../hooks/useCopyToClipboard';
 import { useI18n } from '../lib/i18n';
 import {
   PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner,
@@ -394,7 +395,7 @@ export function VMDetail() {
                   type="button"
                   className="btn-outline-sm"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(`ssh ubuntu@${vm.ip}`);
+                    if (!(await copyTextWithFallback(`ssh ubuntu@${vm.ip}`))) return;
                     setSshCopied(true);
                     window.setTimeout(() => setSshCopied(false), 2000);
                   }}
@@ -518,7 +519,7 @@ export function VMDetail() {
                 type="button"
                 className="btn-outline-sm w-full justify-center mb-2"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(`ssh ubuntu@${vm.ip}`);
+                  if (!(await copyTextWithFallback(`ssh ubuntu@${vm.ip}`))) return;
                   setSshCopied(true);
                   window.setTimeout(() => setSshCopied(false), 2000);
                 }}

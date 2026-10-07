@@ -43,6 +43,7 @@ import {
   type DeployPhase,
 } from '../lib/vm-display';
 import { realtimePollInterval, useRealtimeConnected } from '../hooks/useRealtimeEvents';
+import { copyTextWithFallback } from '../hooks/useCopyToClipboard';
 
 const SSH_USER = 'ubuntu';
 const DEFAULT_CLOUD_INIT = '#cloud-config\n';
@@ -410,12 +411,9 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                       title={!trackedVm?.ip ? t('vms.ipPending') : undefined}
                       onClick={async () => {
                         if (!trackedVm?.ip) return;
-                        try {
-                          await navigator.clipboard.writeText(`ssh ${SSH_USER}@${trackedVm.ip}`);
+                        if (await copyTextWithFallback(`ssh ${SSH_USER}@${trackedVm.ip}`)) {
                           setSshCopied(true);
                           window.setTimeout(() => setSshCopied(false), 2000);
-                        } catch {
-                          /* ignore */
                         }
                       }}
                     >
