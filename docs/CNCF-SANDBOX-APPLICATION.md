@@ -49,8 +49,8 @@ https://github.com/virtfoundry/core
 - https://github.com/virtfoundry/operator  
 - https://github.com/virtfoundry/helm-charts  
 - https://github.com/virtfoundry/terraform-provider-virtfoundry  
-- https://github.com/virtfoundry/vks (managed Kubernetes clusters: `VKSCluster` CRD and controller)  
-- https://github.com/virtfoundry/vks-image-factory (node containerDisk images)  
+
+`vks` and `vks-image-factory` are experimental and **not in scope** for this application. They can be proposed after acceptance, once we have feedback from the Kamaji and Cluster API communities.
 
 ### Website URL
 
@@ -115,7 +115,7 @@ VirtFoundry is cloud native by composition: declarative CRDs, operator pattern, 
 ### Cloud native overlap
 
 - **KubeVirt** — VirtFoundry *depends on* KubeVirt; it does not replace it. Overlap is intentional layering (product/control plane vs hypervisor API).  
-- **Kamaji and Cluster API** — `vks` provisions Kamaji `TenantControlPlane`s and runs the worker nodes as VirtFoundry Instances that join with kubeadm. Overlap with cluster lifecycle tooling is real and intentional layering (tenant-facing cluster service on top of the IaaS), not a reimplementation; we will ask both communities for feedback before applying.  
+- **Kamaji and Cluster API** — the experimental `vks` component (managed Kubernetes clusters on top of the IaaS) touches cluster lifecycle tooling. It is out of scope for this application; we will ask both communities for feedback before proposing it later.
 - Other CNCF projects may provide pieces (networking, storage, observability); VirtFoundry orchestrates tenant-facing IaaS resources on top.
 
 ### Similar projects
