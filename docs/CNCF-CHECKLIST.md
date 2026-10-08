@@ -89,7 +89,7 @@ How review works (cncf/sandbox README, checked 2026-10-05): the TOC reviews appl
 
 ### Known risks, stated plainly
 
-- **Positioning.** The README says operators that enable another OSS project should join it as a subproject, and that only reusable projects (not reference architectures) are accepted. The answer to "why not a KubeVirt subproject" and the overlap with Kamaji and Cluster API (now that `vks` exists) carry the application.
+- **Positioning.** The README says operators that enable another OSS project should join it as a subproject, and that only reusable projects (not reference architectures) are accepted. The answer to "why not a KubeVirt subproject" carries the application. `vks` (overlap with Kamaji and Cluster API) is experimental and kept out of the application scope.
 - **Concentration.** About 93% of commits in `core` come from one person, and every listed adopter is a maintainer's homelab.
 - **Employer diversity.** It is considered, not required, and GitHub org membership does not count. Two of the three maintainers share an employer. Confirm no employer claims rights, because the Contribution Agreement transfers trademark and domain.
 - **Governance.** The lead maintainer's final merge authority sits awkwardly next to the vendor-neutrality claim; GOVERNANCE.md already says it moves toward council decisions as the council grows.
