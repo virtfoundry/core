@@ -38,6 +38,7 @@ type PlatformService struct {
 	jobs     *jobs.Service
 	sshkeys  *sshkeys.Service
 	lb       *loadbalancer.Service
+	kv       *hypervisor.KubeVirtDriver
 }
 
 func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hypervisor.KubeVirtDriver, hub EventBroadcaster) *PlatformService {
@@ -54,6 +55,7 @@ func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hyper
 		jobs:     jobs.New(st, computeSvc),
 		sshkeys:  sshkeys.New(st),
 		lb:       loadbalancer.New(st, k8s),
+		kv:       kv,
 	}
 }
 
