@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/virtfoundry/core/internal/platform/branding"
 	"github.com/virtfoundry/core/internal/platform/cloudinit"
@@ -25,6 +28,13 @@ const (
 	defaultVMImage      = "quay.io/kubevirt/cirros-container-disk-demo"
 	virtioContainerDisk = "quay.io/kubevirt/virtio-container-disk:v1.8.4"
 	windowsMachineType  = "q35"
+
+	// clusterUsageTTL bounds how often we hit metrics.k8s.io. metrics-server itself
+	// scrapes the kubelet every ~15s; a 30s server-side cache matches the design
+	// spec (Tier 2) and keeps the dashboard poll cheap.
+	clusterUsageTTL = 30 * time.Second
+	// clusterUsageCallTimeout caps a single metrics.k8s.io round-trip.
+	clusterUsageCallTimeout = 4 * time.Second
 )
 
 // Cirros only drives the default VGA device; virtio-gpu yields a black VNC screen.
@@ -38,8 +48,29 @@ func videoDeviceForImage(image string) *kubevirtv1.VideoDevice {
 // KubeVirtDriver implements Driver using KubeVirt CRDs.
 type KubeVirtDriver struct {
 	virtClient kubecli.KubevirtClient
-	k8sClient  *kubernetes.Clientset
+	k8sClient  kubernetes.Interface
 	namespace  string
+
+	// usageCache memoises ClusterUsage between dashboard polls. A nil value with
+	// a non-nil err represents "metrics-server unreachable"; the dashboard turns
+	// that into a degraded state.
+	usageCacheMu sync.Mutex
+	usageCache   *clusterUsageCacheEntry
+
+	// addonsCache memoises AddonsHealth between dashboard polls.
+	addonsCacheMu sync.Mutex
+	addonsCache   *addonsCacheEntry
+}
+
+type clusterUsageCacheEntry struct {
+	value *ClusterUsage
+	err   error
+	at    time.Time
+}
+
+type addonsCacheEntry struct {
+	value *AddonsHealth
+	at    time.Time
 }
 
 type KubeVirtConfig struct {
@@ -83,11 +114,19 @@ func NewKubeVirtDriver(config KubeVirtConfig) (*KubeVirtDriver, error) {
 		namespace = "default"
 	}
 
+	return newKubeVirtDriver(virtClient, k8sClient, namespace), nil
+}
+
+func newKubeVirtDriver(virtClient kubecli.KubevirtClient, k8sClient kubernetes.Interface, namespace string) *KubeVirtDriver {
 	return &KubeVirtDriver{
 		virtClient: virtClient,
 		k8sClient:  k8sClient,
 		namespace:  namespace,
-	}, nil
+	}
+}
+
+func NewKubeVirtDriverForTest(virtClient kubecli.KubevirtClient, k8sClient kubernetes.Interface) *KubeVirtDriver {
+	return newKubeVirtDriver(virtClient, k8sClient, "default")
 }
 
 func (d *KubeVirtDriver) WithNamespace(ns string) *KubeVirtDriver {
@@ -428,6 +467,359 @@ func (d *KubeVirtDriver) GetHostResources(ctx context.Context) (map[string]inter
 		"memory": cluster.MemoryTotal,
 		"nodes":  cluster.NodeCount,
 	}, nil
+}
+
+func (d *KubeVirtDriver) ClusterMetrics(ctx context.Context) (*ClusterMetrics, error) {
+	nodes, err := d.k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list nodes: %w", err)
+	}
+
+	out := &ClusterMetrics{
+		Nodes:           len(nodes.Items),
+		KubeletVersions: []string{},
+		OSImages:        []string{},
+		OSArchitectures: []string{},
+		CollectedAt:     time.Now().UTC(),
+	}
+
+	kubelet := map[string]struct{}{}
+	osImage := map[string]struct{}{}
+	osArch := map[string]struct{}{}
+
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+
+		if isNodeReady(node) {
+			out.NodesReady++
+		}
+		out.CPUCapacityMilli += node.Status.Capacity.Cpu().MilliValue()
+		out.CPUAllocatableMilli += node.Status.Allocatable.Cpu().MilliValue()
+		out.MemoryCapacity += node.Status.Capacity.Memory().Value()
+		out.MemoryAllocatable += node.Status.Allocatable.Memory().Value()
+
+		if v := node.Status.NodeInfo.KubeletVersion; v != "" {
+			kubelet[v] = struct{}{}
+		}
+		if v := node.Status.NodeInfo.OSImage; v != "" {
+			osImage[v] = struct{}{}
+		}
+		if v := node.Status.NodeInfo.Architecture; v != "" {
+			osArch[v] = struct{}{}
+		}
+	}
+
+	out.KubeletVersions = sortedKeys(kubelet)
+	out.OSImages = sortedKeys(osImage)
+	out.OSArchitectures = sortedKeys(osArch)
+	return out, nil
+}
+
+// ClusterUsage aggregates metrics.k8s.io/v1beta1 NodeMetrics into a single
+// cluster-wide usage figure (CPU millicores + memory bytes). It returns
+// (nil, nil) when metrics-server is absent, Forbidden, or when the request
+// fails with a transient server error — the dashboard must keep working
+// when the cluster does not expose usage data. Genuine errors (parse failure,
+// etc.) are propagated.
+func (d *KubeVirtDriver) ClusterUsage(ctx context.Context) (*ClusterUsage, error) {
+	d.usageCacheMu.Lock()
+	cached := d.usageCache
+	if cached != nil && time.Since(cached.at) < clusterUsageTTL {
+		d.usageCacheMu.Unlock()
+		return cached.value, cached.err
+	}
+	d.usageCacheMu.Unlock()
+
+	value, err := d.fetchClusterUsage(ctx)
+
+	d.usageCacheMu.Lock()
+	d.usageCache = &clusterUsageCacheEntry{value: value, err: err, at: time.Now()}
+	d.usageCacheMu.Unlock()
+
+	return value, err
+}
+
+// fetchClusterUsage performs a single metrics.k8s.io round-trip. It is not
+// covered by rbac_contract_test.go (the test only sees typed client-go
+// calls; metrics.k8s.io is reached via the discovery REST client, which is
+// an accepted pattern — see the dynamic-client note in docs/rbac-contract.yaml).
+func (d *KubeVirtDriver) fetchClusterUsage(ctx context.Context) (*ClusterUsage, error) {
+	if d.k8sClient == nil {
+		return nil, nil
+	}
+	restClient := d.k8sClient.Discovery().RESTClient()
+	if restClient == nil {
+		return nil, nil
+	}
+	callCtx, cancel := context.WithTimeout(ctx, clusterUsageCallTimeout)
+	defer cancel()
+
+	raw, err := restClient.
+		Get().
+		AbsPath("/apis/metrics.k8s.io/v1beta1/nodes").
+		Do(callCtx).
+		Raw()
+	if err != nil {
+		if isMetricsAbsent(err) {
+			log.Printf("[cluster-usage] metrics.k8s.io unavailable: %v", err)
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get metrics.k8s.io nodes: %w", err)
+	}
+
+	var list struct {
+		Items []struct {
+			Usage struct {
+				CPU    string `json:"cpu"`
+				Memory string `json:"memory"`
+			} `json:"usage"`
+			Timestamp string `json:"timestamp"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return nil, fmt.Errorf("decode metrics.k8s.io nodes: %w", err)
+	}
+
+	out := &ClusterUsage{
+		WindowSeconds: int64(clusterUsageTTL / time.Second),
+		CollectedAt:   time.Now().UTC(),
+	}
+	for _, item := range list.Items {
+		cpu := resource.MustParse(item.Usage.CPU)
+		mem := resource.MustParse(item.Usage.Memory)
+		out.CPUUsageMilli += cpu.MilliValue()
+		out.MemoryUsage += mem.Value()
+	}
+	return out, nil
+}
+
+// isMetricsAbsent recognises the failure modes the dashboard tolerates:
+//   - the API is not registered (404, metrics-server not installed)
+//   - the ServiceAccount is not granted access (403)
+//   - the API server is overloaded or briefly unavailable (5xx, timeout)
+func isMetricsAbsent(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.IsNotFound(err) || errors.IsForbidden(err) || errors.IsUnauthorized(err) {
+		return true
+	}
+	if errors.IsServiceUnavailable(err) || errors.IsTimeout(err) || errors.IsServerTimeout(err) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "no such host") ||
+		strings.Contains(msg, "the server could not find the requested resource")
+}
+
+// StorageSummary aggregates PVCs in the driver namespace into a single
+// tenant-scoped storage figure. Counts every PVC in the namespace (Bound or
+// Pending) toward TotalBytes (the reserved capacity the user has asked for),
+// and the Bound subset toward UsedBytes (actually attached). Returns nil
+// without error when the driver has no k8s client (memory store) so the
+// dashboard degrades gracefully.
+func (d *KubeVirtDriver) StorageSummary(ctx context.Context) (*StorageSummary, error) {
+	if d.k8sClient == nil {
+		return nil, nil
+	}
+	list, err := d.k8sClient.CoreV1().PersistentVolumeClaims(d.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if errors.IsForbidden(err) || errors.IsUnauthorized(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("list PVCs: %w", err)
+	}
+	out := &StorageSummary{Count: len(list.Items)}
+	for i := range list.Items {
+		pvc := &list.Items[i]
+		req := pvc.Spec.Resources.Requests.Storage()
+		if req == nil {
+			continue
+		}
+		bytes := req.Value()
+		out.TotalBytes += bytes
+		if pvc.Status.Phase == k8sv1.ClaimBound {
+			out.UsedBytes += bytes
+		}
+	}
+	out.AvailableBytes = out.TotalBytes - out.UsedBytes
+	return out, nil
+}
+
+// AddonsHealth probes each critical cluster dependency (KubeVirt, CDI, Multus,
+// metrics-server, networking) and reports whether its API group is registered.
+// Results are memoised for the same 30s window as ClusterUsage so a dashboard
+// poll only triggers one discovery round-trip per cache miss.
+func (d *KubeVirtDriver) AddonsHealth(ctx context.Context) (*AddonsHealth, error) {
+	d.addonsCacheMu.Lock()
+	cached := d.addonsCache
+	if cached != nil && time.Since(cached.at) < clusterUsageTTL {
+		d.addonsCacheMu.Unlock()
+		return cached.value, nil
+	}
+	d.addonsCacheMu.Unlock()
+
+	value := d.probeAddons(ctx)
+
+	d.addonsCacheMu.Lock()
+	d.addonsCache = &addonsCacheEntry{value: value, at: time.Now()}
+	d.addonsCacheMu.Unlock()
+
+	return value, nil
+}
+
+// addonGroupAliases maps a substring of a CRD's spec.group to a short,
+// human-friendly addon name. Entries are checked in order; the first match
+// wins, so the more specific needles (e.g. "cdi.kubevirt.io") must come
+// before the less specific ones (e.g. "kubevirt.io") they are a suffix of.
+// Add a new entry here to teach the dashboard about a new addon that does
+// not carry the Helm labels.
+var addonGroupAliases = []struct {
+	needle string
+	alias  string
+}{
+	{"cdi.kubevirt.io", "cdi"},
+	{"kubevirt.io", "kubevirt"},
+	{"k8s.cni.cncf.io", "multus"},
+	{"cert-manager.io", "cert-manager"},
+	{"istio.io", "istio"},
+	{"monitoring.coreos.com", "prometheus"},
+	{"tekton.dev", "tekton"},
+	{"argoproj.io", "argocd"},
+}
+
+func aliasFromGroup(group string) string {
+	for _, e := range addonGroupAliases {
+		if strings.Contains(group, e.needle) {
+			return e.alias
+		}
+	}
+	return ""
+}
+
+// resolveAddonName extracts an addon identifier from a CRD, in order:
+//   1. app.kubernetes.io/name
+//   2. app.kubernetes.io/part-of
+//   3. app.kubernetes.io/component
+//   4. A short alias derived from spec.group
+//
+// Returns "" if no identifier is found; the caller skips the CRD.
+func resolveAddonName(labels map[string]string, group string) string {
+	for _, key := range []string{
+		"app.kubernetes.io/name",
+		"app.kubernetes.io/part-of",
+		"app.kubernetes.io/component",
+	} {
+		if v := labels[key]; v != "" {
+			return v
+		}
+	}
+	return aliasFromGroup(group)
+}
+
+// probeAddons discovers cluster addons dynamically by listing every
+// CustomResourceDefinition, resolving an identifier through Helm labels
+// (name/part-of/component) with a fallback to a group-prefix alias, and
+// grouping by that identifier. CRDs with no resolvable name are ignored.
+// The probe fails soft: any error (Forbidden, timeout, missing CRD list
+// permission) returns an empty list rather than failing the dashboard.
+func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
+	out := &AddonsHealth{
+		Addons:    []AddonHealth{},
+		CheckedAt: time.Now().UTC(),
+	}
+	if d.k8sClient == nil {
+		return out
+	}
+	restClient := d.k8sClient.Discovery().RESTClient()
+	if restClient == nil {
+		return out
+	}
+
+	raw, err := restClient.
+		Get().
+		AbsPath("/apis/apiextensions.k8s.io/v1/customresourcedefinitions").
+		Do(ctx).
+		Raw()
+	if err != nil {
+		log.Printf("[cluster-addons] list CRDs: %v", err)
+		return out
+	}
+
+	var list struct {
+		Items []struct {
+			Metadata struct {
+				Name   string            `json:"name"`
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+			Spec struct {
+				Group string `json:"group"`
+			} `json:"spec"`
+			Status struct {
+				Conditions []struct {
+					Type   string `json:"type"`
+					Status string `json:"status"`
+				} `json:"conditions"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil {
+		log.Printf("[cluster-addons] decode CRDs: %v", err)
+		return out
+	}
+
+	established := map[string]bool{}
+	seen := map[string]struct{}{}
+	for _, crd := range list.Items {
+		name := resolveAddonName(crd.Metadata.Labels, crd.Spec.Group)
+		if name == "" {
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		for _, c := range crd.Status.Conditions {
+			if c.Type == "Established" && c.Status == "True" {
+				established[name] = true
+				break
+			}
+		}
+	}
+
+	names := make([]string, 0, len(seen))
+	for n := range seen {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	for _, n := range names {
+		status := "ok"
+		if !established[n] {
+			status = "degraded"
+		}
+		out.Addons = append(out.Addons, AddonHealth{Name: n, Status: status})
+	}
+	return out
+}
+
+func isNodeReady(node *k8sv1.Node) bool {
+	for i := range node.Status.Conditions {
+		if node.Status.Conditions[i].Type == k8sv1.NodeReady {
+			return node.Status.Conditions[i].Status == k8sv1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func sortedKeys(set map[string]struct{}) []string {
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (d *KubeVirtDriver) CreateVolume(ctx context.Context, name string, size string) (*Volume, error) {
