@@ -13,6 +13,7 @@ import {
 import { StatusBadge, toneClass, type StatusTone } from '../components/StatusBadge';
 import clsx from 'clsx';
 import { StatsCard } from '../components/StatsCard';
+import { ClusterOverview } from '../components/ClusterOverview';
 
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { getRecentActions } from '../lib/preview-prefs';
@@ -248,6 +249,8 @@ export function Dashboard() {
               )}
             </section>
           )}
+
+          {summary && <ClusterOverview summary={summary} />}
 
           {(recent.length > 0 || localRecent.length > 0) && (
             <SurfaceCard padding="none" title={t('dashboard.recentActivity')}>
