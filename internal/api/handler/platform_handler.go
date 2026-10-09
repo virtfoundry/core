@@ -1073,10 +1073,12 @@ func (h *PlatformHandler) DashboardSummary(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	perms := []string{auth.PermAll}
+	var role platform.Role
 	if actor := middleware.GetActor(r.Context()); actor != nil {
 		perms = actor.Permissions
+		role = actor.Role
 	}
-	summary, err := h.svc.DashboardSummary(r.Context(), tid, perms)
+	summary, err := h.svc.DashboardSummary(r.Context(), tid, perms, role)
 	if err != nil {
 		respondError(w, err)
 		return

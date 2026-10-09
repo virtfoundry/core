@@ -11,7 +11,9 @@
 # fails at deploy time (core#196 to core#198 came from exactly that).
 #
 # Not covered: dynamic-client access (virtfoundry.io CRDs, KubeVirt, CDI, Multus), which is
-# granted per resource in the chart, and calls made through a stored client variable.
+# granted per resource in the chart, and calls made through a stored client variable. These
+# accesses are listed under `dynamicClient` below for the chart to grant; rbac_contract_test.go
+# does not enforce them (it only AST-scans typed client-go calls).
 #
 #   scope: cluster     the grant must be in the ClusterRole (tenant namespaces are created at
 #                      runtime, so RBAC cannot name them). This is the default.
@@ -57,3 +59,19 @@ rules:
   - apiGroup: networking.k8s.io
     resource: networkpolicies
     verbs: [get, create, update, delete]
+# dynamicClient documents access through the discovery REST client
+# (cs.Discovery().RESTClient() / dynamic client) — a pattern used when
+# the typed client-go does not expose the group (e.g. metrics.k8s.io
+# comes from metrics-server, not from client-go). rbac_contract_test.go
+# does not scan these calls, so the chart is the source of truth and
+# must grant them. Each entry lists (apiGroup, resource, verbs).
+dynamicClient:
+  - apiGroup: metrics.k8s.io
+    resource: nodes
+    verbs: [get, list]
+    note: >-
+      Tier 2 of the dashboard host metrics spec. Source: KubeVirtDriver.fetchClusterUsage
+      (internal/infra/hypervisor/kubevirt.go). Reachable only when metrics-server is
+      installed (documented prerequisite in helm-charts). The dashboard degrades gracefully
+      when this API is absent, Forbidden, or transiently unavailable.
+

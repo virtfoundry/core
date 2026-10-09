@@ -6,6 +6,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard:** the `/dashboard` page now surfaces Kubernetes host telemetry (node count, ready nodes, allocatable CPU and memory, distinct kubelet versions and OS image) sourced from `core/v1/nodes` via the `KubeVirtDriver`. The new `GET /api/v1/dashboard/summary` field `hosts` is additive; older clients keep working. The section renders a disabled state when the cluster is unreachable (Forbidden, RBAC, no kubeconfig) so the endpoint never 500s. Tier 1 only — no new dependency.
+
+### Changed
+
+- **UI:** the dashboard host section is now titled "Cluster nodes" (was "Cluster host"), and the OS label is "OS image" / "Imagem do SO" (was "OS" / "SO"). The data is `Node.Status.NodeInfo.OSImage` from `core/v1/nodes` — i.e. the OS of the cluster nodes that run the workloads, **not** the OS of the developer's machine. In `kind` the value is the kind node image (Debian trixie); in kubeadm on bare metal it is the host OS (e.g. AlmaLinux); in AKS/EKS it is the managed node image (Ubuntu / Amazon Linux). No backend changes, no contract change.
+- **UI:** dashboard capacity labels now read "Allocatable CPU (cluster)" / "Allocatable memory (cluster)" (PT: "CPU alocável (cluster)" / "Memória alocável (cluster)"). The values are the **sum of `Status.Allocatable` across all nodes** — they grow with the node count, not with a single host.
+
+### Changed
+
+- **UI:** the "(cluster)" suffix on the CPU and Memory capacity labels was making the cards overflow and break into a second line when the sidebar is expanded. Reverted the labels to "Allocatable CPU" / "Allocatable memory" and moved the aggregation hint to a `title` tooltip on the card. The section title "Cluster nodes" already conveys the scope.
+- **UI:** the "Ready nodes" card now shows a small status badge in the top-right corner that summarises cluster node health at a glance: green "All ready" when every node is Ready, yellow "N degraded" when some are not, red "None ready" when zero are. The badge reuses the same colour tokens as the dashboard "Health" card. No new card, no new data — it just lifts `nodes` / `nodes_ready` from the existing payload.
+
+### Added
+
+- **Dashboard:** the stats row now includes a **Storage** card that aggregates tenant-scoped PVCs: `used / total` (auto-scaled to B/KiB/MiB/GiB/TiB), the percentage of used capacity, and the PVC count. New `GET /api/v1/dashboard/summary` field `storage` (additive). Backend reuses the existing PVC list path in `KubeVirtDriver`; empty store, memory mode, and Forbidden degrade gracefully.
+
+### Added
+
+- **Dashboard:** the Cluster nodes section now includes a **Cluster addons** strip with one coloured dot per critical dependency: KubeVirt, CDI, Multus, metrics-server, networking. Statuses: green (installed and reachable), grey (absent — CRD/API not registered), yellow (unreachable — Forbidden or transient failure). New `GET /api/v1/dashboard/summary` field `addons` (additive) with a 30s in-memory cache. Discovery calls are not AST-scanned by `rbac_contract_test.go` and so do not require a contract entry. Memory mode and nil client render every dot as yellow.
+
+### Changed
+
+- **API:** the addons probe is now **dynamic** — `KubeVirtDriver.probeAddons` lists every `CustomResourceDefinition` and groups by the `app.kubernetes.io/name` label (the standard Helm/Kustomize convention). The hard-coded list (kubevirt, cdi, multus, metrics-server, networking, cert-manager) is gone; any chart that follows the convention appears automatically. Status is `ok` when at least one CRD with the same name has the `Established=True` condition, `degraded` otherwise. CRDs without the label are ignored. The UI keeps the i18n map for the well-known names and falls back to the raw `app.kubernetes.io/name` value for everything else.
+
+### Changed
+
+- **API:** `probeAddons` now resolves the addon name through three Helm labels (`app.kubernetes.io/name`, then `part-of`, then `component`) and falls back to a substring match against a small alias table (`kubevirt.io` → `kubevirt`, `cdi.kubevirt.io` → `cdi`, `k8s.cni.cncf.io` → `multus`, `cert-manager.io` → `cert-manager`, `istio.io` → `istio`, `monitoring.coreos.com` → `prometheus`, `tekton.dev` → `tekton`, `argoproj.io` → `argocd`). Add-ons installed without Helm labels still surface, and a CRD whose group has no alias is silently skipped (no false positives).
+
+### Changed
+
+- **Security:** the dashboard **Cluster overview** section (nodes, ready, CPU/memory capacity and usage, addons strip) is now visible to **root only**. The handler passes `actor.Role` to the service, the service omits the `hosts`, `storage` and `addons` fields from `DashboardSummary` for any non-root actor, and the React side hides the card when `selectIsRoot` is false. Tenant admins and tenant users keep the rest of the dashboard (volumes, VPCs, SGs, networks, recent VMs, health badge) but the platform-wide telemetry is gone — both from the rendered page and from the JSON response.
+
+### Added (backend — UI integration pending)
+
+- **API:** `GET /api/v1/dashboard/summary` now includes a new optional `hosts.usage` field with cluster-wide `cpu_usage_millicores` and `memory_usage_bytes` aggregated from `metrics.k8s.io/v1beta1/nodes` (served by `metrics-server`). Backend reads via the discovery REST client, caches the result for 30s, and tolerates the API being absent (404), Forbidden (403), or transiently unavailable (5xx, timeout) — the field is omitted and the dashboard renders a degraded state. The chart still has to grant `metrics.k8s.io/nodes` get/list in the API ClusterRole (entry listed under `dynamicClient` in `docs/rbac-contract.yaml`); `metrics-server` is a documented prerequisite. The UI is unchanged in this slice; Tier 1 cards keep their current look.
+
+### Added (UI — Tier 2 cards)
+
+- **UI:** the Cluster nodes section now renders usage bars in the CPU and Memory cards whenever the backend reports `hosts.usage`. Each bar shows `used / allocatable` and a percentage with a colour ramp: `< 60%` primary, `60–85%` warning, `≥ 85%` error. When `metrics-server` is absent the cards show "metrics-server unavailable" / "metrics-server indisponível" instead of the bar — the endpoint still answers, the dashboard stays usable. PT/EN i18n parity checked by `i18n.test.ts`.
+
 ## [0.11.3] - 2026-10-07
 
 ### Fixed
