@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getDashboardSummary } from '../lib/platform-api';
 import { useNeedsTenant } from '../store/hooks';
+import { useAppSelector } from '../store/hooks';
+import { selectIsRoot } from '../store/authSlice';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { useI18n, type TranslationKey } from '../lib/i18n';
@@ -136,6 +138,7 @@ function AddonsHealthStrip({ addons }: { addons: { addons: Array<{ name: string;
 export function Dashboard() {
   const { t } = useI18n();
   const needsTenant = useNeedsTenant();
+  const isRoot = useAppSelector(selectIsRoot);
   const enabled = !needsTenant;
   const wsConnected = useRealtimeConnected();
   const localRecent = useMemo(() => getRecentActions(), []);
@@ -385,6 +388,7 @@ export function Dashboard() {
             </div>
           </SurfaceCard>
 
+          {isRoot && (
           <SurfaceCard className="md:col-span-12" padding="md" title={t('dashboard.hostsTitle')}>
             {hostsUnavailable ? (
               <p className="text-on-surface-variant text-sm py-4">
@@ -496,6 +500,7 @@ export function Dashboard() {
               </>
             )}
           </SurfaceCard>
+          )}
         </div>
       </RefreshingPanel>
     </div>
