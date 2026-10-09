@@ -681,6 +681,48 @@ export interface DashboardSummary {
     updated_at?: string;
     path: string;
   }>;
+  hosts?: ClusterMetrics;
+  storage?: StorageSummary;
+  addons?: AddonsHealth;
+}
+
+export interface ClusterMetrics {
+  nodes: number;
+  nodes_ready: number;
+  cpu_capacity_millicores: number;
+  cpu_allocatable_millicores: number;
+  memory_capacity_bytes: number;
+  memory_allocatable_bytes: number;
+  kubelet_versions: string[];
+  os_images: string[];
+  os_architectures: string[];
+  collected_at: string;
+  usage?: ClusterUsage;
+}
+
+export interface ClusterUsage {
+  cpu_usage_millicores: number;
+  memory_usage_bytes: number;
+  window_seconds: number;
+  collected_at: string;
+}
+
+export interface StorageSummary {
+  total_bytes: number;
+  used_bytes: number;
+  available_bytes: number;
+  count: number;
+}
+
+export interface AddonHealth {
+  name: string;
+  status: 'ok' | 'absent' | 'unknown';
+  detail?: string;
+}
+
+export interface AddonsHealth {
+  addons: AddonHealth[];
+  checked_at: string;
 }
 
 export interface SearchHit {

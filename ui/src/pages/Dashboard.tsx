@@ -1,4 +1,4 @@
-import { HardDrive, Globe, Shield, Network, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { HardDrive, Globe, Shield, Server, Cpu, MemoryStick, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { getDashboardSummary } from '../lib/platform-api';
 import { useNeedsTenant } from '../store/hooks';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { useI18n } from '../lib/i18n';
+import { useI18n, type TranslationKey } from '../lib/i18n';
 import { PageHeader, SurfaceCard } from '../components/shell';
 
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
@@ -14,10 +14,124 @@ import { getRecentActions } from '../lib/preview-prefs';
 import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { useMemo } from 'react';
 import {
-  POLL_WS_HEALTHY_SLOW_MS,
-  realtimePollInterval,
   useRealtimeConnected,
 } from '../hooks/useRealtimeEvents';
+
+function usageTone(pct: number): string {
+  if (pct >= 85) return 'bg-error';
+  if (pct >= 60) return 'bg-warning';
+  return 'bg-primary';
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function UsageBar({ pct, collectedAt }: { pct: number; collectedAt?: string }) {
+  const clamped = Math.min(100, Math.max(0, pct));
+  return (
+    <div className="w-full mt-1" title={collectedAt}>
+      <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+        <div
+          className={`${usageTone(clamped)} h-full transition-all duration-500`}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-on-surface-variant mt-1 font-data-mono text-center">
+        {clamped}%
+      </p>
+    </div>
+  );
+}
+
+type NodeHealthTone = {
+  badge: string;
+  label: TranslationKey;
+};
+
+function nodeHealth(total: number, ready: number): NodeHealthTone | null {
+  if (total <= 0) return null;
+  if (ready >= total) {
+    return { badge: 'bg-success-muted text-success border-success/20', label: 'dashboard.hostsNodesAllReady' };
+  }
+  if (ready <= 0) {
+    return { badge: 'bg-error-container/30 text-error border-error/30', label: 'dashboard.hostsNodesNoneReady' };
+  }
+  return { badge: 'bg-warning-muted text-warning border-warning/20', label: 'dashboard.hostsNodesSomeDegraded' };
+}
+
+function NodesHealthBadge({ total, ready }: { total: number; ready: number }) {
+  const { t } = useI18n();
+  const tone = nodeHealth(total, ready);
+  if (!tone) return null;
+  const label = tone.label === 'dashboard.hostsNodesSomeDegraded'
+    ? t(tone.label).replace('{n}', String(total - ready))
+    : t(tone.label);
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full font-label-sm border whitespace-nowrap ${tone.badge}`}
+      title={`${ready} / ${total}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+const ADDON_LABEL_KEY: Record<string, TranslationKey> = {
+  kubevirt: 'dashboard.addonsKubevirt',
+  cdi: 'dashboard.addonsCdi',
+  multus: 'dashboard.addonsMultus',
+  'metrics-server': 'dashboard.addonsMetricsServer',
+  networking: 'dashboard.addonsNetworking',
+  'cert-manager': 'dashboard.addonsCertManager',
+};
+
+function addonTone(status: string): { dot: string; pulse: boolean; labelKey: TranslationKey } {
+  if (status === 'ok') return { dot: 'bg-success', pulse: true, labelKey: 'dashboard.addonsStatusOk' };
+  if (status === 'absent') return { dot: 'bg-transparent border border-on-surface-variant/60', pulse: false, labelKey: 'dashboard.addonsStatusAbsent' };
+  return { dot: 'bg-warning', pulse: true, labelKey: 'dashboard.addonsStatusUnknown' };
+}
+
+function AddonsHealthStrip({ addons }: { addons: { addons: Array<{ name: string; status: string; detail?: string }>; checked_at: string } }) {
+  const { t } = useI18n();
+  const available = addons.addons.filter((a) => a.status === 'ok');
+  if (available.length === 0) return null;
+  return (
+    <div
+      className="mt-4 pt-4 border-t border-outline-variant"
+      title={addons.checked_at}
+    >
+      <p className="text-[10px] font-label uppercase text-on-surface-variant mb-2">
+        {t('dashboard.addonsTitle')}
+      </p>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {available.map((a) => {
+          const tone = addonTone(a.status);
+          const labelKey = ADDON_LABEL_KEY[a.name] ?? null;
+          const label = labelKey ? t(labelKey) : a.name;
+          const statusLabel = t(tone.labelKey);
+          return (
+            <div
+              key={a.name}
+              className="inline-flex items-center gap-1.5"
+              title={a.detail ?? statusLabel}
+            >
+              <span className={`w-2 h-2 rounded-full ${tone.dot} ${tone.pulse ? 'animate-vf-pulse' : ''}`} />
+              <span className="text-xs text-on-surface-variant font-data-mono">
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { t } = useI18n();
@@ -30,14 +144,11 @@ export function Dashboard() {
     queryKey: queryKeys.dashboardSummary,
     queryFn: getDashboardSummary,
     enabled,
-    refetchInterval: (q) => {
-      const health = q.state.data?.health;
-      const unhealthy = health === 'warning' || health === 'critical';
-      return realtimePollInterval(wsConnected, unhealthy, {
-        downMs: 5_000,
-        healthyMs: POLL_WS_HEALTHY_SLOW_MS,
-      });
-    },
+    // Cluster usage comes from metrics.k8s.io polled every ~15s — there is no
+    // platform event for it, so the dashboard must keep polling regardless of
+    // /ws/events health. The WS still invalidates VM counts on transitions
+    // (see lib/realtime-invalidation), so the two paths compose.
+    refetchInterval: () => (wsConnected ? 10_000 : 5_000),
   });
 
   const vms = summary?.vms ?? { total: 0, running: 0, error: 0 };
@@ -49,10 +160,35 @@ export function Dashboard() {
     { label: t('nav.volumes'), value: summary?.volumes.total ?? 0, icon: HardDrive },
     { label: t('nav.vpcs'), value: summary?.vpcs.total ?? 0, icon: Globe },
     { label: t('nav.securityGroups'), value: summary?.security_groups.total ?? 0, icon: Shield },
-    { label: t('nav.networks'), value: summary?.networks.total ?? 0, icon: Network },
   ];
 
   const recentVms = summary?.recent_activity ?? [];
+  const hosts = summary?.hosts;
+  const hostsUnavailable = hosts === undefined;
+  const cpuCores = hosts ? (hosts.cpu_allocatable_millicores / 1000).toFixed(1) : '0.0';
+  const storage = summary?.storage;
+  const storageUsed = storage ? formatBytes(storage.used_bytes) : '—';
+  const storageTotal = storage ? formatBytes(storage.total_bytes) : '—';
+  const storagePct = storage && storage.total_bytes > 0
+    ? Math.round((storage.used_bytes / storage.total_bytes) * 100)
+    : null;
+  const memGiB = hosts ? Math.round(hosts.memory_allocatable_bytes / (1024 * 1024 * 1024)) : 0;
+  const kubeletSummary = hosts?.kubelet_versions?.length
+    ? hosts.kubelet_versions.length === 1
+      ? hosts.kubelet_versions[0]
+      : `${hosts.kubelet_versions.length} versões`
+    : '';
+  const osImage = hosts?.os_images?.[0] ?? '';
+  const arch = hosts?.os_architectures?.[0] ?? '';
+  const usage = hosts?.usage;
+  const cpuUsageCores = usage ? (usage.cpu_usage_millicores / 1000).toFixed(1) : null;
+  const memUsageGiB = usage ? Math.round(usage.memory_usage_bytes / (1024 * 1024 * 1024)) : null;
+  const cpuUsagePct = usage && hosts && hosts.cpu_allocatable_millicores > 0
+    ? Math.round((usage.cpu_usage_millicores / hosts.cpu_allocatable_millicores) * 100)
+    : null;
+  const memUsagePct = usage && hosts && hosts.memory_allocatable_bytes > 0
+    ? Math.round((usage.memory_usage_bytes / hosts.memory_allocatable_bytes) * 100)
+    : null;
 
   if (needsTenant) {
     return (
@@ -158,6 +294,34 @@ export function Dashboard() {
                 </div>
               </SurfaceCard>
             ))}
+            <SurfaceCard
+              className="min-h-[120px] h-full [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:items-center [&>div:last-child]:justify-center"
+              padding="md"
+            >
+              <div className="flex flex-col items-center text-center gap-1.5">
+                <HardDrive size={20} className="text-primary" />
+                {storage && storagePct !== null ? (
+                  <>
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight whitespace-nowrap">
+                      {t('dashboard.storageUsedOf').replace('{used}', storageUsed).replace('{total}', storageTotal)}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">
+                      {storagePct}%
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant font-data-mono">
+                      {t('dashboard.storageCount').replace('{n}', String(storage.count))}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight">
+                      {t('dashboard.storageTitle')}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">—</span>
+                  </>
+                )}
+              </div>
+            </SurfaceCard>
           </div>
 
           <SurfaceCard className="md:col-span-5 flex flex-col overflow-hidden min-h-[280px]" padding="md" title="Recent activity">
@@ -219,6 +383,118 @@ export function Dashboard() {
                 </Link>
               ))}
             </div>
+          </SurfaceCard>
+
+          <SurfaceCard className="md:col-span-12" padding="md" title={t('dashboard.hostsTitle')}>
+            {hostsUnavailable ? (
+              <p className="text-on-surface-variant text-sm py-4">
+                {t('dashboard.hostsUnavailable')}
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter items-stretch">
+                  <div className="flex flex-col items-center text-center gap-1.5 h-full">
+                    <Server size={20} className="text-primary" />
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight">
+                      {t('dashboard.hostsNodes')}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">
+                      {hosts?.nodes ?? 0}
+                    </span>
+                    <div className="flex-1" />
+                  </div>
+                  <div className="flex flex-col items-center text-center gap-1.5 h-full">
+                    <CheckCircle size={20} className="text-tertiary" />
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight">
+                      {t('dashboard.hostsNodesReady')}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">
+                      {hosts?.nodes_ready ?? 0}
+                    </span>
+                    <NodesHealthBadge
+                      total={hosts?.nodes ?? 0}
+                      ready={hosts?.nodes_ready ?? 0}
+                    />
+                    <div className="flex-1" />
+                  </div>
+                  <div
+                    className="flex flex-col items-center text-center gap-1.5 min-w-0 h-full"
+                    title={t('dashboard.hostsAllocatableHint')}
+                  >
+                    <Cpu size={20} className="text-primary" />
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight whitespace-nowrap">
+                      {t('dashboard.hostsCpu')}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">
+                      {cpuCores}
+                    </span>
+                    <div className="flex-1" />
+                    {cpuUsageCores !== null ? (
+                      <span className="text-[10px] text-on-surface-variant font-data-mono whitespace-nowrap">
+                        {cpuUsageCores} {t('dashboard.hostsUsage')}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-on-surface-variant" />
+                    )}
+                    {cpuUsagePct !== null ? (
+                      <UsageBar pct={cpuUsagePct} collectedAt={usage?.collected_at} />
+                    ) : (
+                      <span
+                        className="text-[10px] text-on-surface-variant italic"
+                        title={t('dashboard.hostsUsageUnavailable')}
+                      >
+                        {t('dashboard.hostsUsageUnavailable')}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="flex flex-col items-center text-center gap-1.5 min-w-0 h-full"
+                    title={t('dashboard.hostsAllocatableHint')}
+                  >
+                    <MemoryStick size={20} className="text-primary" />
+                    <span className="font-label text-on-surface-variant text-[10px] leading-tight whitespace-nowrap">
+                      {t('dashboard.hostsMemory')}
+                    </span>
+                    <span className="font-headline text-headline-md font-bold text-on-surface">
+                      {memGiB} GiB
+                    </span>
+                    <div className="flex-1" />
+                    {memUsageGiB !== null ? (
+                      <span className="text-[10px] text-on-surface-variant font-data-mono whitespace-nowrap">
+                        {memUsageGiB} GiB {t('dashboard.hostsUsage')}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-on-surface-variant" />
+                    )}
+                    {memUsagePct !== null ? (
+                      <UsageBar pct={memUsagePct} collectedAt={usage?.collected_at} />
+                    ) : (
+                      <span
+                        className="text-[10px] text-on-surface-variant italic"
+                        title={t('dashboard.hostsUsageUnavailable')}
+                      >
+                        {t('dashboard.hostsUsageUnavailable')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {(kubeletSummary || osImage || arch) && (
+                  <p
+                    className="text-xs text-on-surface-variant mt-4 font-data-mono"
+                    title={hosts?.collected_at}
+                  >
+                    {[
+                      kubeletSummary && `${t('dashboard.hostsKubelet')}: ${kubeletSummary}`,
+                      osImage && `${t('dashboard.hostsOs')}: ${osImage}`,
+                      arch && `${t('dashboard.hostsArch')}: ${arch}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
+                {summary?.addons && <AddonsHealthStrip addons={summary.addons} />}
+              </>
+            )}
           </SurfaceCard>
         </div>
       </RefreshingPanel>
