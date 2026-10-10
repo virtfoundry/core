@@ -305,10 +305,18 @@ func (s *Service) GetVM(ctx context.Context, tenantID, name string) (*platform.P
 func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in UpdateVMInput) (*platform.PlatformVM, error) {
 	vm, ok := s.store.GetVMByName(tenantID, name)
 	if !ok {
-		if _, err := s.GetVM(ctx, tenantID, name); err != nil {
+		// The store may not expose this VM by its Instance name (e.g. a stale
+		// list cache or a KubeVirt-only legacy VM). GetVM enumerates the
+		// tenant, so use its result instead of re-querying the store (which
+		// used to return nil and panic on the field access below).
+		found, err := s.GetVM(ctx, tenantID, name)
+		if err != nil {
 			return nil, fmt.Errorf("vm not found")
 		}
-		vm, _ = s.store.GetVMByName(tenantID, name)
+		vm = found
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("vm not found")
 	}
 	if in.DisplayName != "" {
 		vm.DisplayName = in.DisplayName
