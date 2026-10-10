@@ -18,6 +18,7 @@ import {
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DeployVMWizard } from '../components/DeployVMWizard';
+import { TagsInput, mergeTags } from '../components/TagsInput';
 import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { CloudInitEditor } from '../components/CloudInitEditor';
 import { openConsole } from '../lib/console-url';
@@ -62,7 +63,8 @@ export function VMDetail() {
   const [snapshotModal, setSnapshotModal] = useState(false);
   const [snapshotName, setSnapshotName] = useState('');
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ display_name: '', offering: '' });
+  const [editForm, setEditForm] = useState({ display_name: '', offering: '', tags: [] as string[] });
+  const [tagInput, setTagInput] = useState('');
   const [logText, setLogText] = useState<string | null>(null);
   const [logError, setLogError] = useState<string | null>(null);
   const [attachVolumeId, setAttachVolumeId] = useState('');
@@ -147,9 +149,10 @@ export function VMDetail() {
     onSuccess: () => navigate('/vms'),
   });
   const updateMutation = useMutation({
-    mutationFn: () => {
-      const payload: { display_name?: string; service_offering_id?: string } = {
+    mutationFn: (tags: string[]) => {
+      const payload: { display_name?: string; service_offering_id?: string; tags?: string[] } = {
         display_name: editForm.display_name,
+        tags,
       };
       // Offering resize only when stopped; display_name always allowed.
       if (isVmStopped(data?.vm?.state) && editForm.offering) {
@@ -261,6 +264,9 @@ export function VMDetail() {
 
   const vmVolumes = vmVolData?.volumes || [];
   const availableVolumes = (allVolData?.volumes || []).filter((v) => !v.vm_id);
+
+  // Includes any text still in the input that was not committed with Enter.
+  const collectTags = () => mergeTags(editForm.tags, tagInput);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: t('vmDetail.overview') },
@@ -424,7 +430,9 @@ export function VMDetail() {
                     setEditForm({
                       display_name: vm.display_name || vm.name,
                       offering: resolveOfferingId(vm),
+                      tags: vm.tags || [],
                     });
+                    setTagInput('');
                     setEditMode(true);
                   }}
                   className="btn-ghost-brand"
@@ -435,7 +443,7 @@ export function VMDetail() {
                 <div className="flex gap-2">
                   <button onClick={() => setEditMode(false)} className="btn-ghost-muted">{t('common.cancel')}</button>
                   <button
-                    onClick={() => updateMutation.mutate()}
+                    onClick={() => updateMutation.mutate(collectTags())}
                     disabled={updateMutation.isPending}
                     className="btn-ghost-brand flex items-center gap-1 disabled:opacity-40"
                     title={t('vmDetail.renameHint')}
@@ -472,6 +480,17 @@ export function VMDetail() {
                   )}
                   <p className="text-xs text-on-surface-variant mt-2">{t('vmDetail.renameHint')}</p>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t('vmDetail.tags')}</label>
+                  <TagsInput
+                    tags={editForm.tags}
+                    onTagsChange={(tags) => setEditForm((f) => ({ ...f, tags }))}
+                    draft={tagInput}
+                    onDraftChange={setTagInput}
+                    placeholder={t('common.tagsPlaceholder')}
+                  />
+                  <p className="text-xs text-on-surface-variant mt-1">{t('vmDetail.tagsHint')}</p>
+                </div>
               </div>
             ) : (
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
@@ -485,6 +504,23 @@ export function VMDetail() {
                 <div><dt className="text-on-surface-variant">Template</dt><dd className="text-on-surface">{vm.template || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('common.image')}</dt><dd className="font-data-mono text-xs break-all text-on-surface">{vm.image || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.serviceOffering')}</dt><dd className="text-on-surface">{resolveOfferingLabel(vm)}</dd></div>
+                <div>
+                  <dt className="text-on-surface-variant">{t('vmDetail.tags')}</dt>
+                  <dd className="text-on-surface">
+                    {vm.tags && vm.tags.length ? (
+                      <span className="flex flex-wrap gap-1.5 mt-0.5">
+                        {vm.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-xs px-2 py-0.5 rounded border border-outline-variant bg-surface-container"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </span>
+                    ) : '—'}
+                  </dd>
+                </div>
                 <div><dt className="text-on-surface-variant">vCPUs</dt><dd className="text-on-surface">{vm.cpu > 0 ? vm.cpu : '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">RAM</dt><dd className="text-on-surface">{fmtMem(vm.memory_mi) || '—'}</dd></div>
                 <div><dt className="text-on-surface-variant">{t('vmDetail.primaryIp')}</dt><dd className="font-data-mono text-on-surface">{vm.ip || '—'}</dd></div>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -92,6 +92,19 @@ export function VMs() {
       return realtimePollInterval(wsConnected, transitional, { healthyMs: false });
     },
   });
+
+  useEffect(() => {
+    const vms = data?.vms || [];
+    setTagMap((prev) => {
+      const next = { ...prev };
+      for (const vm of vms) {
+        if (vm.tags && vm.tags.length > 0) {
+          next[vm.name] = vm.tags;
+        }
+      }
+      return next;
+    });
+  }, [data]);
 
   const withRateLimit = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     try {

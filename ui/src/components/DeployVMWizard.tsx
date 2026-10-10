@@ -37,6 +37,7 @@ import {
 import { StatusBadge } from './StatusBadge';
 import { ComingSoonBadge } from './ComingSoonBadge';
 import { CloudInitEditor } from './CloudInitEditor';
+import { TagsInput, mergeTags } from './TagsInput';
 import {
   DEPLOY_PHASE_ORDER,
   deployPhaseFromVm,
@@ -78,6 +79,7 @@ type FormState = {
   security_group_ids: string[];
   ssh_key_id: string;
   data_volume_id: string;
+  tags: string[];
 };
 
 const emptyForm = (): FormState => ({
@@ -91,6 +93,7 @@ const emptyForm = (): FormState => ({
   security_group_ids: [],
   ssh_key_id: '',
   data_volume_id: '',
+  tags: [],
 });
 
 type Props = {
@@ -106,6 +109,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const wsConnected = useRealtimeConnected();
   const [step, setStep] = useState<Step>('compute');
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [tagDraft, setTagDraft] = useState('');
   const [createSgModal, setCreateSgModal] = useState(false);
   const [sgForm, setSgForm] = useState({ name: '', description: '', rules: defaultSGRules() });
   const [trackingName, setTrackingName] = useState<string | null>(null);
@@ -134,6 +138,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
   const volumes = (volData?.volumes || []).filter((v) => !v.vm_id);
   const linux = !isWindowsTemplate(selectedTemplate);
   const isPublic = form.network_mode === 'public';
+  const reviewTags = mergeTags(form.tags, tagDraft);
 
   const { data: trackData } = useQuery({
     queryKey: queryKeys.vms,
@@ -151,6 +156,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
     if (!open) {
       setStep('compute');
       setForm(emptyForm());
+      setTagDraft('');
       setTrackingName(null);
       setSshCopied(false);
       setCloudInitDraft(DEFAULT_CLOUD_INIT);
@@ -169,7 +175,9 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       name: baseName,
       template_id: tmpl?.id || f.template_id,
       offering: cloneFrom.service_offering_id || f.offering,
+      tags: cloneFrom.tags || [],
     }));
+    setTagDraft('');
     setStep('compute');
   }, [open, cloneFrom, templates]);
 
@@ -317,6 +325,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
         : [];
 
     const cloudInit = deployCloudInitPayload(cloudInitDraft);
+    const tags = mergeTags(form.tags, tagDraft);
 
     deployMutation.mutate({
       name: form.name,
@@ -330,6 +339,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
       ...(linux ? { ssh_key_id: form.ssh_key_id } : {}),
       ...(linux && form.data_volume_id ? { data_volume_id: form.data_volume_id } : {}),
       ...(cloudInit ? { cloud_init_user_data: cloudInit } : {}),
+      ...(tags.length ? { tags } : {}),
     });
   };
 
@@ -601,6 +611,17 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   )}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium mb-1">{t('vms.tags')}</label>
+                  <TagsInput
+                    tags={form.tags}
+                    onTagsChange={(tags) => setForm((f) => ({ ...f, tags }))}
+                    draft={tagDraft}
+                    onDraftChange={setTagDraft}
+                    placeholder={t('common.tagsPlaceholder')}
+                  />
+                  <p className="text-xs text-on-surface-variant mt-1">{t('vms.tagsHint')}</p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium mb-1">{t('vms.offering')}</label>
                   <select
                     value={form.offering}
@@ -866,6 +887,12 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     <div>
                       <dt className="text-on-surface-variant">SSH</dt>
                       <dd>{sshKeys.find((k) => k.id === form.ssh_key_id)?.name || '—'}</dd>
+                    </div>
+                  )}
+                  {reviewTags.length > 0 && (
+                    <div>
+                      <dt className="text-on-surface-variant">{t('vms.tags')}</dt>
+                      <dd>{reviewTags.join(', ')}</dd>
                     </div>
                   )}
                   {costEstimate && (

@@ -196,7 +196,9 @@ type PlatformVM struct {
 	SSHKeyRefs []string `json:"ssh_key_refs,omitempty"`
 	// CloudInitUserData maps to Instance.spec.cloudInitUserData (overrides Template when set).
 	CloudInitUserData string `json:"cloud_init_user_data,omitempty"`
-	ExternalUUID      string `json:"external_uuid,omitempty"`
+	// Tags maps to Instance.spec.tags.
+	Tags         []string `json:"tags,omitempty"`
+	ExternalUUID string   `json:"external_uuid,omitempty"`
 	ImportSource      string `json:"import_source,omitempty"`
 	NICs              []VMNic `json:"nics,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
