@@ -207,6 +207,49 @@ func TestMergeUnstructuredSpecKeepsExistingKeys(t *testing.T) {
 	}
 }
 
+func TestInstanceTagsRoundTrip(t *testing.T) {
+	vm := &platform.PlatformVM{Name: "web", Tags: []string{"prod", " web ", ""}}
+	obj := InstanceToUnstructured(vm, "default", "small", "cirros", nil)
+	tags, ok, err := unstructured.NestedSlice(obj.Object, "spec", "tags")
+	if err != nil || !ok {
+		t.Fatalf("spec.tags: ok=%v err=%v", ok, err)
+	}
+	if len(tags) != 2 || tags[0] != "prod" || tags[1] != "web" {
+		t.Fatalf("spec.tags trimmed/blanks dropped: %#v", tags)
+	}
+	got, err := InstanceFromUnstructured(obj, "tenant-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "prod" || got.Tags[1] != "web" {
+		t.Fatalf("round-trip tags: %#v", got.Tags)
+	}
+}
+
+func TestInstanceToUnstructuredWritesEmptyTags(t *testing.T) {
+	vm := &platform.PlatformVM{Name: "web"}
+	obj := InstanceToUnstructured(vm, "default", "small", "cirros", nil)
+	tags, ok, err := unstructured.NestedSlice(obj.Object, "spec", "tags")
+	if err != nil || !ok {
+		t.Fatalf("expected spec.tags to be written even when empty: ok=%v err=%v", ok, err)
+	}
+	if len(tags) != 0 {
+		t.Fatalf("expected empty spec.tags, got %#v", tags)
+	}
+}
+
+func TestMergePlatformVMDoesNotResurrectClearedTags(t *testing.T) {
+	// Clearing tags: prior (the vm being saved) already has none, so the
+	// read-back with no tags must not re-add stale ones.
+	prior := &platform.PlatformVM{Name: "web", Tags: nil}
+	fromCR := &platform.PlatformVM{Name: "web", ID: "id1", Tags: nil}
+	dst := platform.PlatformVM{Name: "web", Tags: []string{"stale"}}
+	MergePlatformVM(&dst, prior, fromCR)
+	if len(dst.Tags) != 0 {
+		t.Fatalf("cleared tags must stay cleared: %#v", dst.Tags)
+	}
+}
+
 func TestSSHKeyFromUnstructured_DerivesFingerprint(t *testing.T) {
 	const pub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILEsOd/tTVAiSwkljELmGFn/5GZ7wkeuUnCw1DhRowNE test"
 	obj := &unstructured.Unstructured{Object: map[string]interface{}{
