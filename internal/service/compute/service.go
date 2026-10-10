@@ -89,7 +89,8 @@ type DeployVMInput struct {
 	DataVolumeID      string
 	BootDiskSizeGi    int
 	ExposeSSH         bool
-	DedicatedCPU      bool // Guaranteed CPU (request=limit); default shares via KubeVirt ratio
+	DedicatedCPU      bool     // Guaranteed CPU (request=limit); default shares via KubeVirt ratio
+	Tags              []string // user-defined labels applied to the Instance CR
 }
 
 // UpdateVMInput patches VM metadata and resources.
@@ -98,6 +99,9 @@ type UpdateVMInput struct {
 	CPU               int
 	MemoryMi          int64
 	ServiceOfferingID string
+	// Tags is nil when the caller did not include tags in the request; a
+	// non-nil value (including an empty slice) replaces the VM's tags.
+	Tags *[]string
 }
 
 func (s *Service) ListVMTemplates(tenantID string) []*platform.VMTemplate {
@@ -257,6 +261,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 		Template: firstNonEmpty(tmplDisplay, templateLabel(image)), Hypervisor: "KubeVirt",
 		ServiceOfferingID: in.ServiceOfferingID,
 		NICs:              vmNics,
+		Tags:              in.Tags,
 		CreatedAt:         store.Now(),
 	}
 	if deployTmpl != nil {
@@ -334,6 +339,9 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 		}
 		vm.CPU = cpu
 		vm.MemoryMi = mem
+	}
+	if in.Tags != nil {
+		vm.Tags = *in.Tags
 	}
 	vm.UpdatedAt = store.Now()
 	s.store.SaveVM(vm)
