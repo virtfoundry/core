@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -138,9 +139,13 @@ func (s *PlatformService) populateHosts(ctx context.Context, summary *DashboardS
 		return err
 	}
 	summary.Hosts = metrics
+	// Usage is optional: any ClusterUsage error not absorbed by isMetricsAbsent
+	// (decode failure, unexpected transport error) must not 500 the dashboard —
+	// log it and leave Hosts.Usage nil so the UI renders "usage unavailable".
 	usage, err := s.kv.ClusterUsage(ctx)
 	if err != nil {
-		return err
+		log.Printf("[dashboard] cluster usage unavailable: %v", err)
+		return nil
 	}
 	summary.Hosts.Usage = usage
 	return nil

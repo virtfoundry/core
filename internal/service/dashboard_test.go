@@ -257,6 +257,65 @@ func TestDashboardSummaryUsagePopulated(t *testing.T) {
 	}
 }
 
+func TestDashboardSummaryUsageErrorDoesNotFail(t *testing.T) {
+	// metrics.k8s.io answers with an undecodable body — not a Status error, so
+	// isMetricsAbsent does not absorb it. Usage is optional: the dashboard must
+	// still succeed with hosts populated and hosts.usage left nil.
+	st := store.NewMemory()
+	tenantID := store.NewID()
+	st.SaveTenant(&platform.Tenant{
+		ID: tenantID, Name: "acme", Slug: "acme", Namespace: "vf-acme",
+		State: "active", CreatedAt: store.Now(),
+	})
+	node := &k8sv1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "n1"},
+		Status: k8sv1.NodeStatus{
+			Allocatable: k8sv1.ResourceList{
+				k8sv1.ResourceCPU:    resource.MustParse("3500m"),
+				k8sv1.ResourceMemory: resource.MustParse("14Gi"),
+			},
+			Conditions: []k8sv1.NodeCondition{
+				{Type: k8sv1.NodeReady, Status: k8sv1.ConditionTrue},
+			},
+		},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/nodes":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"items": [` + nodeJSON(node) + `]}`))
+		case r.URL.Path == "/apis/metrics.k8s.io/v1beta1/nodes":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{ this is not json`))
+		case strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/default/persistentvolumeclaims"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"items": []}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	cfg := &rest.Config{Host: srv.URL}
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("build client: %v", err)
+	}
+
+	kv := hypervisor.NewKubeVirtDriverForTest(nil, cs)
+	svc := NewPlatformService(st, nil, kv, nil)
+	summary, err := svc.DashboardSummary(context.Background(), tenantID, []string{auth.PermVolumesRead}, platform.RoleRoot)
+	if err != nil {
+		t.Fatalf("usage failure must not fail DashboardSummary: %v", err)
+	}
+	if summary.Hosts == nil {
+		t.Fatal("expected hosts populated even when usage fails")
+	}
+	if summary.Hosts.Usage != nil {
+		t.Fatalf("expected usage=nil on unexpected metrics error, got %+v", summary.Hosts.Usage)
+	}
+}
+
 func nodeJSON(n *k8sv1.Node) string {
 	n.TypeMeta = metav1.TypeMeta{Kind: "Node", APIVersion: "v1"}
 	b, _ := json.Marshal(n)

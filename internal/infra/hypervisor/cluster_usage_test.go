@@ -119,6 +119,34 @@ func TestClusterUsageTransientError(t *testing.T) {
 	}
 }
 
+func TestClusterUsageSkipsMalformedQuantities(t *testing.T) {
+	t.Parallel()
+	srv, cs := newMetricsServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"items": [
+			{"usage": {"cpu": "250m", "memory": "512Mi"}},
+			{"usage": {"cpu": "not-a-quantity", "memory": "1Gi"}},
+			{"usage": {"cpu": "100m", "memory": "bogus"}}
+		]}`))
+	})
+	_ = srv
+
+	d := &KubeVirtDriver{k8sClient: cs}
+	u, err := d.ClusterUsage(context.Background())
+	if err != nil {
+		t.Fatalf("malformed quantities must be skipped, not fail the call: %v", err)
+	}
+	if u == nil {
+		t.Fatal("expected non-nil usage")
+	}
+	if got, want := u.CPUUsageMilli, int64(250); got != want {
+		t.Fatalf("cpu_usage_millicores=%d want %d (only the well-formed item)", got, want)
+	}
+	if got, want := u.MemoryUsage, int64(512*1024*1024); got != want {
+		t.Fatalf("memory_usage_bytes=%d want %d (only the well-formed item)", got, want)
+	}
+}
+
 func TestClusterUsageParseError(t *testing.T) {
 	t.Parallel()
 	srv, cs := newMetricsServer(t, func(w http.ResponseWriter, r *http.Request) {

@@ -74,4 +74,14 @@ dynamicClient:
       (internal/infra/hypervisor/kubevirt.go). Reachable only when metrics-server is
       installed (documented prerequisite in helm-charts). The dashboard degrades gracefully
       when this API is absent, Forbidden, or transiently unavailable.
+  - apiGroup: apiextensions.k8s.io
+    resource: customresourcedefinitions
+    verbs: [get, list]
+    note: >-
+      Dashboard cluster-addons strip. Source: KubeVirtDriver.probeAddons
+      (internal/infra/hypervisor/kubevirt.go). The list is requested as a
+      PartialObjectMetadataList (Accept: application/json;as=PartialObjectMetadataList;
+      g=meta.k8s.io;v=v1), so only CRD names and labels cross the wire — never the
+      OpenAPI schemas. Without this grant the strip renders empty; the dashboard
+      degrades gracefully on Forbidden.
 

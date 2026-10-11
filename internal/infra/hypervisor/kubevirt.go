@@ -35,6 +35,13 @@ const (
 	clusterUsageTTL = 30 * time.Second
 	// clusterUsageCallTimeout caps a single metrics.k8s.io round-trip.
 	clusterUsageCallTimeout = 4 * time.Second
+	// addonsProbeCallTimeout caps a single CRD list round-trip in probeAddons,
+	// same bound as the usage call.
+	addonsProbeCallTimeout = 4 * time.Second
+	// partialObjectMetadataListAccept asks the API server for CRD metadata only
+	// (no OpenAPI schemas), keeping the addons probe payload small. The plain
+	// JSON fallback keeps the probe working if the transform is ignored.
+	partialObjectMetadataListAccept = "application/json;as=PartialObjectMetadataList;g=meta.k8s.io;v=v1,application/json"
 )
 
 // Cirros only drives the default VGA device; virtio-gpu yields a black VNC screen.
@@ -133,9 +140,15 @@ func (d *KubeVirtDriver) WithNamespace(ns string) *KubeVirtDriver {
 	if ns == "" {
 		return d
 	}
-	copy := *d
-	copy.namespace = ns
-	return &copy
+	// Build a fresh driver instead of copying the struct: copying would clone
+	// the cache mutexes (go vet copylocks) while sharing the cache entries.
+	// Cluster telemetry is only queried through the base driver, so the copy
+	// starts with empty caches.
+	return &KubeVirtDriver{
+		virtClient: d.virtClient,
+		k8sClient:  d.k8sClient,
+		namespace:  ns,
+	}
 }
 
 func (d *KubeVirtDriver) VirtClient() kubecli.KubevirtClient {
@@ -585,8 +598,18 @@ func (d *KubeVirtDriver) fetchClusterUsage(ctx context.Context) (*ClusterUsage, 
 		CollectedAt:   time.Now().UTC(),
 	}
 	for _, item := range list.Items {
-		cpu := resource.MustParse(item.Usage.CPU)
-		mem := resource.MustParse(item.Usage.Memory)
+		// A malformed quantity from metrics.k8s.io must not panic the process
+		// (resource.MustParse) nor fail the whole call — skip the node instead.
+		cpu, err := resource.ParseQuantity(item.Usage.CPU)
+		if err != nil {
+			log.Printf("[cluster-usage] skipping node metrics: invalid cpu quantity %q: %v", item.Usage.CPU, err)
+			continue
+		}
+		mem, err := resource.ParseQuantity(item.Usage.Memory)
+		if err != nil {
+			log.Printf("[cluster-usage] skipping node metrics: invalid memory quantity %q: %v", item.Usage.Memory, err)
+			continue
+		}
 		out.CPUUsageMilli += cpu.MilliValue()
 		out.MemoryUsage += mem.Value()
 	}
@@ -616,9 +639,10 @@ func isMetricsAbsent(err error) bool {
 // StorageSummary aggregates PVCs in the driver namespace into a single
 // tenant-scoped storage figure. Counts every PVC in the namespace (Bound or
 // Pending) toward TotalBytes (the reserved capacity the user has asked for),
-// and the Bound subset toward UsedBytes (actually attached). Returns nil
-// without error when the driver has no k8s client (memory store) so the
-// dashboard degrades gracefully.
+// and the Bound subset toward BoundBytes. Note these are allocated capacity
+// (spec.requests), not real consumption — the API cannot see guest filesystem
+// usage. Returns nil without error when the driver has no k8s client (memory
+// store) so the dashboard degrades gracefully.
 func (d *KubeVirtDriver) StorageSummary(ctx context.Context) (*StorageSummary, error) {
 	if d.k8sClient == nil {
 		return nil, nil
@@ -640,10 +664,10 @@ func (d *KubeVirtDriver) StorageSummary(ctx context.Context) (*StorageSummary, e
 		bytes := req.Value()
 		out.TotalBytes += bytes
 		if pvc.Status.Phase == k8sv1.ClaimBound {
-			out.UsedBytes += bytes
+			out.BoundBytes += bytes
 		}
 	}
-	out.AvailableBytes = out.TotalBytes - out.UsedBytes
+	out.AvailableBytes = out.TotalBytes - out.BoundBytes
 	return out, nil
 }
 
@@ -722,6 +746,15 @@ func resolveAddonName(labels map[string]string, group string) string {
 // CustomResourceDefinition, resolving an identifier through Helm labels
 // (name/part-of/component) with a fallback to a group-prefix alias, and
 // grouping by that identifier. CRDs with no resolvable name are ignored.
+//
+// The list is requested as a PartialObjectMetadataList: the full CRD payload
+// carries every OpenAPI schema and can reach tens of MB on operator-heavy
+// clusters, while the probe only needs names and labels. The API group is
+// derived from the CRD object name (<plural>.<group>), so spec.group is not
+// needed. The trade-off: status.conditions is not part of ObjectMeta, so a
+// CRD that exists but is not Established can no longer be told apart — a
+// discovered addon is reported "ok" by presence.
+//
 // The probe fails soft: any error (Forbidden, timeout, missing CRD list
 // permission) returns an empty list rather than failing the dashboard.
 func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
@@ -737,10 +770,14 @@ func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
 		return out
 	}
 
+	callCtx, cancel := context.WithTimeout(ctx, addonsProbeCallTimeout)
+	defer cancel()
+
 	raw, err := restClient.
 		Get().
 		AbsPath("/apis/apiextensions.k8s.io/v1/customresourcedefinitions").
-		Do(ctx).
+		SetHeader("Accept", partialObjectMetadataListAccept).
+		Do(callCtx).
 		Raw()
 	if err != nil {
 		log.Printf("[cluster-addons] list CRDs: %v", err)
@@ -753,15 +790,6 @@ func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
 				Name   string            `json:"name"`
 				Labels map[string]string `json:"labels"`
 			} `json:"metadata"`
-			Spec struct {
-				Group string `json:"group"`
-			} `json:"spec"`
-			Status struct {
-				Conditions []struct {
-					Type   string `json:"type"`
-					Status string `json:"status"`
-				} `json:"conditions"`
-			} `json:"status"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(raw, &list); err != nil {
@@ -769,23 +797,13 @@ func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
 		return out
 	}
 
-	established := map[string]bool{}
 	seen := map[string]struct{}{}
 	for _, crd := range list.Items {
-		name := resolveAddonName(crd.Metadata.Labels, crd.Spec.Group)
+		name := resolveAddonName(crd.Metadata.Labels, groupFromCRDName(crd.Metadata.Name))
 		if name == "" {
 			continue
 		}
-		if _, dup := seen[name]; dup {
-			continue
-		}
 		seen[name] = struct{}{}
-		for _, c := range crd.Status.Conditions {
-			if c.Type == "Established" && c.Status == "True" {
-				established[name] = true
-				break
-			}
-		}
 	}
 
 	names := make([]string, 0, len(seen))
@@ -795,13 +813,20 @@ func (d *KubeVirtDriver) probeAddons(ctx context.Context) *AddonsHealth {
 	sort.Strings(names)
 
 	for _, n := range names {
-		status := "ok"
-		if !established[n] {
-			status = "degraded"
-		}
-		out.Addons = append(out.Addons, AddonHealth{Name: n, Status: status})
+		out.Addons = append(out.Addons, AddonHealth{Name: n, Status: "ok"})
 	}
 	return out
+}
+
+// groupFromCRDName extracts spec.group from a CRD object name, which is
+// always <plural>.<group> (e.g. "virtualmachines.kubevirt.io" → "kubevirt.io").
+// Returns "" when the name has no dot, which cannot happen for a real CRD.
+func groupFromCRDName(name string) string {
+	i := strings.IndexByte(name, '.')
+	if i < 0 || i == len(name)-1 {
+		return ""
+	}
+	return name[i+1:]
 }
 
 func isNodeReady(node *k8sv1.Node) bool {

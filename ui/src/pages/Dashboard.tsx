@@ -170,10 +170,10 @@ export function Dashboard() {
   const hostsUnavailable = hosts === undefined;
   const cpuCores = hosts ? (hosts.cpu_allocatable_millicores / 1000).toFixed(1) : '0.0';
   const storage = summary?.storage;
-  const storageUsed = storage ? formatBytes(storage.used_bytes) : '—';
+  const storageBound = storage ? formatBytes(storage.bound_bytes) : '—';
   const storageTotal = storage ? formatBytes(storage.total_bytes) : '—';
   const storagePct = storage && storage.total_bytes > 0
-    ? Math.round((storage.used_bytes / storage.total_bytes) * 100)
+    ? Math.round((storage.bound_bytes / storage.total_bytes) * 100)
     : null;
   const memGiB = hosts ? Math.round(hosts.memory_allocatable_bytes / (1024 * 1024 * 1024)) : 0;
   const kubeletSummary = hosts?.kubelet_versions?.length
@@ -306,7 +306,7 @@ export function Dashboard() {
                 {storage && storagePct !== null ? (
                   <>
                     <span className="font-label text-on-surface-variant text-[10px] leading-tight whitespace-nowrap">
-                      {t('dashboard.storageUsedOf').replace('{used}', storageUsed).replace('{total}', storageTotal)}
+                      {t('dashboard.storageBoundOf').replace('{bound}', storageBound).replace('{total}', storageTotal)}
                     </span>
                     <span className="font-headline text-headline-md font-bold text-on-surface">
                       {storagePct}%
