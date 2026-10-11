@@ -120,12 +120,14 @@ type ClusterUsage struct {
 
 // StorageSummary aggregates tenant-scoped PVC capacity from the cluster.
 // TotalBytes is the sum of every PVC's spec.resources.requests.storage
-// (capacity the user has reserved); UsedBytes is the subset of those PVCs
-// whose status.phase is Bound (actually attached to a pod). AvailableBytes is
-// Total - Used and is informational — there is no global "free" pool in K8s.
+// (capacity the user has reserved); BoundBytes is the subset requested by
+// PVCs whose status.phase is Bound. Both are allocated capacity, never real
+// consumption — the API has no visibility into guest filesystem usage.
+// AvailableBytes is Total - Bound (reserved but not yet bound) and is
+// informational — there is no global "free" pool in K8s.
 type StorageSummary struct {
 	TotalBytes     int64 `json:"total_bytes"`
-	UsedBytes      int64 `json:"used_bytes"`
+	BoundBytes     int64 `json:"bound_bytes"`
 	AvailableBytes int64 `json:"available_bytes"`
 	Count          int   `json:"count"`
 }

@@ -44,7 +44,7 @@ export function ClusterOverview({ summary }: { summary: DashboardSummary }) {
   const memPct = usage && hosts && hosts.memory_allocatable_bytes > 0
     ? Math.round((usage.memory_usage_bytes / hosts.memory_allocatable_bytes) * 100) : undefined;
   const storagePct = storage && storage.total_bytes > 0
-    ? Math.round((storage.used_bytes / storage.total_bytes) * 100) : undefined;
+    ? Math.round((storage.bound_bytes / storage.total_bytes) * 100) : undefined;
 
   let nodeBadge: { tone: StatusTone; label: string } | null = null;
   if (hosts && hosts.nodes > 0) {
@@ -82,7 +82,7 @@ export function ClusterOverview({ summary }: { summary: DashboardSummary }) {
           )}
           {storage && storagePct !== undefined && (
             <StatsCard title={t('dashboard.storageTitle')} value={`${storagePct}%`}
-              subtitle={`${t('dashboard.storageUsedOf').replace('{used}', formatBytes(storage.used_bytes)).replace('{total}', formatBytes(storage.total_bytes))} · ${t('dashboard.storageCount').replace('{n}', String(storage.count))}`}
+              subtitle={`${t('dashboard.storageBoundOf').replace('{bound}', formatBytes(storage.bound_bytes)).replace('{total}', formatBytes(storage.total_bytes))} · ${t('dashboard.storageCount').replace('{n}', String(storage.count))}`}
               progress={storagePct} variant={usageVariant(storagePct)} />
           )}
         </div>

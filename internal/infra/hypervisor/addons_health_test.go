@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"k8s.io/client-go/kubernetes"
@@ -22,30 +23,19 @@ func newCRDTestServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server,
 	return srv, cs
 }
 
-func crdWithLabel(name, labelValue string, established bool) string {
-	cond := `{"type":"Established","status":"False"}`
-	if established {
-		cond = `{"type":"Established","status":"True"}`
-	}
+// crdWithLabel mirrors a PartialObjectMetadata item: metadata only, no
+// spec/status — the probe requests the list with the meta.k8s.io transform.
+func crdWithLabel(name, labelValue string) string {
 	return `{
 		"metadata": {
 			"name": "` + name + `",
 			"labels": {"app.kubernetes.io/name": "` + labelValue + `"}
-		},
-		"status": {"conditions": [` + cond + `]}
+		}
 	}`
 }
 
-func crdWithGroup(name, group string, established bool) string {
-	cond := `{"type":"Established","status":"False"}`
-	if established {
-		cond = `{"type":"Established","status":"True"}`
-	}
-	return `{
-		"metadata": {"name": "` + name + `"},
-		"spec": {"group": "` + group + `"},
-		"status": {"conditions": [` + cond + `]}
-	}`
+func crdBare(name string) string {
+	return `{"metadata": {"name": "` + name + `"}}`
 }
 
 func TestAddonsHealthDiscoversFromCRDs(t *testing.T) {
@@ -53,15 +43,19 @@ func TestAddonsHealthDiscoversFromCRDs(t *testing.T) {
 	srv, cs := newCRDTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/apis/apiextensions.k8s.io/v1/customresourcedefinitions":
+			if got := r.Header.Get("Accept"); !strings.Contains(got, "as=PartialObjectMetadataList") {
+				t.Errorf("Accept=%q must request PartialObjectMetadataList (metadata only, no schemas)", got)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"items": [
-				` + crdWithLabel("virtualmachines.kubevirt.io", "kubevirt", true) + `,
-				` + crdWithLabel("datavolumes.cdi.kubevirt.io", "cdi", true) + `,
-				` + crdWithLabel("networkattachmentdefinitions.k8s.cni.cncf.io", "multus", true) + `,
-				` + crdWithLabel("certificates.cert-manager.io", "cert-manager", true) + `,
-				` + crdWithLabel("foo.example.com", "failing-addon", false) + `,
-				` + crdWithGroup("networking.k8s.io", "networking.k8s.io", true) + `,
-				` + crdWithGroup("unknown.example.com", "not-in-aliases.example.com", true) + `
+				` + crdWithLabel("virtualmachines.kubevirt.io", "kubevirt") + `,
+				` + crdWithLabel("datavolumes.cdi.kubevirt.io", "cdi") + `,
+				` + crdWithLabel("networkattachmentdefinitions.k8s.cni.cncf.io", "multus") + `,
+				` + crdWithLabel("certificates.cert-manager.io", "cert-manager") + `,
+				` + crdWithLabel("foos.example.com", "some-addon") + `,
+				` + crdBare("istiooperators.install.istio.io") + `,
+				` + crdBare("networkpolicies.networking.k8s.io") + `,
+				` + crdBare("widgets.unknown.example.com") + `
 			]}`))
 		default:
 			http.NotFound(w, r)
@@ -83,7 +77,8 @@ func TestAddonsHealthDiscoversFromCRDs(t *testing.T) {
 		"cdi":          "ok",
 		"multus":       "ok",
 		"cert-manager": "ok",
-		"failing-addon": "degraded",
+		"some-addon":   "ok",
+		"istio":        "ok",
 	}
 	for name, status := range want {
 		if got := byName[name]; got != status {
@@ -125,6 +120,30 @@ func TestAliasFromGroup(t *testing.T) {
 			t.Parallel()
 			if got := aliasFromGroup(c.group); got != c.want {
 				t.Fatalf("aliasFromGroup(%q)=%q want %q", c.group, got, c.want)
+			}
+		})
+	}
+}
+
+func TestGroupFromCRDName(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		want string
+	}{
+		{"virtualmachines.kubevirt.io", "kubevirt.io"},
+		{"datavolumes.cdi.kubevirt.io", "cdi.kubevirt.io"},
+		{"networkpolicies.networking.k8s.io", "networking.k8s.io"},
+		{"nodot", ""},
+		{"trailingdot.", ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			if got := groupFromCRDName(c.name); got != c.want {
+				t.Fatalf("groupFromCRDName(%q)=%q want %q", c.name, got, c.want)
 			}
 		})
 	}
@@ -179,8 +198,8 @@ func TestAddonsHealthDedupMultipleCRDsSameName(t *testing.T) {
 		case "/apis/apiextensions.k8s.io/v1/customresourcedefinitions":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"items": [
-				` + crdWithLabel("virtualmachines.kubevirt.io", "kubevirt", true) + `,
-				` + crdWithLabel("virtualmachineinstances.kubevirt.io", "kubevirt", true) + `
+				` + crdWithLabel("virtualmachines.kubevirt.io", "kubevirt") + `,
+				` + crdWithLabel("virtualmachineinstances.kubevirt.io", "kubevirt") + `
 			]}`))
 		default:
 			http.NotFound(w, r)

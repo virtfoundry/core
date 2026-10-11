@@ -732,7 +732,7 @@ export interface ClusterUsage {
 
 export interface StorageSummary {
   total_bytes: number;
-  used_bytes: number;
+  bound_bytes: number;
   available_bytes: number;
   count: number;
 }

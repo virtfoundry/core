@@ -44,12 +44,12 @@ func TestStorageSummaryAggregates(t *testing.T) {
 	if s.TotalBytes != wantTotal {
 		t.Fatalf("total_bytes=%d want %d", s.TotalBytes, wantTotal)
 	}
-	wantUsed := int64((10 + 20) * 1024 * 1024 * 1024)
-	if s.UsedBytes != wantUsed {
-		t.Fatalf("used_bytes=%d want %d", s.UsedBytes, wantUsed)
+	wantBound := int64((10 + 20) * 1024 * 1024 * 1024)
+	if s.BoundBytes != wantBound {
+		t.Fatalf("bound_bytes=%d want %d", s.BoundBytes, wantBound)
 	}
-	if s.AvailableBytes != s.TotalBytes-s.UsedBytes {
-		t.Fatalf("available_bytes=%d want total-used=%d", s.AvailableBytes, s.TotalBytes-s.UsedBytes)
+	if s.AvailableBytes != s.TotalBytes-s.BoundBytes {
+		t.Fatalf("available_bytes=%d want total-bound=%d", s.AvailableBytes, s.TotalBytes-s.BoundBytes)
 	}
 }
 
@@ -61,7 +61,7 @@ func TestStorageSummaryEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StorageSummary: %v", err)
 	}
-	if s.Count != 0 || s.TotalBytes != 0 || s.UsedBytes != 0 || s.AvailableBytes != 0 {
+	if s.Count != 0 || s.TotalBytes != 0 || s.BoundBytes != 0 || s.AvailableBytes != 0 {
 		t.Fatalf("expected zero-value summary, got %+v", s)
 	}
 }
