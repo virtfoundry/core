@@ -154,3 +154,20 @@ func TestClientIP(t *testing.T) {
 		})
 	}
 }
+
+func TestLoginThrottleRemaining(t *testing.T) {
+	th := NewLoginThrottle(testParams())
+	defer th.Stop()
+	if got := th.Remaining("1.1.1.1", "root"); got != 3 {
+		t.Fatalf("Remaining = %d, want 3", got)
+	}
+	th.Failure("1.1.1.1", "root")
+	if got := th.Remaining("1.1.1.1", "root"); got != 2 {
+		t.Fatalf("Remaining = %d, want 2", got)
+	}
+	th.Failure("1.1.1.1", "root")
+	th.Failure("1.1.1.1", "root")
+	if got := th.Remaining("1.1.1.1", "root"); got != 0 {
+		t.Fatalf("Remaining after block = %d, want 0", got)
+	}
+}
