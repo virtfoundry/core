@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { authService } from '../lib/auth';
@@ -27,7 +27,14 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retryIn, setRetryIn] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (retryIn <= 0) return;
+    const id = setTimeout(() => setRetryIn((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [retryIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +45,16 @@ export function Login() {
       await authService.login({ username, password });
       navigate('/');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      setError(msg && msg !== 'Rejected' ? msg : t('login.invalidCredentials'));
+      const e = err as { attemptsRemaining?: number; retryAfter?: number };
+      if (e.retryAfter) {
+        setRetryIn(e.retryAfter);
+      } else {
+        setError(
+          e.attemptsRemaining === undefined
+            ? t('login.invalidCredentials')
+            : `${t('login.invalidCredentials')}. ${t('login.attemptsRemaining').replace('{n}', String(e.attemptsRemaining))}`,
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -183,7 +198,16 @@ export function Login() {
                   </a>
                 </div>
 
-                {error && (
+                {retryIn > 0 && (
+                  <div role="alert" className="p-3 rounded-lg border border-error/30 text-error text-sm">
+                    {t('login.tooManyAttempts').replace(
+                      '{time}',
+                      `${Math.floor(retryIn / 60)}:${String(retryIn % 60).padStart(2, '0')}`,
+                    )}
+                  </div>
+                )}
+
+                {error && retryIn <= 0 && (
                   <div
                     className="p-3 rounded-lg border border-error/30 text-error text-sm inner-glow"
                     style={{ backgroundColor: 'color-mix(in srgb, var(--vf-error-container) 20%, transparent)' }}
@@ -192,7 +216,7 @@ export function Login() {
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} className="btn-primary w-full py-3 font-semibold">
+                <button type="submit" disabled={loading || retryIn > 0} className="btn-primary w-full py-3 font-semibold">
                   {loading ? t('login.submitting') : t('login.submit')}
                 </button>
               </form>

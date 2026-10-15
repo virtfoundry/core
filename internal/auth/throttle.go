@@ -89,6 +89,32 @@ func (t *LoginThrottle) Allow(ip, username string) (retryAfter time.Duration, ok
 	return 0, true
 }
 
+// Remaining returns how many more failures ip/username can make before the
+// next block, or 0 if either key is already blocked.
+func (t *LoginThrottle) Remaining(ip, username string) int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now()
+	left := func(m map[string]*attempts, key string, max int) int {
+		a := m[key]
+		if a == nil {
+			return max
+		}
+		if now.Before(a.blockedUntil) {
+			return 0
+		}
+		if now.Sub(a.lastFailure) > t.window {
+			return max
+		}
+		return max - a.failures
+	}
+	u, i := left(t.byUser, username, t.userMax), left(t.byIP, ip, t.ipMax)
+	if i < u {
+		return i
+	}
+	return u
+}
+
 // Failure records a failed login attempt for ip and username, blocking each
 // key once its threshold is reached.
 func (t *LoginThrottle) Failure(ip, username string) {

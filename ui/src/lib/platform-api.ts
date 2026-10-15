@@ -150,6 +150,16 @@ function getTenantId(): string | null {
   return localStorage.getItem('tenant_id');
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly attemptsRemaining?: number,
+    readonly retryAfter?: number,
+  ) {
+    super(message);
+  }
+}
+
 async function platformFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const tenantId = getTenantId();
@@ -166,12 +176,16 @@ async function platformFetch<T>(path: string, options: RequestInit = {}): Promis
     throw new Error('Session expired');
   }
   if (res.status === 429) {
-    throw new Error('429 Too Many Requests — rate limited');
+    throw new ApiError(
+      '429 Too Many Requests — rate limited',
+      undefined,
+      Number(res.headers.get('Retry-After')) || undefined,
+    );
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = body.error || body.errortext || body.errorText || res.statusText;
-    throw new Error(msg);
+    throw new ApiError(msg, body.attempts_remaining, body.retry_after);
   }
   return body as T;
 }

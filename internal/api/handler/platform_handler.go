@@ -69,7 +69,14 @@ func (h *PlatformHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// generic 401 as unknown users and wrong passwords (no enumeration oracle).
 	if !found || !valid || user.State == "disabled" {
 		h.throttle.Failure(ip, req.Username)
-		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
+		resp := map[string]interface{}{
+			"error":              "invalid credentials",
+			"attempts_remaining": h.throttle.Remaining(ip, req.Username),
+		}
+		if retryAfter, ok := h.throttle.Allow(ip, req.Username); !ok {
+			resp["retry_after"] = int(retryAfter.Seconds()) + 1
+		}
+		respondJSON(w, http.StatusUnauthorized, resp)
 		return
 	}
 	h.throttle.Success(ip, req.Username)
