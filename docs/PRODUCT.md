@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.12.0** — Redesigned console, VM tags, cluster overview
 - **0.11.3** — VKS network name fix, WebSocket behind the UI proxy, /api/v1/healthz
 - **0.11.2** — UI fixes: honest login page, Copy ssh over HTTP
 - **0.11.1** — fixes: deploy needs template_id, VM snapshot phase/vm_name, SSH fingerprint, wizard loading state, PT labels; dependency updates
