@@ -78,8 +78,8 @@ export default {
         'margin-mobile': '16px',
       },
       fontFamily: {
-        sans: ['"JetBrains Mono"', 'JetBrainsMono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        mono: ['"JetBrains Mono"', 'JetBrainsMono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['Geist', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       fontSize: {
         'display-hero': ['36px', { lineHeight: '40px', letterSpacing: '-0.02em', fontWeight: '700' }],

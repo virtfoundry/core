@@ -14,13 +14,13 @@ body {
   color: var(--vf-on-primary-container);
 }
 
-/* Typography — JetBrains Mono everywhere (Cloud Orchestrator dark style) */
+/* Typography — Geist sans for UI, Geist Mono for data */
 .font-headline {
-  @apply font-mono tracking-tight;
+  @apply font-sans font-semibold tracking-tight;
 }
 
 .font-label {
-  @apply font-mono text-label-sm uppercase tracking-wider;
+  @apply font-sans text-label-sm uppercase tracking-wider;
 }
 
 .font-data-mono {
@@ -85,11 +85,11 @@ body {
   }
 
   .btn-primary {
-    @apply btn px-4 py-2 h-10 bg-primary-container text-on-primary-container hover:bg-inverse-primary inner-glow shadow-btn-primary text-label-md font-mono;
+    @apply btn px-4 py-2 h-10 bg-primary-container text-on-primary-container hover:bg-inverse-primary inner-glow shadow-btn-primary text-label-md font-sans font-semibold;
   }
 
   .btn-secondary {
-    @apply btn px-4 py-2 h-10 border border-outline-variant text-on-surface bg-transparent hover:bg-surface-variant inner-glow text-label-md font-mono;
+    @apply btn px-4 py-2 h-10 border border-outline-variant text-on-surface bg-transparent hover:bg-surface-variant inner-glow text-label-md font-sans font-semibold;
   }
 
   .btn-success-soft {
