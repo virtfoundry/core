@@ -65,13 +65,12 @@ export function ConfirmDialog({
           <div className="p-6">
             <div className="flex gap-4">
               <div
-                className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center border border-error/30"
-                style={{ backgroundColor: 'color-mix(in srgb, var(--vf-error-container) 25%, transparent)' }}
+                className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-bad-bg"
               >
-                <AlertTriangle className="text-error" size={22} />
+                <AlertTriangle className="text-bad-fg" size={20} strokeWidth={1.7} />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 id="confirm-title" className="font-headline text-headline-md font-semibold text-on-surface">
+                <h3 id="confirm-title" className="font-headline text-base font-semibold text-on-surface">
                   {title}
                 </h3>
                 <p className="mt-2 text-sm text-on-surface-variant">{message}</p>
@@ -100,7 +99,7 @@ export function ConfirmDialog({
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-card-border bg-surface-container-low rounded-b-xl">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-card-border bg-sunk rounded-b-xl">
             <button
               ref={cancelRef}
               type="button"
@@ -115,8 +114,8 @@ export function ConfirmDialog({
               onClick={onConfirm}
               disabled={loading || !nameOk}
               className={clsx(
-                'inline-flex items-center justify-center gap-2 px-4 py-2 h-10 rounded-lg text-label-md font-mono font-medium transition-all',
-                'bg-error-container text-on-error-container hover:opacity-90 disabled:opacity-50 inner-glow',
+                'inline-flex items-center justify-center gap-2 px-4 h-10 rounded-lg text-sm transition-all',
+                'bg-[#B42318] text-white font-semibold hover:opacity-90 disabled:opacity-50',
               )}
             >
               {loading && <Loader2 size={16} className="animate-spin" />}

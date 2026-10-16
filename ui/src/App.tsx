@@ -22,6 +22,7 @@ import { Clusters } from './pages/Clusters';
 import { VKSClusterDetail } from './pages/VKSClusterDetail';
 import { IAM } from './pages/IAM';
 import { VMConsole } from './pages/VMConsole';
+import { Settings } from './pages/Settings';
 
 import { I18nProvider } from './lib/i18n';
 import { ThemeProvider } from './lib/theme';
@@ -105,6 +106,7 @@ export default function App() {
                   <Route path="snapshots" element={<Snapshots />} />
                   <Route path="vm-snapshots" element={<VMSnapshots />} />
                   <Route path="iam" element={<IAM />} />
+                  <Route path="settings" element={<Settings />} />
                 </Route>
               </Routes>
             </BrowserRouter>

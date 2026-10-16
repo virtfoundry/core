@@ -8,28 +8,29 @@ interface PageHeaderProps {
   className?: string;
   hero?: boolean;
   breadcrumb?: string;
+  /** Pill rendered next to the title (e.g. StatusBadge on detail pages). */
+  status?: ReactNode;
 }
 
-export function PageHeader({ title, subtitle, actions, className, hero = false, breadcrumb }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, className, hero = false, breadcrumb, status }: PageHeaderProps) {
   return (
-    <div className={clsx('flex flex-col md:flex-row justify-between items-start md:items-end gap-4', className)}>
-      <div>
-        {breadcrumb && (
-          <p className="font-label text-on-surface-variant mb-2 normal-case tracking-normal">{breadcrumb}</p>
-        )}
-        <h1
-          className={clsx(
-            'font-headline text-on-surface tracking-tight',
-            hero ? 'text-headline-xl md:text-headline-xl' : 'text-headline-lg-mobile md:text-headline-lg',
-          )}
-        >
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="text-body-sm md:text-body-md text-on-surface-variant mt-1">{subtitle}</p>
-        )}
+    <div className={clsx('flex flex-wrap items-end gap-4', className)}>
+      <div className="flex-1 basis-80 min-w-0 flex flex-col gap-1.5">
+        {breadcrumb && <p className="text-on-surface-variant text-[13px]">{breadcrumb}</p>}
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1
+            className={clsx(
+              'font-headline text-on-surface m-0 tracking-[-0.02em]',
+              hero ? 'text-[36px] leading-[42px]' : 'text-[28px] leading-[34px]',
+            )}
+          >
+            {title}
+          </h1>
+          {status}
+        </div>
+        {subtitle && <p className="text-on-surface-variant m-0">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-3 shrink-0">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3 shrink-0">{actions}</div>}
     </div>
   );
 }

@@ -9,15 +9,16 @@ import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function Snapshots() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ volume_id: '', name: '' });
@@ -49,12 +50,16 @@ export function Snapshots() {
   const volumes = volData?.volumes || [];
   const filtered = snapshots.filter((s) => s.name?.toLowerCase().includes(search.toLowerCase()));
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('snapshots.selectTenant')} />;
   }
 
+  const volById = Object.fromEntries(volumes.map((v) => [v.id, v]));
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.volumeSnapshots')}
         subtitle={`${snapshots.length} ${t('nav.volumeSnapshots').toLowerCase()}`}
@@ -68,36 +73,48 @@ export function Snapshots() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('snapshots.searchPlaceholder')} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={600}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('common.volume')}</PageTableTh>
+              <PageTableTh>{t('volumes.size')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('common.created')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={3} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={3} className="text-center py-12 text-on-surface-variant">{t('snapshots.empty')}</td></tr>
+                <TableMessageRow cols={5}>{t('snapshots.empty')}</TableMessageRow>
               ) : (
-                filtered.map((snap) => (
-                  <PageTableRow key={snap.id}>
-                    <PageTableTd className="font-medium">{snap.name}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">
-                      {snap.volume_id.slice(0, 8)}…
-                    </PageTableTd>
-                    <PageTableTd>
-                      <StatusBadge status={snap.state === 'ready' ? 'active' : 'starting'} pulse={false} />
-                    </PageTableTd>
-                  </PageTableRow>
-                ))
+                rows.map((snap) => {
+                  const vol = volById[snap.volume_id];
+                  return (
+                    <PageTableRow key={snap.id}>
+                      <PageTableTd className="font-semibold">{snap.name}</PageTableTd>
+                      <PageTableTd mono>{vol?.name ?? `${snap.volume_id.slice(0, 8)}…`}</PageTableTd>
+                      <PageTableTd mono>{vol ? `${vol.size_gi} GiB` : '—'}</PageTableTd>
+                      <PageTableTd>
+                        <StatusBadge status={snap.state === 'ready' ? 'active' : 'starting'} pulse={false} />
+                      </PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(snap.created_at, dateLocale)}</PageTableTd>
+                    </PageTableRow>
+                  );
+                })
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

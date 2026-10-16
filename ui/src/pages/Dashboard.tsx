@@ -1,13 +1,18 @@
-import { HardDrive, Globe, Shield, Network, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import clsx from 'clsx';
+import { Plus, Rocket } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getDashboardSummary } from '../lib/platform-api';
+import { getDashboardSummary, listServiceOfferings, listVKSClusters, listVMs, listVolumes } from '../lib/platform-api';
 import { useNeedsTenant } from '../store/hooks';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { useI18n } from '../lib/i18n';
-import { PageHeader, SurfaceCard } from '../components/shell';
+import {
+  PageHeader, SurfaceCard, PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+} from '../components/shell';
+import { StatusBadge, toneClass, type StatusTone } from '../components/StatusBadge';
+import clsx from 'clsx';
+import { StatsCard } from '../components/StatsCard';
 
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { getRecentActions } from '../lib/preview-prefs';
@@ -20,13 +25,13 @@ import {
 } from '../hooks/useRealtimeEvents';
 
 export function Dashboard() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const needsTenant = useNeedsTenant();
   const enabled = !needsTenant;
   const wsConnected = useRealtimeConnected();
   const localRecent = useMemo(() => getRecentActions(), []);
 
-  const { data: summary, isFetching, isLoading } = useQuery({
+  const { data: summary, isLoading } = useQuery({
     queryKey: queryKeys.dashboardSummary,
     queryFn: getDashboardSummary,
     enabled,
@@ -40,19 +45,83 @@ export function Dashboard() {
     },
   });
 
+  // Same keys as the list pages (shared cache); no extra polling here.
+  const vmsQ = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs, enabled });
+  const offQ = useQuery({ queryKey: queryKeys.offerings, queryFn: listServiceOfferings, enabled });
+  const volQ = useQuery({ queryKey: queryKeys.volumes, queryFn: listVolumes, enabled });
+  const vksQ = useQuery({ queryKey: queryKeys.vksClusters, queryFn: listVKSClusters, enabled });
+
+  const vmList = vmsQ.data?.vms;
+  const volList = volQ.data?.volumes ?? [];
+  const clusters = vksQ.data?.clusters ?? [];
+
+  const d = useMemo(() => {
+    const offs = new Map((offQ.data?.service_offerings ?? []).map((o) => [o.name, o]));
+    const list = vmList ?? [];
+    const by = { running: 0, stopped: 0, error: 0, other: 0 };
+    let cpuRun = 0, cpuAll = 0, memRun = 0, memAll = 0;
+    for (const v of list) {
+      const o = v.service_offering_id ? offs.get(v.service_offering_id) : undefined;
+      const cpu = v.cpu || o?.cpu || 0;
+      const mem = v.memory_mi || o?.memory_mi || 0;
+      const st = v.state.toLowerCase();
+      cpuAll += cpu; memAll += mem;
+      if (st === 'running') { by.running++; cpuRun += cpu; memRun += mem; }
+      else if (st === 'stopped') by.stopped++;
+      else if (st === 'error') by.error++;
+      else by.other++;
+    }
+    const volAll = volList.reduce((a, v) => a + (v.size_gi || 0), 0);
+    const volUsed = volList.reduce((a, v) => a + (v.vm_id ? v.size_gi || 0 : 0), 0);
+    return { total: list.length, by, cpuRun, cpuAll, memRun: memRun / 1024, memAll: memAll / 1024, volAll, volUsed };
+  }, [vmList, offQ.data, volList]);
+
   const vms = summary?.vms ?? { total: 0, running: 0, error: 0 };
-  const running = vms.running ?? 0;
-  const errors = vms.error ?? 0;
-  const runningPct = vms.total ? Math.round((running / vms.total) * 100) : 0;
+  const total = vmList ? d.total : vms.total;
+  const running = vmList ? d.by.running : vms.running ?? 0;
+  const errors = vmList ? d.by.error : vms.error ?? 0;
+  const runningPct = total ? Math.round((running / total) * 100) : 0;
+  const ready = clusters.filter((c) => c.phase === 'Ready' || c.phase === 'ControlPlaneReady').length;
+  const gi = (n: number) => `${Math.round(n * 10) / 10}`;
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
-  const stats = [
-    { label: t('nav.volumes'), value: summary?.volumes.total ?? 0, icon: HardDrive },
-    { label: t('nav.vpcs'), value: summary?.vpcs.total ?? 0, icon: Globe },
-    { label: t('nav.securityGroups'), value: summary?.security_groups.total ?? 0, icon: Shield },
-    { label: t('nav.networks'), value: summary?.networks.total ?? 0, icon: Network },
-  ];
+  const counts = [
+    { label: t('nav.volumes'), value: summary?.volumes.total ?? volList.length },
+    { label: t('nav.vpcs'), value: summary?.vpcs.total ?? 0 },
+    { label: t('nav.networks'), value: summary?.networks.total ?? 0 },
+    { label: t('nav.securityGroups'), value: summary?.security_groups.total ?? 0 },
+  ].filter((c) => c.value > 0);
 
-  const recentVms = summary?.recent_activity ?? [];
+  const bars = [
+    d.cpuAll > 0 && { label: 'vCPU', val: `${d.cpuRun} / ${d.cpuAll}`, pct: pct(d.cpuRun, d.cpuAll) },
+    d.memAll > 0 && { label: t('dashboard.memory'), val: `${gi(d.memRun)} / ${gi(d.memAll)} GiB`, pct: pct(d.memRun, d.memAll) },
+    d.volAll > 0 && { label: t('dashboard.storageAttached'), val: `${d.volUsed} / ${d.volAll} GiB`, pct: pct(d.volUsed, d.volAll) },
+  ].filter(Boolean) as Array<{ label: string; val: string; pct: number }>;
+
+  const segs = [
+    { key: 'running', n: d.by.running, cls: 'bg-ok-fg', label: t('status.running') },
+    { key: 'other', n: d.by.other, cls: 'bg-accent', label: t('dashboard.stateOther') },
+    { key: 'stopped', n: d.by.stopped, cls: 'bg-off-fg', label: t('status.stopped') },
+    { key: 'error', n: d.by.error, cls: 'bg-bad-fg', label: t('status.error') },
+  ].filter((x) => x.n > 0);
+
+  // Recent activity derived from real created/updated timestamps (summary rows carry none).
+  const when = (a?: string, b?: string) => {
+    const t1 = Date.parse(a ?? ''), t2 = Date.parse(b ?? '');
+    return Math.max(t1 > 9e11 ? t1 : 0, t2 > 9e11 ? t2 : 0);
+  };
+  const recent = [
+    ...(vmList ?? []).map((v) => ({
+      key: `vm-${v.name}`, name: v.display_name || v.name, sub: v.display_name && v.display_name !== v.name ? v.name : '',
+      type: 'vm', path: `/vms/${v.name}`, at: when(v.updated_at, v.created_at), state: v.state, tone: undefined as StatusTone | undefined,
+    })),
+    ...clusters.map((c) => ({
+      key: `vks-${c.name}`, name: c.name, sub: '', type: 'vks', path: `/clusters/${encodeURIComponent(c.name)}`,
+      at: when(undefined, c.created_at), state: c.phase ?? '', tone: (c.phase === 'Ready' || c.phase === 'ControlPlaneReady' ? 'ok' : 'warn') as StatusTone,
+    })),
+  ].sort((a, b) => b.at - a.at).slice(0, 6);
+
+  const isEmpty = !!summary && !!vmsQ.data && total === 0 && clusters.length === 0 && volList.length === 0 && counts.length === 0;
 
   if (needsTenant) {
     return (
@@ -62,167 +131,162 @@ export function Dashboard() {
     );
   }
 
-  const healthLabel =
-    summary?.health === 'critical'
-      ? `${errors} VM errors`
-      : summary?.health === 'warning'
-        ? 'Transitions in progress'
-        : 'All systems nominal';
+  const health: { tone: StatusTone; label: string } | null = !summary
+    ? null
+    : summary.health === 'critical' || errors > 0
+      ? { tone: 'bad', label: t('dashboard.healthCritical').replace('{n}', String(errors)) }
+      : summary.health === 'warning'
+        ? { tone: 'warn', label: t('dashboard.healthWarning') }
+        : { tone: 'ok', label: t('dashboard.healthOk') };
+
+  const ago = (ms: number) => (ms ? formatDistanceToNow(new Date(ms), { addSuffix: true, locale: dateLocale }) : '—');
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        hero
-        title={t('nav.dashboard')}
+        title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
+        status={
+          health && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[13px] font-medium ${toneClass[health.tone]}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />
+              {health.label}
+            </span>
+          )
+        }
         actions={
-          <>
-            <Link to="/vms" className="btn-secondary">{t('dashboard.quickActions')}</Link>
-            <Link to="/vms" className="btn-primary">{t('dashboard.deployVm')}</Link>
-          </>
+          <Link to="/vms" className="btn-primary">
+            <Plus size={16} strokeWidth={2.2} aria-hidden />
+            {t('dashboard.newVm')}
+          </Link>
         }
       />
 
       <OnboardingChecklist />
 
       <RefreshingPanel isLoading={isLoading}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          <SurfaceCard className="flex flex-col justify-between" padding="lg">
-            <div>
-              <p className="font-label text-on-surface-variant">{t('nav.vms')}</p>
-              <h3 className="font-headline text-headline-lg font-bold mt-2 text-on-surface">{vms.total}</h3>
-            </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="bg-success-muted text-success px-2 py-1 rounded-full font-label-sm flex items-center gap-1 border border-success/20">
-                <span className="w-2 h-2 rounded-full bg-success animate-vf-pulse" />
-                {runningPct}%
-              </span>
-              <span className="text-body-base text-on-surface-variant">{t('dashboard.running')}</span>
+        {isEmpty ? (
+          <SurfaceCard>
+            <div className="flex flex-col items-center text-center gap-3 py-10">
+              <span className="p-3 rounded-full bg-accent-soft text-accent"><Rocket size={22} aria-hidden /></span>
+              <h2 className="m-0 text-lg font-semibold">{t('dashboard.emptyTitle')}</h2>
+              <p className="m-0 max-w-md text-on-surface-variant">{t('dashboard.emptyBody')}</p>
+              <Link to="/vms" className="btn-primary mt-1">
+                <Plus size={16} strokeWidth={2.2} aria-hidden />
+                {t('dashboard.newVm')}
+              </Link>
             </div>
           </SurfaceCard>
-
-          <SurfaceCard className="flex flex-col justify-between" padding="lg">
-            <div>
-              <p className="font-label text-on-surface-variant">{t('nav.networks')}</p>
-              <h3 className="font-headline text-headline-lg font-bold mt-2 text-on-surface">
-                {summary?.networks.total ?? 0}
-              </h3>
-            </div>
-            <div className="mt-4">
-              <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-primary h-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(100, ((summary?.vpcs.total ?? 0) / Math.max(1, summary?.networks.total ?? 1)) * 100)}%`,
-                  }}
-                />
-              </div>
-              <p className="text-body-base text-on-surface-variant mt-2 text-right">
-                {summary?.vpcs.total ?? 0} VPCs
-              </p>
-            </div>
-          </SurfaceCard>
-
-          <SurfaceCard className="flex flex-col justify-between sm:col-span-2 lg:col-span-1" padding="lg">
-            <div>
-              <div className="flex justify-between items-start">
-                <p className="font-label text-on-surface-variant">Health</p>
-                {summary?.health === 'critical' || errors > 0 ? (
-                  <span className="bg-error-container/30 text-error px-2 py-1 rounded-full font-label-sm border border-error/30">ALERT</span>
-                ) : summary?.health === 'warning' ? (
-                  <span className="bg-warning-muted text-warning px-2 py-1 rounded-full font-label-sm border border-warning/20">SYNC</span>
-                ) : (
-                  <span className="bg-success-muted text-success px-2 py-1 rounded-full font-label-sm border border-success/20">OK</span>
-                )}
-              </div>
-              <h3 className="font-headline text-headline-lg font-bold mt-2 text-on-surface">{healthLabel}</h3>
-            </div>
-            <Link to="/vms" className="mt-4 text-primary font-label-md hover:underline inline-flex items-center gap-1">
-              View compute
-            </Link>
-          </SurfaceCard>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter mt-gutter auto-rows-[minmax(180px,auto)]">
-          <div className="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-gutter items-stretch">
-            {stats.map((stat) => (
-              <SurfaceCard
-                key={stat.label}
-                className="min-h-[120px] h-full [&>div:last-child]:h-full [&>div:last-child]:flex [&>div:last-child]:items-center [&>div:last-child]:justify-center"
-                padding="md"
-              >
-                <div className="flex flex-col items-center text-center gap-1.5">
-                  <stat.icon size={20} className="text-primary" />
-                  <span className="font-label text-on-surface-variant text-[10px] leading-tight">{stat.label}</span>
-                  <span className="font-headline text-headline-md font-bold text-on-surface">{stat.value}</span>
-                </div>
-              </SurfaceCard>
+        ) : (
+        <div className="flex flex-col gap-6">
+          <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+            {total > 0 && (
+              <StatsCard
+                title={t('dashboard.runningVms')}
+                value={running}
+                of={t('dashboard.of').replace('{n}', String(total))}
+                progress={runningPct}
+                variant={errors > 0 ? 'warning' : 'success'}
+              />
+            )}
+            {d.cpuAll > 0 && (
+              <StatsCard title={t('dashboard.vcpuInUse')} value={d.cpuRun} of={`/ ${d.cpuAll}`} progress={pct(d.cpuRun, d.cpuAll)} />
+            )}
+            {d.memAll > 0 && (
+              <StatsCard title={t('dashboard.memory')} value={gi(d.memRun)} of={`/ ${gi(d.memAll)} GiB`} progress={pct(d.memRun, d.memAll)} />
+            )}
+            {clusters.length > 0 && (
+              <StatsCard
+                title={t('nav.clusters')}
+                value={ready}
+                of={t('dashboard.of').replace('{n}', String(clusters.length))}
+                progress={pct(ready, clusters.length)}
+                variant="success"
+              />
+            )}
+            {counts.map((c) => (
+              <StatsCard key={c.label} title={c.label} value={c.value} />
             ))}
-          </div>
+          </section>
 
-          <SurfaceCard className="md:col-span-5 flex flex-col overflow-hidden min-h-[280px]" padding="md" title="Recent activity">
-            <div className="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
-              {localRecent.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-[10px] font-label uppercase text-on-surface-variant mb-1 flex items-center gap-2">
-                    Local · ⌘K <ComingSoonBadge label={t('preview.localOnly')} />
-                  </p>
-                  {localRecent.map((r) => (
-                    <Link
-                      key={r.id}
-                      to={r.path}
-                      className="block bg-surface-container p-2 rounded-lg border border-outline-variant mb-1 text-sm hover:bg-surface-variant"
-                    >
-                      {r.label}
-                    </Link>
-                  ))}
-                </div>
+          {(segs.length > 0 || bars.length > 0) && (
+            <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
+              {segs.length > 0 && (
+                <SurfaceCard title={t('dashboard.statesTitle')}>
+                  <div className="flex h-3 rounded-full overflow-hidden bg-track" role="img" aria-label={segs.map((x) => `${x.label} ${x.n}`).join(', ')}>
+                    {segs.map((x) => (
+                      <div key={x.key} className={x.cls} style={{ width: `${(x.n / d.total) * 100}%` }} />
+                    ))}
+                  </div>
+                  <ul className="m-0 mt-4 p-0 list-none flex flex-col gap-2 text-sm">
+                    {segs.map((x) => (
+                      <li key={x.key} className="flex items-center gap-2">
+                        <span className={clsx('w-2 h-2 rounded-full', x.cls)} aria-hidden />
+                        <span className="flex-1">{x.label}</span>
+                        <span className="tabular-nums text-on-surface-variant">{x.n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SurfaceCard>
               )}
-              {recentVms.length === 0 ? (
-                <p className="text-on-surface-variant text-sm">{t('dashboard.subtitle')}</p>
-              ) : (
-                recentVms.map((vm) => {
-                  const isError = vm.state?.toLowerCase() === 'error';
-                  const isRunning = vm.state?.toLowerCase() === 'running';
-                  const Icon = isError ? AlertTriangle : isRunning ? CheckCircle : RefreshCw;
-                  const iconClass = isError ? 'text-error' : isRunning ? 'text-tertiary' : 'text-secondary';
-                  return (
-                    <Link
-                      key={vm.name}
-                      to={vm.path}
-                      className="bg-surface-container p-3 rounded-lg border border-outline-variant flex gap-3 items-start hover:bg-surface-variant transition-colors"
-                    >
-                      <Icon size={18} className={clsx('mt-0.5 shrink-0', iconClass)} />
-                      <div className="min-w-0">
-                        <div className="font-semibold text-body-semibold text-on-surface truncate">{vm.display_name || vm.name}</div>
-                        <div className="font-data-mono text-on-surface-variant text-xs truncate">
-                          {vm.name} · {vm.state}
+              {bars.length > 0 && (
+                <SurfaceCard title={t('dashboard.allocTitle')}>
+                  <div className="flex flex-col gap-4">
+                    {bars.map((b) => (
+                      <div key={b.label} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between text-sm">
+                          <span>{b.label}</span>
+                          <span className="tabular-nums text-on-surface-variant">{b.val}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-track" role="progressbar" aria-label={b.label} aria-valuenow={b.pct} aria-valuemin={0} aria-valuemax={100}>
+                          <div className={clsx('h-1.5 rounded-full', b.pct >= 85 ? 'bg-warn-fg' : 'bg-accent')} style={{ width: `${b.pct}%` }} />
                         </div>
                       </div>
-                    </Link>
-                  );
-                })
+                    ))}
+                  </div>
+                </SurfaceCard>
               )}
-            </div>
-          </SurfaceCard>
+            </section>
+          )}
 
-          <SurfaceCard className="md:col-span-7" padding="lg" title={t('dashboard.quickActions')}>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { to: '/vms', label: t('dashboard.deployVm') },
-                { to: '/volumes', label: t('dashboard.createVolume') },
-                { to: '/vpcs', label: t('dashboard.newVpc') },
-                { to: '/snapshots', label: t('dashboard.snapshot') },
-              ].map((a) => (
-                <Link key={a.to} to={a.to} className="btn-secondary text-body-semibold">
-                  {a.label}
-                </Link>
-              ))}
-            </div>
-          </SurfaceCard>
+          {(recent.length > 0 || localRecent.length > 0) && (
+            <SurfaceCard padding="none" title={t('dashboard.recentActivity')}>
+              <PageTable minWidth={560}>
+                <PageTableHead>
+                  <PageTableTh>{t('dashboard.colResource')}</PageTableTh>
+                  <PageTableTh>{t('dashboard.colType')}</PageTableTh>
+                  <PageTableTh>{t('dashboard.colWhen')}</PageTableTh>
+                  <PageTableTh>Status</PageTableTh>
+                </PageTableHead>
+                <PageTableBody>
+                  {localRecent.map((r) => (
+                    <PageTableRow key={r.id}>
+                      <PageTableTd className="font-medium">
+                        <Link to={r.path} className="hover:underline">{r.label}</Link>
+                      </PageTableTd>
+                      <PageTableTd className="text-on-surface-variant">—</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">—</PageTableTd>
+                      <PageTableTd><ComingSoonBadge label={t('preview.localOnly')} /></PageTableTd>
+                    </PageTableRow>
+                  ))}
+                  {recent.map((r) => (
+                    <PageTableRow key={r.key}>
+                      <PageTableTd>
+                        <Link to={r.path} className="font-medium hover:underline">{r.name}</Link>
+                        {r.sub && <div className="font-mono text-xs text-on-surface-variant">{r.sub}</div>}
+                      </PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant uppercase">{r.type}</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{ago(r.at)}</PageTableTd>
+                      <PageTableTd><StatusBadge status={r.state} tone={r.tone} /></PageTableTd>
+                    </PageTableRow>
+                  ))}
+                </PageTableBody>
+              </PageTable>
+            </SurfaceCard>
+          )}
         </div>
+        )}
       </RefreshingPanel>
     </div>
   );
 }
-

@@ -77,10 +77,10 @@ export function CommandPalette({ open, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={t('cmdk.title')}
-        className="relative w-full max-w-xl vf-card shadow-2xl overflow-hidden"
+        className="relative w-full max-w-xl vf-card shadow-2xl overflow-hidden rounded-xl"
       >
         <div className="flex items-center gap-3 px-4 border-b border-outline-variant">
-          <Search size={18} className="text-on-surface-variant shrink-0" />
+          <Search size={18} strokeWidth={1.7} className="text-on-surface-variant shrink-0" />
           <input
             ref={inputRef}
             type="search"
@@ -89,7 +89,7 @@ export function CommandPalette({ open, onClose }: Props) {
             placeholder={t('cmdk.placeholder')}
             className="flex-1 h-12 bg-transparent outline-none text-on-surface text-sm"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-on-surface-variant border border-outline-variant rounded px-1.5 py-0.5">
+          <kbd className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono bg-sunk text-on-surface-variant border border-outline-variant rounded px-1.5 py-0.5">
             <Command size={10} /> K
           </kbd>
         </div>
@@ -101,7 +101,7 @@ export function CommandPalette({ open, onClose }: Props) {
 
           {hasTenant && query.trim().length < 2 && (
             <>
-              <p className="px-4 py-1 text-[10px] font-label uppercase text-on-surface-variant">{t('cmdk.recent')}</p>
+              <p className="px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">{t('cmdk.recent')}</p>
               {recent.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-on-surface-variant">{t('cmdk.hint')}</p>
               ) : (
@@ -110,13 +110,13 @@ export function CommandPalette({ open, onClose }: Props) {
                     key={r.id}
                     type="button"
                     onClick={() => pick(r.path)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-surface-variant text-sm text-on-surface"
+                    className="w-[calc(100%-1rem)] mx-2 text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft focus-visible:bg-accent-soft outline-none text-sm font-medium text-on-surface"
                   >
                     {r.label}
                   </button>
                 ))
               )}
-              <p className="px-4 py-1 mt-2 text-[10px] font-label uppercase text-on-surface-variant">{t('cmdk.shortcuts')}</p>
+              <p className="px-4 py-1.5 mt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-on-surface-variant">{t('cmdk.shortcuts')}</p>
               {[
                 { label: t('nav.vms'), path: '/vms' },
                 { label: t('nav.templates'), path: '/templates' },
@@ -127,7 +127,7 @@ export function CommandPalette({ open, onClose }: Props) {
                   key={s.path}
                   type="button"
                   onClick={() => pick(s.path)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-surface-variant text-sm text-on-surface"
+                  className="w-[calc(100%-1rem)] mx-2 text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft focus-visible:bg-accent-soft outline-none text-sm font-medium text-on-surface"
                 >
                   {s.label}
                 </button>
@@ -149,13 +149,12 @@ export function CommandPalette({ open, onClose }: Props) {
                   type="button"
                   onClick={() => pickHit(hit)}
                   className={clsx(
-                    'w-full text-left px-4 py-2.5 hover:bg-surface-variant transition-colors',
-                    'border-b border-outline-variant/40 last:border-0',
+                    'w-[calc(100%-1rem)] mx-2 text-left px-3 py-2.5 rounded-lg hover:bg-accent-soft focus-visible:bg-accent-soft outline-none transition-colors',
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-on-surface truncate text-sm">{hit.name}</span>
-                    <span className="font-label text-[10px] text-primary-fixed-dim shrink-0">
+                    <span className="font-mono text-[11px] text-on-surface-variant shrink-0">
                       {typeLabels[hit.type] ?? hit.type}
                     </span>
                   </div>

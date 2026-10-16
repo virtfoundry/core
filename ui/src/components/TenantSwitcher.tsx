@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Building2, Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import type { Tenant } from '../lib/platform-api';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -61,16 +61,23 @@ export function TenantSwitcher({
         title={t('header.tenantHint')}
         disabled={loading}
         className={clsx(
-          'flex items-center gap-2 h-9 max-w-[220px] px-2.5 rounded-lg text-sm border transition-colors',
-          'bg-surface-container-high text-on-surface focus-visible:ring-2 focus-visible:ring-primary',
+          'flex items-center gap-2 h-9 max-w-[220px] px-3 rounded-lg text-sm border transition-colors',
+          'bg-card text-on-surface focus-visible:ring-2 focus-visible:ring-accent',
           impersonating
-            ? 'border-error ring-2 ring-error/50'
-            : 'border-outline-variant hover:border-primary-container/50',
-          loading && 'opacity-60 cursor-wait',
+            ? 'border-bad-fg ring-2 ring-bad-fg/40'
+            : 'border-outline-variant hover:border-accent/50',
+          loading && 'cursor-wait',
         )}
       >
-        <Building2 size={16} className="text-on-surface-variant shrink-0" aria-hidden />
-        <span className="truncate min-w-0 flex-1 text-left">{loading ? t('common.loading') : label}</span>
+        <span
+          className={clsx('w-2 h-2 rounded-full shrink-0', selectedTenantId ? 'bg-ok-fg' : 'bg-warn-fg')}
+          aria-hidden
+        />
+        {loading && !selected ? (
+          <span className="h-3 w-20 rounded bg-track animate-pulse" aria-hidden />
+        ) : (
+          <span className="truncate min-w-0 flex-1 text-left font-mono text-[13px]">{label}</span>
+        )}
         <ChevronDown size={14} className="text-on-surface-variant shrink-0" aria-hidden />
       </button>
 
@@ -79,7 +86,7 @@ export function TenantSwitcher({
           id={listId}
           role="listbox"
           aria-label={t('header.tenant')}
-          className="absolute z-50 right-0 top-full mt-2 w-64 max-h-72 overflow-y-auto vf-card shadow-xl py-1"
+          className="absolute z-50 left-0 top-full mt-2 w-72 max-w-[85vw] max-h-72 overflow-y-auto vf-card shadow-xl pb-1.5"
         >
           <div className="px-3 py-2 border-b border-card-border">
             <p className="text-xs font-label text-on-surface-variant">{t('header.tenant')}</p>
@@ -95,8 +102,8 @@ export function TenantSwitcher({
               close();
             }}
             className={clsx(
-              'flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-variant transition-colors',
-              !selectedTenantId ? 'text-primary' : 'text-on-surface-variant',
+              'flex w-[calc(100%-0.75rem)] mx-1.5 items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-left hover:bg-accent-soft transition-colors',
+              !selectedTenantId ? 'text-accent' : 'text-on-surface-variant',
             )}
           >
             <span className="flex-1 truncate">{t('nav.selectTenant')}</span>
@@ -119,17 +126,18 @@ export function TenantSwitcher({
                     close();
                   }}
                   className={clsx(
-                    'flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-variant transition-colors',
-                    active ? 'text-primary bg-primary-container/10' : 'text-on-surface',
+                    'flex w-[calc(100%-0.75rem)] mx-1.5 items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left hover:bg-accent-soft transition-colors',
+                    active ? 'bg-accent-soft' : 'text-on-surface',
                   )}
                 >
+                  <span className="w-2 h-2 rounded-full bg-ok-fg shrink-0" aria-hidden />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate font-medium">{tn.name}</span>
                     <span className="block truncate text-[11px] text-on-surface-variant font-data-mono">
                       {tn.slug}
                     </span>
                   </span>
-                  {active && <Check size={14} className="shrink-0" aria-hidden />}
+                  {active && <Check size={14} className="shrink-0 text-accent" aria-hidden />}
                 </button>
               );
             })

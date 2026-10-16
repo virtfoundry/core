@@ -2,6 +2,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const api = process.env.VF_API ?? 'http://localhost:8080'
+
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
@@ -18,8 +20,8 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/ws': { target: 'ws://localhost:8080', ws: true },
+      '/api': { target: api, changeOrigin: true },
+      '/ws': { target: api.replace(/^http/, 'ws'), ws: true, changeOrigin: true, headers: { Origin: api } },
     },
   },
   test: {
