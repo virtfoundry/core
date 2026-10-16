@@ -3,7 +3,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getDashboardSummary, listServiceOfferings, listVKSClusters, listVMs, listVolumes } from '../lib/platform-api';
-import { useNeedsTenant } from '../store/hooks';
+import { useAppSelector, useNeedsTenant } from '../store/hooks';
+import { selectIsRoot } from '../store/authSlice';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { useI18n } from '../lib/i18n';
@@ -13,6 +14,7 @@ import {
 import { StatusBadge, toneClass, type StatusTone } from '../components/StatusBadge';
 import clsx from 'clsx';
 import { StatsCard } from '../components/StatsCard';
+import { ClusterOverview } from '../components/ClusterOverview';
 
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { getRecentActions } from '../lib/preview-prefs';
@@ -27,6 +29,7 @@ import {
 export function Dashboard() {
   const { t, dateLocale } = useI18n();
   const needsTenant = useNeedsTenant();
+  const isRoot = useAppSelector(selectIsRoot);
   const enabled = !needsTenant;
   const wsConnected = useRealtimeConnected();
   const localRecent = useMemo(() => getRecentActions(), []);
@@ -248,6 +251,8 @@ export function Dashboard() {
               )}
             </section>
           )}
+
+          {isRoot && summary && <ClusterOverview summary={summary} />}
 
           {(recent.length > 0 || localRecent.length > 0) && (
             <SurfaceCard padding="none" title={t('dashboard.recentActivity')}>

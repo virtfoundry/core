@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"log"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/virtfoundry/core/internal/auth"
+	"github.com/virtfoundry/core/internal/infra/hypervisor"
 	"github.com/virtfoundry/core/internal/platform"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // DashboardSummary aggregates tenant overview for the UI dashboard.
@@ -19,6 +22,9 @@ type DashboardSummary struct {
 	SecurityGroups DashboardResourceCount `json:"security_groups"`
 	Health         string                 `json:"health"`
 	RecentActivity []DashboardActivity    `json:"recent_activity"`
+	Hosts          *hypervisor.ClusterMetrics `json:"hosts,omitempty"`
+	Storage        *hypervisor.StorageSummary `json:"storage,omitempty"`
+	Addons         *hypervisor.AddonsHealth  `json:"addons,omitempty"`
 }
 
 type DashboardResourceCount struct {
@@ -53,7 +59,7 @@ type NotificationItem struct {
 	CreatedAt string `json:"created_at,omitempty"`
 }
 
-func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string, perms []string) (*DashboardSummary, error) {
+func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string, perms []string, role platform.Role) (*DashboardSummary, error) {
 	summary := &DashboardSummary{
 		Volumes:        DashboardResourceCount{Total: len(s.ListVolumes(tenantID))},
 		VPCs:           DashboardResourceCount{Total: len(s.ListVPCs(tenantID))},
@@ -61,6 +67,17 @@ func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string,
 		SecurityGroups: DashboardResourceCount{Total: len(s.ListSecurityGroups(tenantID))},
 		Health:         "ok",
 		RecentActivity: []DashboardActivity{},
+	}
+	if role == platform.RoleRoot {
+		if err := s.populateHosts(ctx, summary); err != nil {
+			return nil, err
+		}
+		if err := s.populateStorage(ctx, summary); err != nil {
+			return nil, err
+		}
+		if err := s.populateAddons(ctx, summary); err != nil {
+			return nil, err
+		}
 	}
 	if !auth.HasPermission(perms, auth.PermVMsRead) {
 		return summary, nil
@@ -78,6 +95,71 @@ func (s *PlatformService) DashboardSummary(ctx context.Context, tenantID string,
 	summary.Health = dashboardHealth(vmCount.errors, vmCount.transitional)
 	summary.RecentActivity = recentVMActivity(vms, 8)
 	return summary, nil
+}
+
+func (s *PlatformService) populateStorage(ctx context.Context, summary *DashboardSummary) error {
+	if s.kv == nil {
+		return nil
+	}
+	storage, err := s.kv.StorageSummary(ctx)
+	if err != nil {
+		if isExpectedHostsError(err) {
+			return nil
+		}
+		return err
+	}
+	summary.Storage = storage
+	return nil
+}
+
+func (s *PlatformService) populateAddons(ctx context.Context, summary *DashboardSummary) error {
+	if s.kv == nil {
+		return nil
+	}
+	addons, err := s.kv.AddonsHealth(ctx)
+	if err != nil {
+		if isExpectedHostsError(err) {
+			return nil
+		}
+		return err
+	}
+	summary.Addons = addons
+	return nil
+}
+
+func (s *PlatformService) populateHosts(ctx context.Context, summary *DashboardSummary) error {
+	if s.kv == nil {
+		return nil
+	}
+	metrics, err := s.kv.ClusterMetrics(ctx)
+	if err != nil {
+		if isExpectedHostsError(err) {
+			return nil
+		}
+		return err
+	}
+	summary.Hosts = metrics
+	// Usage is optional: any ClusterUsage error not absorbed by isMetricsAbsent
+	// (decode failure, unexpected transport error) must not 500 the dashboard —
+	// log it and leave Hosts.Usage nil so the UI renders "usage unavailable".
+	usage, err := s.kv.ClusterUsage(ctx)
+	if err != nil {
+		log.Printf("[dashboard] cluster usage unavailable: %v", err)
+		return nil
+	}
+	summary.Hosts.Usage = usage
+	return nil
+}
+
+func isExpectedHostsError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if k8serrors.IsForbidden(err) || k8serrors.IsUnauthorized(err) || k8serrors.IsServiceUnavailable(err) || k8serrors.IsTimeout(err) || k8serrors.IsServerTimeout(err) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "connection refused") || strings.Contains(msg, "no such host")
 }
 
 func (s *PlatformService) Search(ctx context.Context, tenantID, query string, perms []string) []SearchHit {
