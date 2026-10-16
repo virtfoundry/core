@@ -42,7 +42,11 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     # Majors (React, react-router, Tailwind, Vite, recharts...) are migrations, not
-    # bumps: they come as separate PRs. Only minor and patch updates are grouped.
+    # bumps: done by hand, so Dependabot does not open PRs for them. Security
+    # updates ignore this rule. Only minor and patch updates are grouped.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-patch:
         patterns: ["*"]
