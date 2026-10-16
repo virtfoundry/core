@@ -40,6 +40,7 @@ export interface PlatformVM {
   host_name?: string;
   service_offering_id?: string;
   tenant_id?: string;
+  tags?: string[];
   nics?: Array<{ name: string; ip?: string; mac?: string; type?: string; network_id?: string; nad_name?: string }>;
   template_ref?: string;
   vpc_id?: string;
@@ -312,6 +313,7 @@ export async function updateVM(name: string, data: {
   cpu?: number;
   memory_mi?: number;
   service_offering_id?: string;
+  tags?: string[];
 }) {
   return platformFetch<{ vm: PlatformVM }>(`/vms/${encodeURIComponent(name)}`, {
     method: 'PATCH',
@@ -335,6 +337,7 @@ export async function deployVM(data: {
   data_volume_id?: string;
   expose_ssh?: boolean;
   display_name?: string;
+  tags?: string[];
 }) {
   return platformFetch<{ vm: PlatformVM }>('/vms', {
     method: 'POST',

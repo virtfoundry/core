@@ -73,6 +73,9 @@ func MergePlatformVM(dst, prior, fromCR *platform.PlatformVM) {
 	if dst.CloudInitUserData == "" && prior.CloudInitUserData != "" {
 		dst.CloudInitUserData = prior.CloudInitUserData
 	}
+	if len(dst.Tags) == 0 && len(prior.Tags) > 0 {
+		dst.Tags = prior.Tags
+	}
 }
 
 func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, templateCR string, networkRefs map[string]string) *unstructured.Unstructured {
@@ -132,6 +135,18 @@ func InstanceToUnstructured(vm *platform.PlatformVM, tenantSlug, offeringCR, tem
 	if ud := strings.TrimSpace(vm.CloudInitUserData); ud != "" {
 		spec["cloudInitUserData"] = ud
 	}
+	// Always write spec.tags (even empty) so clearing all tags on update
+	// actually removes them from the Instance CR. SaveVM hydrates vm from the
+	// store first, so an empty slice here means "no tags", not "unspecified".
+	tags := make([]interface{}, 0, len(vm.Tags))
+	for _, tag := range vm.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	if imp := importMeta(vm.ExternalUUID, vm.ImportSource); imp != nil {
 		spec["import"] = imp
 	}
@@ -256,6 +271,24 @@ func InstanceFromUnstructured(obj *unstructured.Unstructured, tenantID string, r
 	}
 	if cloudInit != "" {
 		vm.CloudInitUserData = cloudInit
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err != nil {
+		return nil, fieldError("spec.tags", err)
+	} else if found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			vm.Tags = tags
+		}
 	}
 	return vm, nil
 }

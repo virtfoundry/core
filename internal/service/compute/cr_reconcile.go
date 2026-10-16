@@ -147,6 +147,7 @@ func (s *Service) deployVMViaOperator(
 		TemplateRef:       templateRef,
 		DedicatedCPU:      dedicated,
 		SSHKeyRefs:        sshKeyRefs,
+		Tags:              in.Tags,
 		NICs:              s.buildOperatorVMNics(tenantID, networkIDs),
 		Hypervisor:        "KubeVirt",
 		ServiceOfferingID: in.ServiceOfferingID,
