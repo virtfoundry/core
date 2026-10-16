@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-16
+
 ### Added
 
 - **UI:** redesigned console. New shell (grouped sidebar, topbar with tenant switcher, `Ctrl/Cmd+K` command palette, PT/EN switch, light and dark theme), shared tables and pill tabs, and every page and the deploy wizard rebuilt on the new design. Blocks the API cannot fill yet (CPU chart, quotas, events, public IP table) stay hidden ([#259](https://github.com/virtfoundry/core/pull/259)).
