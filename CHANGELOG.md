@@ -8,6 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Added
 
+- **UI:** redesigned console. New shell (grouped sidebar, topbar with tenant switcher, `Ctrl/Cmd+K` command palette, PT/EN switch, light and dark theme), shared tables and pill tabs, and every page and the deploy wizard rebuilt on the new design. Blocks the API cannot fill yet (CPU chart, quotas, events, public IP table) stay hidden ([#259](https://github.com/virtfoundry/core/pull/259)).
+- **UI:** dashboard **Cluster overview** (host usage bars, CRD addons strip) ([#261](https://github.com/virtfoundry/core/pull/261)). Needs the two read-only RBAC rules shipped in the API ClusterRole of chart 0.12.0.
+- **UI:** VM tags on the redesigned console (list, detail, deploy wizard), stored in `spec.tags` of the Instance ([#260](https://github.com/virtfoundry/core/pull/260)).
+- **UI:** the login page shows the remaining attempts and a lockout countdown ([#258](https://github.com/virtfoundry/core/pull/258)).
+
+### Changed
+
+- Dependabot no longer opens npm major-version PRs for `ui` ([#257](https://github.com/virtfoundry/core/pull/257)).
+- Docs: VKS moved out of the CNCF Sandbox application scope ([#254](https://github.com/virtfoundry/core/pull/254)).
+
+### Added
+
 - **Dashboard:** the `/dashboard` page now surfaces Kubernetes host telemetry (node count, ready nodes, allocatable CPU and memory, distinct kubelet versions and OS image) sourced from `core/v1/nodes` via the `KubeVirtDriver`. The new `GET /api/v1/dashboard/summary` field `hosts` is additive; older clients keep working. The section renders a disabled state when the cluster is unreachable (Forbidden, RBAC, no kubeconfig) so the endpoint never 500s. Tier 1 only — no new dependency.
 
 ### Changed
