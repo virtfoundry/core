@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
 import { Menu, Moon, Search, Sun, X } from 'lucide-react';
 import { VirtFoundryLogo } from './VirtFoundryLogo';
@@ -18,6 +18,13 @@ import { selectIsRoot, selectUser } from '../store/authSlice';
 import { selectSidebarOpen, selectTenantId, setSidebarOpen, setTenantId } from '../store/uiSlice';
 import { useTheme } from '../lib/theme';
 import clsx from 'clsx';
+
+const mobileTabs = [
+  { to: '/dashboard', label: 'mobile.home' as const },
+  { to: '/vms', label: 'VMs' },
+  { to: '/clusters', label: 'VKS' },
+  { to: '/settings', label: 'mobile.account' as const },
+];
 
 export function Layout() {
   const [notifOpen, setNotifOpen] = useState(false);
@@ -130,6 +137,9 @@ export function Layout() {
             {sidebarOpen ? <X size={16} className="hidden md:block" /> : <Menu size={16} className="hidden md:block" />}
             <Menu size={16} className="md:hidden" />
           </button>
+          <span className="md:hidden flex items-center gap-2.5 font-semibold text-base">
+            <VirtFoundryLogo iconOnly height={30} />
+          </span>
 
           {isRoot ? (
             <TenantSwitcher
@@ -138,11 +148,12 @@ export function Layout() {
               defaultTenantId={defaultTenantId}
               onChange={handleTenantChange}
               loading={tenantsLoading}
+              className="order-1 md:order-none"
             />
           ) : (
             tenantChipLabel && (
               <span
-                className="flex items-center gap-2 h-9 max-w-[220px] px-3 rounded-lg border border-outline-variant bg-card text-sm"
+                className="order-1 md:order-none flex items-center gap-2 h-9 max-w-[220px] px-3 rounded-lg border border-outline-variant bg-card text-sm"
                 title={t('header.tenantHint')}
               >
                 <span className="w-2 h-2 rounded-full bg-ok-fg shrink-0" aria-hidden />
@@ -154,11 +165,11 @@ export function Layout() {
           <button
             type="button"
             onClick={openCmd}
-            className="order-last basis-full md:order-none md:flex-1 md:basis-[260px] md:max-w-[460px] h-9 px-3 flex items-center gap-2.5 box-border border border-outline-variant rounded-lg bg-sunk text-on-surface-variant text-sm text-left hover:border-accent/50 transition-colors focus-visible:ring-2 focus-visible:ring-accent"
+            className="order-1 md:order-none flex-1 basis-[160px] min-w-0 md:basis-[260px] md:max-w-[460px] h-9 px-3 flex items-center gap-2.5 box-border border border-outline-variant rounded-lg bg-sunk text-on-surface-variant text-sm text-left hover:border-accent/50 transition-colors focus-visible:ring-2 focus-visible:ring-accent"
           >
             <Search size={16} strokeWidth={2} aria-hidden />
             <span className="flex-grow truncate">{t('topbar.search')}</span>
-            <kbd className="font-mono text-[11px] border border-outline-variant rounded px-1.5 py-px bg-card shrink-0">⌘K</kbd>
+            <kbd className="hidden sm:inline font-mono text-[11px] border border-outline-variant rounded px-1.5 py-px bg-card shrink-0">⌘K</kbd>
           </button>
 
           <span className="flex-grow" />
@@ -199,7 +210,7 @@ export function Layout() {
           </div>
         )}
 
-        <main className="flex-1 px-4 pt-7 pb-10 md:px-8 max-w-content mx-auto w-full">
+        <main className="flex-1 px-4 pt-5 pb-24 md:pt-7 md:pb-10 md:px-8 max-w-content mx-auto w-full">
           <Outlet />
         </main>
       </div>
@@ -221,6 +232,26 @@ export function Layout() {
           </aside>
         </div>
       )}
+
+      <nav
+        aria-label={t('topbar.menu')}
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 flex bg-card border-t border-card-border"
+      >
+        {mobileTabs.map(({ to, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              clsx(
+                'flex-1 pt-2.5 pb-3 text-center text-xs font-medium no-underline',
+                isActive ? 'text-link' : 'text-on-surface-variant',
+              )
+            }
+          >
+            {label.includes('.') ? t(label as 'mobile.home') : label}
+          </NavLink>
+        ))}
+      </nav>
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
