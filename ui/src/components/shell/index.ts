@@ -1,5 +1,6 @@
 export { PageHeader } from './PageHeader';
 export { SurfaceCard } from './SurfaceCard';
+export { KeyValueList, TerminalBlock } from './DetailBlocks';
 export {
   SearchField,
   InfoBanner,
@@ -16,6 +17,8 @@ export {
   TableToolbar,
   TableFilter,
   TableFooter,
+  TablePager,
+  TableMessageRow,
   formInputClass,
   formSelectClass,
   formTextareaClass,
