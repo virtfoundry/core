@@ -411,7 +411,7 @@ export function VMs() {
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
-                className="text-xs h-8 border border-outline-variant rounded-lg bg-surface-container-high px-2"
+                className="text-xs h-8 border border-outline-variant rounded-lg bg-card px-2"
                 aria-label={t('vms.filterTag')}
               >
                 <option value="">{t('vms.allTags')}</option>

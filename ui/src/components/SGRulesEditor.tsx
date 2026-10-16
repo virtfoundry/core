@@ -47,7 +47,7 @@ export function SGRulesEditor({
         rules.map((rule, index) => (
           <div
             key={index}
-            className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-3 border border-outline-variant rounded-lg bg-surface-container-high inner-glow"
+            className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-3 border border-outline-variant rounded-lg bg-card inner-glow"
           >
             <div>
               <label className="block text-xs text-on-surface-variant mb-1">{t('sg.direction')}</label>

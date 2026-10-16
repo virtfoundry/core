@@ -445,25 +445,36 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="flex flex-wrap gap-2">
-              {STEPS.map((s, i) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => i <= stepIndex && setStep(s)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-lg text-xs font-mono border transition-colors',
-                    s === step
-                      ? 'border-primary-container bg-primary-container/15 text-on-surface'
-                      : i < stepIndex
-                        ? 'border-outline-variant text-on-surface hover:bg-surface-variant'
-                        : 'border-outline-variant/60 text-on-surface-variant',
-                  )}
-                >
-                  {i + 1}. {stepLabel(s)}
-                </button>
-              ))}
-            </div>
+            <ol className="flex flex-wrap gap-2">
+              {STEPS.map((s, i) => {
+                const done = i < stepIndex;
+                const now = s === step;
+                return (
+                  <li key={s} className="flex-1 min-w-[120px]">
+                    <button
+                      type="button"
+                      onClick={() => i <= stepIndex && setStep(s)}
+                      aria-current={now ? 'step' : undefined}
+                      className={clsx(
+                        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors text-left',
+                        now ? 'border-primary-container bg-card' : 'border-outline-variant',
+                        !now && !done && 'text-on-surface-variant',
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          'w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-semibold',
+                          done ? 'bg-success text-white' : now ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant',
+                        )}
+                      >
+                        {done ? '✓' : i + 1}
+                      </span>
+                      <span className="truncate">{stepLabel(s)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
 
             {step === 'compute' && (
               <div className="space-y-4">
