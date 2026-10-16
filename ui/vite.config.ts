@@ -21,7 +21,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': { target: api, changeOrigin: true },
-      '/ws': { target: api.replace(/^http/, 'ws'), ws: true, changeOrigin: true },
+      '/ws': { target: api.replace(/^http/, 'ws'), ws: true, changeOrigin: true, headers: { Origin: api } },
     },
   },
   test: {
