@@ -86,7 +86,7 @@ export function Dashboard() {
       <OnboardingChecklist />
 
       <RefreshingPanel isLoading={isLoading}>
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <div className="vf-card p-5 flex flex-col gap-3">
             <p className="text-body-sm text-on-surface-variant">{t('nav.vms')}</p>
             <p className="flex items-baseline gap-2">
