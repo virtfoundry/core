@@ -72,6 +72,13 @@ const ROUTES: Record<string, unknown> = {
     vms: { total: vms.length, running: vms.filter((v) => v.state === 'running').length, error: 1 }, volumes: { total: volumes.length }, vpcs: { total: vpcs.length },
     networks: { total: networks.length }, security_groups: { total: sgs.length }, health: 'critical',
     recent_activity: vms.slice(0, 5).map((v) => ({ type: 'vm', name: v.name, display_name: v.name, state: v.state, updated_at: v.updated_at, path: `/vms/${v.name}` })),
+    hosts: {
+      nodes: 3, nodes_ready: 2, cpu_capacity_millicores: 48000, cpu_allocatable_millicores: 46000, memory_capacity_bytes: 137438953472, memory_allocatable_bytes: 128849018880,
+      kubelet_versions: ['v1.36.5'], os_images: ['Talos (v1.12)'], os_architectures: ['amd64'], collected_at: ago(1),
+      usage: { cpu_usage_millicores: 21000, memory_usage_bytes: 83751862272, window_seconds: 60, collected_at: ago(1) },
+    },
+    storage: { total_bytes: 2199023255552, bound_bytes: 1374389534720, available_bytes: 824633720832, count: 14 },
+    addons: { checked_at: ago(1), addons: ['kubevirt', 'cdi', 'multus', 'metrics-server'].map((name) => ({ name, status: 'ok' })) },
   },
   '/events-ticket': { ticket: 'demo' },
 };

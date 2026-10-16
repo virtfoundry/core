@@ -74,8 +74,8 @@ export function ClusterOverview({ summary }: { summary: DashboardSummary }) {
                 of={usage ? `${(usage.cpu_usage_millicores / 1000).toFixed(1)} ${t('dashboard.hostsUsage').toLowerCase()}` : undefined}
                 subtitle={usage ? undefined : t('dashboard.hostsUsageUnavailable')}
                 progress={cpuPct} variant={cpuPct === undefined ? 'default' : usageVariant(cpuPct)} />
-              <StatsCard title={t('dashboard.hostsMemory')} value={`${Math.round(hosts.memory_allocatable_bytes / GiB)} GiB`}
-                of={usage ? `${Math.round(usage.memory_usage_bytes / GiB)} GiB ${t('dashboard.hostsUsage').toLowerCase()}` : undefined}
+              <StatsCard title={t('dashboard.hostsMemory')} value={Math.round(hosts.memory_allocatable_bytes / GiB)}
+                of={usage ? `GiB · ${Math.round(usage.memory_usage_bytes / GiB)} ${t('dashboard.hostsUsage').toLowerCase()}` : 'GiB'}
                 subtitle={usage ? undefined : t('dashboard.hostsUsageUnavailable')}
                 progress={memPct} variant={memPct === undefined ? 'default' : usageVariant(memPct)} />
             </>
