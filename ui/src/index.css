@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 body {
-  @apply bg-background text-on-surface font-sans text-body-md antialiased;
+  @apply bg-background text-on-surface font-sans text-body-base antialiased;
 }
 
 ::selection {
@@ -65,7 +65,7 @@ body {
   }
 
   .vf-card-header {
-    @apply px-4 py-3.5 md:px-6 border-b border-card-border bg-card;
+    @apply px-5 pt-5 pb-3.5 bg-card;
   }
 
   .chart-grid {
@@ -77,7 +77,7 @@ body {
   }
 
   .table-row-hover {
-    @apply hover:bg-surface-container-low transition-colors;
+    @apply hover:bg-sunk transition-colors;
   }
 
   .btn {
@@ -85,11 +85,11 @@ body {
   }
 
   .btn-primary {
-    @apply btn px-4 py-2 h-10 bg-primary-container text-on-primary-container hover:bg-inverse-primary inner-glow shadow-btn-primary text-label-md font-sans font-semibold;
+    @apply btn px-4 h-10 bg-accent text-white hover:opacity-90 text-sm font-sans font-semibold;
   }
 
   .btn-secondary {
-    @apply btn px-4 py-2 h-10 border border-outline-variant text-on-surface bg-transparent hover:bg-surface-variant inner-glow text-label-md font-sans font-semibold;
+    @apply btn px-3.5 h-10 border border-outline-variant text-on-surface bg-card hover:bg-sunk text-sm font-sans font-medium;
   }
 
   .btn-success-soft {

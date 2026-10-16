@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Building2, Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import type { Tenant } from '../lib/platform-api';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -61,16 +61,19 @@ export function TenantSwitcher({
         title={t('header.tenantHint')}
         disabled={loading}
         className={clsx(
-          'flex items-center gap-2 h-9 max-w-[220px] px-2.5 rounded-lg text-sm border transition-colors',
-          'bg-surface-container-high text-on-surface focus-visible:ring-2 focus-visible:ring-primary',
+          'flex items-center gap-2 h-9 max-w-[220px] px-3 rounded-lg text-sm border transition-colors',
+          'bg-card text-on-surface focus-visible:ring-2 focus-visible:ring-accent',
           impersonating
-            ? 'border-error ring-2 ring-error/50'
-            : 'border-outline-variant hover:border-primary-container/50',
+            ? 'border-bad-fg ring-2 ring-bad-fg/40'
+            : 'border-outline-variant hover:border-accent/50',
           loading && 'opacity-60 cursor-wait',
         )}
       >
-        <Building2 size={16} className="text-on-surface-variant shrink-0" aria-hidden />
-        <span className="truncate min-w-0 flex-1 text-left">{loading ? t('common.loading') : label}</span>
+        <span
+          className={clsx('w-2 h-2 rounded-full shrink-0', selectedTenantId ? 'bg-ok-fg' : 'bg-warn-fg')}
+          aria-hidden
+        />
+        <span className="truncate min-w-0 flex-1 text-left font-mono text-[13px]">{loading ? t('common.loading') : label}</span>
         <ChevronDown size={14} className="text-on-surface-variant shrink-0" aria-hidden />
       </button>
 

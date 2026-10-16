@@ -13,7 +13,12 @@ export {
   PageTableBody,
   PageTableRow,
   PageTableTd,
+  TableToolbar,
+  TableFilter,
+  TableFooter,
   formInputClass,
   formSelectClass,
   formTextareaClass,
+  formLabelClass,
+  toolbarBtnClass,
 } from './PagePrimitives';
