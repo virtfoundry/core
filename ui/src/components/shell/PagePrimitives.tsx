@@ -63,7 +63,7 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, hint, action }: EmptyStateProps) {
   return (
     <div className="col-span-full text-center py-12 px-4">
-      <div className="mx-auto mb-4 text-on-surface-variant opacity-40">{icon}</div>
+      <div className="mx-auto mb-4 w-14 h-14 rounded-xl bg-primary-container/10 text-primary flex items-center justify-center">{icon}</div>
       <p className="text-on-surface font-medium">{title}</p>
       {hint && <p className="text-sm text-on-surface-variant mt-2 max-w-md mx-auto">{hint}</p>}
       {action && <div className="mt-5 flex justify-center">{action}</div>}
