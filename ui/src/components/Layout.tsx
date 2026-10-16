@@ -78,8 +78,8 @@ export function Layout() {
     <div className="min-h-screen bg-background flex">
       <aside
         className={clsx(
-          'hidden md:flex flex-col fixed left-0 top-0 h-full z-40 border-r border-outline-variant inner-glow',
-          'bg-surface-container transition-[width] duration-300 ease-in-out',
+          'hidden md:flex flex-col fixed left-0 top-0 h-full z-40 border-r border-outline-variant',
+          'bg-card transition-[width] duration-300 ease-in-out',
           sidebarOpen ? 'w-sidebar-expanded' : 'w-sidebar-collapsed',
         )}
       >
@@ -89,7 +89,7 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-1 px-2 py-4 overflow-y-auto">
+        <nav className="flex-1 flex flex-col gap-0.5 px-3 py-3 overflow-y-auto">
           <SidebarNav collapsed={!sidebarOpen} isRoot={isRoot} />
         </nav>
       </aside>
@@ -97,7 +97,7 @@ export function Layout() {
       <div className={clsx('flex-1 flex flex-col min-h-screen w-full pt-16', sidebarWidth, 'transition-[margin] duration-300 ease-in-out')}>
         <header
           className={clsx(
-            'fixed top-0 right-0 z-50 h-16 bg-surface border-b border-outline-variant inner-glow',
+            'fixed top-0 right-0 z-50 h-16 bg-card border-b border-outline-variant',
             'flex items-center justify-between px-4 md:px-6 gap-4 left-0 transition-[left] duration-300 ease-in-out',
             sidebarOpen ? 'md:left-sidebar-expanded' : 'md:left-sidebar-collapsed',
           )}
@@ -115,11 +115,11 @@ export function Layout() {
             </button>
           </div>
 
-          <div className="hidden md:flex flex-1 max-w-xs ml-2">
+          <div className="hidden md:flex flex-1 max-w-md ml-2">
             <button
               type="button"
               onClick={openCmd}
-              className="w-full text-left h-10 pl-3 pr-3 bg-surface-container-high border border-outline-variant rounded-lg text-body-sm text-on-surface-variant hover:border-primary-container transition-colors flex items-center justify-between gap-2"
+              className="w-full text-left h-9 pl-3 pr-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface-variant hover:border-primary-container transition-colors flex items-center justify-between gap-2"
             >
               <span className="truncate">{t('cmdk.placeholder')}</span>
               <kbd className="text-[10px] font-mono border border-outline-variant rounded px-1.5 py-0.5 shrink-0">⌘K</kbd>
@@ -193,7 +193,7 @@ export function Layout() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-6 lg:p-margin-desktop max-w-content mx-auto w-full">
+        <main className="flex-1 p-4 md:p-6 lg:px-8 lg:py-7 max-w-content mx-auto w-full">
           <Outlet />
         </main>
       </div>
@@ -201,7 +201,7 @@ export function Layout() {
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={closeMobileSidebar} />
-          <aside className="relative w-sidebar-expanded max-w-[85vw] h-full bg-surface-container border-r border-outline-variant inner-glow flex flex-col">
+          <aside className="relative w-sidebar-expanded max-w-[85vw] h-full bg-card border-r border-outline-variant flex flex-col">
             <div className="p-4 border-b border-outline-variant flex justify-between items-center">
               <VirtFoundryLogo fullWidth />
               <button type="button" onClick={closeMobileSidebar} className="p-2 rounded-lg hover:bg-surface-container-high">

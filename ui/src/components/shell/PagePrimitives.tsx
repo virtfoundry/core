@@ -3,12 +3,12 @@ import { Search } from 'lucide-react';
 import clsx from 'clsx';
 
 export const formInputClass =
-  'w-full px-4 py-2 h-10 border border-outline-variant rounded-lg bg-surface-container-high text-on-surface text-body-sm focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-colors';
+  'w-full px-4 py-2 h-10 border border-outline-variant rounded-lg bg-card text-on-surface text-body-sm focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-colors';
 
 export const formSelectClass = formInputClass;
 
 export const formTextareaClass =
-  'w-full px-4 py-2 border border-outline-variant rounded-lg bg-surface-container-high text-on-surface text-body-sm focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-colors';
+  'w-full px-4 py-2 border border-outline-variant rounded-lg bg-card text-on-surface text-body-sm focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-colors';
 
 interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
   className?: string;
@@ -22,7 +22,7 @@ export function SearchField({ className, containerClassName, ...props }: SearchF
       <input
         type="search"
         className={clsx(
-          'w-full h-10 pl-10 pr-4 border border-outline-variant rounded-lg bg-surface-container-high text-body-sm text-on-surface focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none',
+          'w-full h-10 pl-10 pr-4 border border-outline-variant rounded-lg bg-card text-body-sm text-on-surface focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none',
           className,
         )}
         {...props}
@@ -92,17 +92,17 @@ interface TabBarProps<T extends string> {
 
 export function TabBar<T extends string>({ tabs, active, onChange }: TabBarProps<T>) {
   return (
-    <div className="flex gap-1 border-b border-outline-variant overflow-x-auto">
+    <div className="flex flex-wrap gap-1.5 border-b border-outline-variant pb-3 overflow-x-auto">
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
           onClick={() => onChange(id)}
           className={clsx(
-            'flex items-center gap-2 px-4 py-2.5 text-label-md font-mono whitespace-nowrap border-b-2 -mb-px transition-colors',
+            'flex items-center gap-2 h-9 px-3.5 rounded-lg text-body-sm font-medium font-sans whitespace-nowrap border transition-colors',
             active === id
-              ? 'border-primary-container text-primary shadow-nav-active'
-              : 'border-transparent text-on-surface-variant hover:text-primary hover:bg-surface-variant',
+              ? 'border-primary-container bg-primary-container text-on-primary-container'
+              : 'border-outline-variant bg-card text-on-surface hover:bg-surface-container',
           )}
         >
           {Icon && <Icon size={16} />}
@@ -127,7 +127,7 @@ export function PageTable({ children }: { children: React.ReactNode }) {
 
 export function PageTableHead({ children }: { children: React.ReactNode }) {
   return (
-    <thead className="bg-surface-container-high border-b border-card-border">
+    <thead className="bg-surface-container-low border-b border-card-border">
       <tr>{children}</tr>
     </thead>
   );
@@ -135,7 +135,7 @@ export function PageTableHead({ children }: { children: React.ReactNode }) {
 
 export function PageTableTh({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <th className={clsx('text-left px-4 py-3 font-label text-on-surface-variant', className)}>
+    <th className={clsx('text-left px-4 py-2.5 font-sans text-body-sm font-medium normal-case tracking-normal text-on-surface-variant', className)}>
       {children}
     </th>
   );

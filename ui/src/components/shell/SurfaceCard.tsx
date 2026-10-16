@@ -16,7 +16,7 @@ export function SurfaceCard({ children, className, title, headerAction, padding 
     <div className={clsx('vf-card overflow-hidden', className)}>
       {title && (
         <div className="vf-card-header flex justify-between items-center">
-          <h3 className="font-headline text-headline-md font-semibold text-on-surface">{title}</h3>
+          <h3 className="font-headline text-base font-semibold text-on-surface">{title}</h3>
           {headerAction}
         </div>
       )}

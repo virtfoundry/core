@@ -65,7 +65,7 @@ body {
   }
 
   .vf-card-header {
-    @apply px-4 py-3 md:px-6 border-b border-card-border bg-surface-container-low;
+    @apply px-4 py-3.5 md:px-6 border-b border-card-border bg-card;
   }
 
   .chart-grid {
@@ -77,7 +77,7 @@ body {
   }
 
   .table-row-hover {
-    @apply hover:bg-surface-container-highest transition-colors;
+    @apply hover:bg-surface-container-low transition-colors;
   }
 
   .btn {

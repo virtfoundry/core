@@ -73,7 +73,7 @@ export default {
       spacing: {
         gutter: '24px',
         'sidebar-collapsed': '80px',
-        'sidebar-expanded': '256px',
+        'sidebar-expanded': '248px',
         'margin-desktop': '64px',
         'margin-mobile': '16px',
       },

@@ -8,7 +8,6 @@ import { ThemeToggle } from '../lib/theme';
 import { useAppSelector } from '../store/hooks';
 import { selectIsDarkTheme } from '../store/themeSlice';
 import { formInputClass } from '../components/shell';
-import loginBg from '../assets/login-bg.svg';
 import { appVersionLabel } from '../lib/version';
 
 function LoginPreferences({ onDark = false }: { onDark?: boolean }) {
@@ -65,7 +64,7 @@ export function Login() {
       {/* Full-width top bar — edge to edge */}
       <header
         className={clsx(
-          'relative z-20 w-full shrink-0 flex items-center justify-between gap-6 px-6 sm:px-8 lg:px-10 xl:px-14 py-5 bg-background border-b border-outline-variant/50',
+          'relative z-20 w-full shrink-0 flex items-center justify-between gap-6 px-6 sm:px-8 lg:px-10 xl:px-14 py-5 bg-card border-b border-outline-variant/50',
           'lg:absolute lg:inset-x-0 lg:top-0 lg:border-none lg:bg-transparent',
         )}
       >
@@ -89,14 +88,9 @@ export function Login() {
         {/* Brand panel — desktop only */}
         <aside
           className="hidden lg:flex lg:w-1/2 xl:w-[52%] flex-col relative isolate min-h-[calc(100vh-0px)]"
-          style={{ backgroundImage: `url(${loginBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
+                  >
           <div
-            className={
-              isDark
-                ? 'absolute inset-0 bg-gradient-to-br from-brand-800 via-brand-900 to-[#0a1628] pointer-events-none'
-                : 'absolute inset-0 bg-gradient-to-br from-brand-50 via-surface-container-low to-brand-100 pointer-events-none'
-            }
+            className="absolute inset-0 bg-gradient-to-br from-[#0B1326] via-[#10204a] to-[#14264F] pointer-events-none"
             aria-hidden="true"
           />
 
@@ -106,20 +100,12 @@ export function Login() {
           <div className="relative z-10 flex-1 flex flex-col justify-center px-10 xl:px-14 py-8">
             <div className="max-w-lg space-y-5">
               <h2
-                className={
-                  isDark
-                    ? 'font-headline text-headline-xl font-bold text-white leading-tight'
-                    : 'font-headline text-headline-xl font-bold text-brand-900 leading-tight'
-                }
+                className="font-headline text-headline-xl font-semibold text-white leading-tight"
               >
                 {t('login.headline')}
               </h2>
               <p
-                className={
-                  isDark
-                    ? 'text-lg text-white/90 leading-relaxed'
-                    : 'text-lg text-on-surface-variant leading-relaxed'
-                }
+                className="text-lg text-white/90 leading-relaxed"
               >
                 {t('login.subheadline')}
               </p>
@@ -127,27 +113,23 @@ export function Login() {
           </div>
 
           <footer
-            className={
-              isDark
-                ? 'relative z-10 grid grid-cols-3 gap-8 px-10 xl:px-14 pb-10 text-white'
-                : 'relative z-10 grid grid-cols-3 gap-8 px-10 xl:px-14 pb-10 text-brand-900'
-            }
+            className="relative z-10 grid grid-cols-3 gap-8 px-10 xl:px-14 pb-10 text-white"
           >
             <div>
               <div className="font-headline text-headline-lg font-bold">{t('login.factLicense')}</div>
-              <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
+              <div className="text-white/80 text-sm mt-1">
                 {t('login.factLicenseLabel')}
               </div>
             </div>
             <div>
               <div className="font-headline text-headline-lg font-bold">{t('login.factEngine')}</div>
-              <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
+              <div className="text-white/80 text-sm mt-1">
                 {t('login.factEngineLabel')}
               </div>
             </div>
             <div>
               <div className="font-headline text-headline-lg font-bold">{t('login.factState')}</div>
-              <div className={isDark ? 'text-white/80 text-sm mt-1' : 'text-on-surface-variant text-sm mt-1'}>
+              <div className="text-white/80 text-sm mt-1">
                 {t('login.factStateLabel')}
               </div>
             </div>
@@ -155,7 +137,7 @@ export function Login() {
         </aside>
 
         {/* Sign-in panel */}
-        <main className="flex-1 flex flex-col min-h-0 relative lg:pt-[88px]">
+        <main className="flex-1 flex flex-col min-h-0 relative lg:pt-[88px] bg-card">
           <div className="flex-1 flex items-center justify-center px-6 py-10 sm:px-10 lg:px-16">
             <div className="w-full max-w-[420px]">
               <div className="mb-8 space-y-2">
