@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import {
   listAllServiceOfferings, createServiceOffering, updateServiceOffering, deleteServiceOffering,
 } from '../lib/platform-api';
@@ -9,13 +9,13 @@ import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { ResourceActions } from '../components/ResourceActions';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { queryKeys } from '../lib/query-keys';
 import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard,
+  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
@@ -142,7 +142,7 @@ export function Offerings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('offerings.title')}
         subtitle={`${offerings.length} ${t('offerings.subtitle')}`}
@@ -156,42 +156,57 @@ export function Offerings() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('offerings.searchPlaceholder')} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={720}>
             <PageTableHead>
-              <PageTableTh>{t('offerings.displayName')}</PageTableTh>
               <PageTableTh>{t('common.name')}</PageTableTh>
-              <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('offerings.cpu')}</PageTableTh>
               <PageTableTh>{t('offerings.memory')}</PageTableTh>
               <PageTableTh>{t('offerings.dedicatedCpu')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('offerings.empty')}</td></tr>
+                <TableMessageRow cols={6}>{t('offerings.empty')}</TableMessageRow>
               ) : (
                 filtered.map((o) => (
                   <PageTableRow key={o.id}>
-                    <PageTableTd className="font-medium">{offeringLabel(o)}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{o.name}</PageTableTd>
+                    <PageTableTd>
+                      <div className="font-semibold">{offeringLabel(o)}</div>
+                      <div className="font-mono text-xs text-on-surface-variant">{o.name}</div>
+                    </PageTableTd>
+                    <PageTableTd mono>{o.cpu}</PageTableTd>
+                    <PageTableTd mono>{fmtMemGi(o.memory_mi)}</PageTableTd>
+                    <PageTableTd className="text-on-surface-variant">{o.dedicated_cpu ? t('common.yes') : t('common.no')}</PageTableTd>
                     <PageTableTd>
                       <StatusBadge status={o.state?.toLowerCase() || 'active'} pulse={false} />
                     </PageTableTd>
-                    <PageTableTd>{o.cpu} vCPU</PageTableTd>
-                    <PageTableTd>{fmtMemGi(o.memory_mi)}</PageTableTd>
-                    <PageTableTd>{o.dedicated_cpu ? t('common.yes') : t('common.no')}</PageTableTd>
-                    <PageTableTd>
-                      <ResourceActions
-                        variant="inline"
-                        onEdit={() => openEdit(o)}
-                        onDelete={() => setDeleteTarget({ id: o.id, name: o.name })}
-                        deleteLabel={t('common.delete')}
+                    <PageTableTd className="text-right">
+                      <OverflowMenu
+                        variant="dots"
+                        label={t('table.moreActions')}
+                        items={[
+                          { id: 'edit', label: t('common.edit'), icon: <Pencil size={14} />, onSelect: () => openEdit(o) },
+                          {
+                            id: 'delete',
+                            label: t('common.delete'),
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onSelect: () => setDeleteTarget({ id: o.id, name: o.name }),
+                          },
+                        ]}
                       />
                     </PageTableTd>
                   </PageTableRow>
@@ -199,6 +214,7 @@ export function Offerings() {
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager shown={filtered.length} total={offerings.length} />
         </SurfaceCard>
       </RefreshingPanel>
 

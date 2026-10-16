@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Key, Users, Shield, Copy, Check, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
 import {
   listIAMUsers, createIAMUser, deleteIAMUser,
   listIAMRoles,
@@ -8,6 +8,8 @@ import {
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu } from '../components/OverflowMenu';
+import { ago } from '../lib/ago';
 import { RefreshButton } from '../components/RefreshButton';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
@@ -15,7 +17,7 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner,
+  PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner, TableToolbar, TableFilter, TablePager, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
@@ -24,7 +26,8 @@ import { StatusBadge } from '../components/StatusBadge';
 type Tab = 'users' | 'roles' | 'keys';
 
 export function IAM() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
+  const [search, setSearch] = useState('');
   const currentUser = authService.getUser();
   const canManageIAM = currentUser?.role === 'root' || currentUser?.role === 'tenant_admin';
   const [tab, setTab] = useState<Tab>(canManageIAM ? 'users' : 'keys');
@@ -86,114 +89,157 @@ export function IAM() {
     return <TenantRequiredNotice message={t('iam.selectTenant')} />;
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
+  const users = usersData?.users || [];
+  const roles = rolesData?.roles || [];
+  const keys = (keysData?.api_keys || []).filter((k) => !k.revoked_at);
+  const q = search.toLowerCase();
+  const fUsers = users.filter((u) => u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+  const fRoles = roles.filter((r) => r.name?.toLowerCase().includes(q));
+  const fKeys = keys.filter((k) => k.name?.toLowerCase().includes(q) || k.prefix?.toLowerCase().includes(q));
+
+  const tabs: { id: Tab; label: string; count: number }[] = [
     ...(canManageIAM ? [
-      { id: 'users' as Tab, label: t('iam.tabUsers'), icon: Users },
-      { id: 'roles' as Tab, label: t('iam.tabRoles'), icon: Shield },
+      { id: 'users' as Tab, label: t('iam.tabUsers'), count: users.length },
+      { id: 'roles' as Tab, label: t('iam.tabRoles'), count: roles.length },
     ] : []),
-    { id: 'keys', label: t('iam.tabKeys'), icon: Key },
+    { id: 'keys', label: t('iam.tabKeys'), count: keys.length },
   ];
 
+  const shown = tab === 'users' ? fUsers.length : tab === 'roles' ? fRoles.length : fKeys.length;
+  const total = tab === 'users' ? users.length : tab === 'roles' ? roles.length : keys.length;
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('iam.title')}
         subtitle={t('iam.subtitle')}
         actions={
-          <RefreshButton onRefresh={() => { refetchUsers(); refetchKeys(); }} isFetching={uFetch} />
+          <>
+            <RefreshButton onRefresh={() => { refetchUsers(); refetchKeys(); }} isFetching={uFetch} />
+            {tab === 'users' && (
+              <button type="button" onClick={() => setUserModal(true)} className="btn-primary">
+                <Plus size={18} /> {t('iam.addUser')}
+              </button>
+            )}
+            {tab === 'keys' && (
+              <button type="button" onClick={() => setKeyModal(true)} className="btn-primary">
+                <Plus size={18} /> {t('iam.createKey')}
+              </button>
+            )}
+          </>
         }
       />
 
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+      <SurfaceCard padding="none">
+        <TableToolbar tabs={<TabBar variant="inline" tabs={tabs} active={tab} onChange={setTab} />}>
+          <TableFilter
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('table.filter')}
+            aria-label={t('table.filter')}
+          />
+        </TableToolbar>
 
-      {tab === 'users' && (
-        <SurfaceCard padding="none">
-          <div className="flex justify-between items-center p-4 border-b border-card-border">
-            <h2 className="font-headline text-headline-md font-semibold text-on-surface">{t('iam.tenantUsers')}</h2>
-            <button type="button" onClick={() => setUserModal(true)} className="btn-primary flex items-center gap-2 text-sm">
-              <Plus className="w-4 h-4" /> {t('iam.addUser')}
-            </button>
-          </div>
-          <PageTable>
+        {tab === 'users' && (
+          <PageTable minWidth={640}>
             <PageTableHead>
               <PageTableTh>{t('login.username')}</PageTableTh>
               <PageTableTh>{t('iam.role')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
-              <PageTableTh className="text-right" />
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {(usersData?.users || []).map((u) => (
+              {fUsers.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
+              {fUsers.map((u) => (
                 <PageTableRow key={u.id}>
-                  <PageTableTd className="font-medium">{u.username}</PageTableTd>
+                  <PageTableTd>
+                    <div className="font-semibold">{u.username}</div>
+                    {u.email && <div className="font-mono text-xs text-on-surface-variant">{u.email}</div>}
+                  </PageTableTd>
                   <PageTableTd>{u.role}</PageTableTd>
                   <PageTableTd>
                     <StatusBadge status={u.state || 'active'} pulse={false} />
                   </PageTableTd>
                   <PageTableTd className="text-right">
-                    {u.role !== 'root' && (
-                      <button type="button" className="text-error" onClick={() => setDeleteUser({ id: u.id, name: u.username })}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <OverflowMenu
+                      variant="dots"
+                      label={t('table.moreActions')}
+                      items={u.role !== 'root' ? [{
+                        id: 'delete',
+                        label: t('common.delete'),
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => setDeleteUser({ id: u.id, name: u.username }),
+                      }] : []}
+                    />
                   </PageTableTd>
                 </PageTableRow>
               ))}
             </PageTableBody>
           </PageTable>
-        </SurfaceCard>
-      )}
+        )}
 
-      {tab === 'roles' && (
-        <SurfaceCard>
-          <h2 className="font-headline text-headline-md font-semibold text-on-surface mb-4">{t('iam.tabRoles')}</h2>
-          <ul className="space-y-2 text-sm">
-            {(rolesData?.roles || []).map((r) => (
-              <li key={r.id} className="flex justify-between border border-outline-variant rounded-lg p-3">
-                <div>
-                  <span className="font-medium text-on-surface">{r.name}</span>
-                  {r.is_system && (
-                    <span className="ml-2 text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded">
-                      {t('iam.systemRole')}
-                    </span>
-                  )}
-                  <p className="text-on-surface-variant text-xs mt-1">{(r.permissions || []).join(', ')}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SurfaceCard>
-      )}
+        {tab === 'roles' && (
+          <PageTable minWidth={640}>
+            <PageTableHead>
+              <PageTableTh>{t('common.name')}</PageTableTh>
+              <PageTableTh>{t('iam.permissions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {fRoles.length === 0 && <TableMessageRow cols={2}>{t('iam.empty')}</TableMessageRow>}
+              {fRoles.map((r) => (
+                <PageTableRow key={r.id}>
+                  <PageTableTd>
+                    <span className="font-semibold">{r.name}</span>
+                    {r.is_system && (
+                      <span className="ml-2 text-xs bg-off-bg text-off-fg px-2 py-0.5 rounded-full font-medium">
+                        {t('iam.systemRole')}
+                      </span>
+                    )}
+                  </PageTableTd>
+                  <PageTableTd mono className="text-on-surface-variant text-xs">{(r.permissions || []).join(', ') || '—'}</PageTableTd>
+                </PageTableRow>
+              ))}
+            </PageTableBody>
+          </PageTable>
+        )}
 
-      {tab === 'keys' && (
-        <SurfaceCard padding="none">
-          <div className="flex justify-between items-center p-4 border-b border-card-border">
-            <h2 className="font-headline text-headline-md font-semibold text-on-surface">{t('iam.tabKeys')}</h2>
-            <button type="button" onClick={() => setKeyModal(true)} className="btn-primary flex items-center gap-2 text-sm">
-              <Plus className="w-4 h-4" /> {t('iam.createKey')}
-            </button>
-          </div>
-          <PageTable>
+        {tab === 'keys' && (
+          <PageTable minWidth={640}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('iam.prefix')}</PageTableTh>
               <PageTableTh>{t('iam.created')}</PageTableTh>
-              <PageTableTh className="text-right" />
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {(keysData?.api_keys || []).filter((k) => !k.revoked_at).map((k) => (
+              {fKeys.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
+              {fKeys.map((k) => (
                 <PageTableRow key={k.id}>
-                  <PageTableTd>{k.name}</PageTableTd>
-                  <PageTableTd className="font-data-mono text-xs">{k.prefix}</PageTableTd>
-                  <PageTableTd>{k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</PageTableTd>
+                  <PageTableTd className="font-semibold">{k.name}</PageTableTd>
+                  <PageTableTd mono>{k.prefix}</PageTableTd>
+                  <PageTableTd className="text-on-surface-variant">{ago(k.created_at, dateLocale)}</PageTableTd>
                   <PageTableTd className="text-right">
-                    <button type="button" className="text-error text-xs" onClick={() => revokeKeyMut.mutate(k.id)}>{t('iam.revoke')}</button>
+                    <OverflowMenu
+                      variant="dots"
+                      label={t('table.moreActions')}
+                      items={[{
+                        id: 'revoke',
+                        label: t('iam.revoke'),
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => revokeKeyMut.mutate(k.id),
+                      }]}
+                    />
                   </PageTableTd>
                 </PageTableRow>
               ))}
             </PageTableBody>
           </PageTable>
-        </SurfaceCard>
-      )}
+        )}
+
+        <TablePager shown={shown} total={total} />
+      </SurfaceCard>
 
       <Modal isOpen={userModal} onClose={() => setUserModal(false)} title={t('iam.addUserTitle')}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createUserMut.mutate(userForm); }}>
