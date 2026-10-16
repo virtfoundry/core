@@ -82,7 +82,7 @@ export function TenantSwitcher({
           id={listId}
           role="listbox"
           aria-label={t('header.tenant')}
-          className="absolute z-50 right-0 top-full mt-2 w-64 max-h-72 overflow-y-auto vf-card shadow-xl py-1"
+          className="absolute z-50 left-0 top-full mt-2 w-72 max-w-[85vw] max-h-72 overflow-y-auto vf-card shadow-xl pb-1.5"
         >
           <div className="px-3 py-2 border-b border-card-border">
             <p className="text-xs font-label text-on-surface-variant">{t('header.tenant')}</p>
@@ -98,8 +98,8 @@ export function TenantSwitcher({
               close();
             }}
             className={clsx(
-              'flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-variant transition-colors',
-              !selectedTenantId ? 'text-primary' : 'text-on-surface-variant',
+              'flex w-[calc(100%-0.75rem)] mx-1.5 items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-left hover:bg-accent-soft transition-colors',
+              !selectedTenantId ? 'text-accent' : 'text-on-surface-variant',
             )}
           >
             <span className="flex-1 truncate">{t('nav.selectTenant')}</span>
@@ -122,17 +122,18 @@ export function TenantSwitcher({
                     close();
                   }}
                   className={clsx(
-                    'flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-variant transition-colors',
-                    active ? 'text-primary bg-primary-container/10' : 'text-on-surface',
+                    'flex w-[calc(100%-0.75rem)] mx-1.5 items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left hover:bg-accent-soft transition-colors',
+                    active ? 'bg-accent-soft' : 'text-on-surface',
                   )}
                 >
+                  <span className="w-2 h-2 rounded-full bg-ok-fg shrink-0" aria-hidden />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate font-medium">{tn.name}</span>
                     <span className="block truncate text-[11px] text-on-surface-variant font-data-mono">
                       {tn.slug}
                     </span>
                   </span>
-                  {active && <Check size={14} className="shrink-0" aria-hidden />}
+                  {active && <Check size={14} className="shrink-0 text-accent" aria-hidden />}
                 </button>
               );
             })
