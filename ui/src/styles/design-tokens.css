@@ -4,13 +4,13 @@
  * Dark: style guide + HTML mockups (background #0b1326, card #1e293b).
  */
 :root {
-  --vf-background: #f8f9fa;
-  --vf-on-background: #191c1d;
-  --vf-surface: #f8f9fa;
-  --vf-on-surface: #191c1d;
+  --vf-background: #f2f4f6;
+  --vf-on-background: #151a21;
+  --vf-surface: #f2f4f6;
+  --vf-on-surface: #151a21;
   --vf-surface-tint: #0053db;
 
-  --vf-primary: #004ac6;
+  --vf-primary: #14499e;
   --vf-primary-container: #2563eb;
   --vf-on-primary: #ffffff;
   --vf-on-primary-container: #eeefff;
@@ -31,17 +31,17 @@
   --vf-tertiary-fixed-dim: #62df7d;
 
   --vf-surface-container-lowest: #ffffff;
-  --vf-surface-container-low: #f3f4f5;
-  --vf-surface-container: #edeeef;
-  --vf-surface-container-high: #e7e8e9;
-  --vf-surface-container-highest: #e1e3e4;
+  --vf-surface-container-low: #f7f8fa;
+  --vf-surface-container: #eef0f3;
+  --vf-surface-container-high: #e9ecf0;
+  --vf-surface-container-highest: #e3e6ea;
   --vf-surface-variant: #e1e3e4;
   --vf-surface-bright: #f8f9fa;
   --vf-surface-dim: #d9dadb;
 
-  --vf-on-surface-variant: #434655;
+  --vf-on-surface-variant: #5b6573;
   --vf-outline: #737686;
-  --vf-outline-variant: #c3c6d7;
+  --vf-outline-variant: #d5d9df;
 
   --vf-error: #ba1a1a;
   --vf-on-error: #ffffff;
@@ -53,7 +53,7 @@
 
   /* Elevated card (bento panels) */
   --vf-card: #ffffff;
-  --vf-card-border: #c3c6d7;
+  --vf-card-border: #e3e6ea;
 
   /* Semantic (style guide) */
   --vf-success: #16a34a;
@@ -62,7 +62,32 @@
   --vf-warning-muted: #fef3c7;
 
   --vf-nav-glow: rgba(37, 99, 235, 0.25);
-  --vf-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --vf-inner-glow: 0 0 #0000;
+
+  /* Redesign aliases (docs/redesign build.py PRELUDE) */
+  --vf-sunk: #f7f8fa;
+  --vf-track: #e9ecf0;
+  --vf-line3: #eef0f3;
+  --vf-text2: #3a4350;
+  --vf-link: #1d4ed8;
+  --vf-accent: #2563eb;
+  --vf-accent-soft: #eff4ff;
+  --vf-side-bg: #ffffff;
+  --vf-side-line: #e3e6ea;
+  --vf-side-text: #3a4350;
+  --vf-side-label: #6b7380;
+  --vf-side-active-bg: #eaf0ff;
+  --vf-side-active-text: #14499e;
+  --vf-side-hover: #f2f4f6;
+  --vf-side-chip: #f2f4f6;
+  --vf-ok-fg: #137a3a;
+  --vf-ok-bg: #e4f5ea;
+  --vf-warn-fg: #8a5a00;
+  --vf-warn-bg: #fff1cc;
+  --vf-bad-fg: #b42318;
+  --vf-bad-bg: #fdecea;
+  --vf-off-fg: #4b5563;
+  --vf-off-bg: #eaecef;
 }
 
 .dark {
@@ -101,9 +126,9 @@
   --vf-surface-bright: #31394d;
   --vf-surface-dim: #0b1326;
 
-  --vf-on-surface-variant: #c3c6d7;
+  --vf-on-surface-variant: #a3acc4;
   --vf-outline: #8d90a0;
-  --vf-outline-variant: #434655;
+  --vf-outline-variant: #3a4260;
 
   --vf-error: #ffb4ab;
   --vf-on-error: #690005;
@@ -113,8 +138,8 @@
   --vf-inverse-surface: #dae2fd;
   --vf-inverse-on-surface: #283044;
 
-  --vf-card: #1e293b;
-  --vf-card-border: #334155;
+  --vf-card: #131b2e;
+  --vf-card-border: #2d3449;
 
   --vf-success: #10b981;
   --vf-success-muted: rgba(16, 185, 129, 0.1);
@@ -122,5 +147,28 @@
   --vf-warning-muted: rgba(245, 158, 11, 0.1);
 
   --vf-nav-glow: rgba(37, 99, 235, 0.3);
-  --vf-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  --vf-inner-glow: 0 0 #0000;
+
+  --vf-sunk: #171f33;
+  --vf-track: #222a3d;
+  --vf-line3: #222a3d;
+  --vf-text2: #c3c6d7;
+  --vf-link: #b4c5ff;
+  --vf-accent-soft: #16254a;
+  --vf-side-bg: #060e20;
+  --vf-side-line: #1b2540;
+  --vf-side-text: #a3acc4;
+  --vf-side-label: #7f89a5;
+  --vf-side-active-bg: #172554;
+  --vf-side-active-text: #ffffff;
+  --vf-side-hover: #131b2e;
+  --vf-side-chip: #131b2e;
+  --vf-ok-fg: #62df7d;
+  --vf-ok-bg: #0f2e1d;
+  --vf-warn-fg: #f5b83d;
+  --vf-warn-bg: #33270a;
+  --vf-bad-fg: #ffb4ab;
+  --vf-bad-bg: #3a1513;
+  --vf-off-fg: #a3acc4;
+  --vf-off-bg: #222a3d;
 }

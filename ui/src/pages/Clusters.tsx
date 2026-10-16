@@ -8,6 +8,8 @@ import {
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu } from '../components/OverflowMenu';
+import { StatsCard } from '../components/StatsCard';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { StatusBadge } from '../components/StatusBadge';
@@ -20,7 +22,7 @@ import {
 import { resolveVKSVersionOptions } from '../lib/vks-catalog';
 import { findOfferingByName, offeringLabel } from '../lib/offerings';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
@@ -211,12 +213,19 @@ export function Clusters() {
     });
   };
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
 
+  const readyClusters = clusters.filter((c) => (c.phase || '').toLowerCase() === 'ready').length;
+  const desiredWorkers = clusters.reduce((n, c) => n + (c.workers?.count ?? 0), 0);
+  const readyWorkers = clusters.reduce((n, c) => n + (c.ready_workers ?? 0), 0);
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('vks.title')}
         subtitle={t('vks.subtitle')}
@@ -230,88 +239,106 @@ export function Clusters() {
         }
       />
 
+      {clusters.length > 0 && (
+        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+          <StatsCard
+            title={t('vks.stat.ready')}
+            value={readyClusters}
+            of={t('dashboard.of').replace('{n}', String(clusters.length))}
+            progress={pct(readyClusters, clusters.length)}
+            variant="success"
+          />
+          <StatsCard
+            title={t('vks.col.workers')}
+            value={readyWorkers}
+            of={t('dashboard.of').replace('{n}', String(desiredWorkers))}
+            progress={pct(readyWorkers, desiredWorkers)}
+            variant="success"
+          />
+          <StatsCard
+            title={t('vks.stat.vip')}
+            value={clusters.filter((c) => c.control_plane_endpoint).length}
+          />
+        </section>
+      )}
+
       <InfoBanner>{t('vks.info')}</InfoBanner>
 
-      <SurfaceCard>
-        <div className="mb-4">
-          <SearchField
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`${t('common.search')}...`}
-          />
-        </div>
-        <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
-          {isLoading ? (
-            <p className="text-sm text-on-surface-variant">{t('common.loading')}</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-on-surface-variant">{t('vks.empty')}</p>
-          ) : (
-            <PageTable>
-              <PageTableHead>
-                <PageTableTh>{t('vks.col.name')}</PageTableTh>
-                <PageTableTh>{t('vks.col.status')}</PageTableTh>
-                <PageTableTh>{t('vks.col.version')}</PageTableTh>
-                <PageTableTh>{t('vks.col.location')}</PageTableTh>
-                <PageTableTh>{t('vks.col.nodes')}</PageTableTh>
-                <PageTableTh>{t('vks.col.machineType')}</PageTableTh>
-                <PageTableTh>{t('vks.col.network')}</PageTableTh>
-                <PageTableTh>{t('vks.col.actions')}</PageTableTh>
-              </PageTableHead>
-              <PageTableBody>
-                {filtered.map((c) => (
+      <RefreshingPanel isFetching={isFetching} isLoading={isLoading}>
+        <SurfaceCard padding="none" className="overflow-hidden">
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={900}>
+            <PageTableHead>
+              <PageTableTh>{t('vks.col.name')}</PageTableTh>
+              <PageTableTh>{t('vks.col.version')}</PageTableTh>
+              <PageTableTh>{t('vks.col.status')}</PageTableTh>
+              <PageTableTh>{t('vks.col.endpoint')}</PageTableTh>
+              <PageTableTh>{t('vks.col.workers')}</PageTableTh>
+              <PageTableTh>{t('vks.col.machineType')}</PageTableTh>
+              <PageTableTh>{t('vks.col.network')}</PageTableTh>
+              <PageTableTh className="text-right">{t('vks.col.actions')}</PageTableTh>
+            </PageTableHead>
+            <PageTableBody>
+              {isLoading ? (
+                <TableMessageRow cols={8}>{t('common.loading')}</TableMessageRow>
+              ) : filtered.length === 0 ? (
+                <TableMessageRow cols={8}>{t('vks.empty')}</TableMessageRow>
+              ) : (
+                rows.map((c) => (
                   <PageTableRow key={c.name}>
                     <PageTableTd>
                       <Link
                         to={`/clusters/${encodeURIComponent(c.name)}`}
-                        className="font-medium text-primary hover:underline"
+                        className="font-semibold text-link hover:underline"
                       >
                         {c.name}
                       </Link>
                     </PageTableTd>
+                    <PageTableTd mono>{c.kubernetes_version || '—'}</PageTableTd>
                     <PageTableTd>
                       <StatusBadge status={vksPhaseBadgeStatus(c.phase)} />
                     </PageTableTd>
-                    <PageTableTd className="font-mono text-sm">{c.kubernetes_version || '—'}</PageTableTd>
-                    <PageTableTd className="font-mono text-sm">
-                      {c.control_plane_endpoint || '—'}
-                    </PageTableTd>
-                    <PageTableTd>
-                      {vksNodesLabel(c.ready_workers, c.workers?.count)}
-                    </PageTableTd>
-                    <PageTableTd className="font-mono text-sm">
-                      {c.workers?.offering_ref?.name || '—'}
-                    </PageTableTd>
-                    <PageTableTd className="font-mono text-sm">
-                      {c.workers?.network_ref?.name || '—'}
-                    </PageTableTd>
-                    <PageTableTd>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-sm text-primary disabled:opacity-40"
-                          disabled={!vksCanDownloadKubeconfig(c.phase) || downloadMutation.isPending}
-                          onClick={() => downloadMutation.mutate(c.name)}
-                          title={t('vks.downloadKubeconfig')}
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-sm text-error"
-                          onClick={() => setDeleteTarget({ name: c.name })}
-                          title={t('common.delete')}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <PageTableTd mono>{c.control_plane_endpoint || '—'}</PageTableTd>
+                    <PageTableTd mono>{vksNodesLabel(c.ready_workers, c.workers?.count)}</PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant">{c.workers?.offering_ref?.name || '—'}</PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant">{c.workers?.network_ref?.name || '—'}</PageTableTd>
+                    <PageTableTd className="text-right">
+                      <OverflowMenu
+                        variant="dots"
+                        label={t('table.moreActions')}
+                        items={[
+                          {
+                            id: 'kubeconfig',
+                            label: t('vks.downloadKubeconfig'),
+                            icon: <Download size={14} />,
+                            disabled: !vksCanDownloadKubeconfig(c.phase) || downloadMutation.isPending,
+                            onSelect: () => downloadMutation.mutate(c.name),
+                          },
+                          {
+                            id: 'delete',
+                            label: t('common.delete'),
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onSelect: () => setDeleteTarget({ name: c.name }),
+                          },
+                        ]}
+                      />
                     </PageTableTd>
                   </PageTableRow>
-                ))}
-              </PageTableBody>
-            </PageTable>
-          )}
-        </RefreshingPanel>
-      </SurfaceCard>
+                ))
+              )}
+            </PageTableBody>
+          </PageTable>
+          <TablePager pager={pager} />
+        </SurfaceCard>
+      </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('vks.create')}>
         <form className="space-y-3" onSubmit={handleSubmit}>

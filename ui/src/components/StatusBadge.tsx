@@ -13,30 +13,45 @@ type Status =
   | 'active'
   | 'inactive';
 
-const statusStyles: Record<Status, string> = {
-  running: 'bg-success-muted text-success border border-success/20',
-  stopped: 'bg-surface-container border border-outline-variant text-on-surface-variant',
-  starting: 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30',
-  stopping: 'bg-warning-muted text-warning border border-warning/20',
-  creating: 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30',
-  error: 'bg-error-container/30 text-error border border-error/40 font-semibold',
-  enabled: 'bg-success-muted text-success border border-success/20',
-  disabled: 'bg-surface-container border border-outline-variant text-on-surface-variant',
-  active: 'bg-success-muted text-success border border-success/20',
-  inactive: 'bg-surface-container border border-outline-variant text-on-surface-variant',
+export type StatusTone = 'ok' | 'warn' | 'bad' | 'off' | 'info';
+
+export const toneClass: Record<StatusTone, string> = {
+  ok: 'bg-ok-bg text-ok-fg',
+  warn: 'bg-warn-bg text-warn-fg',
+  bad: 'bg-bad-bg text-bad-fg',
+  off: 'bg-off-bg text-off-fg',
+  info: 'bg-accent-soft text-link',
+};
+
+const statusTone: Record<Status, StatusTone> = {
+  running: 'ok',
+  stopped: 'off',
+  starting: 'info',
+  stopping: 'warn',
+  creating: 'info',
+  error: 'bad',
+  enabled: 'ok',
+  disabled: 'off',
+  active: 'ok',
+  inactive: 'off',
 };
 
 interface StatusBadgeProps {
   status: string;
   className?: string;
   pulse?: boolean;
+  /** Override tone for statuses outside the known set (e.g. Ready, Provisioning). */
+  tone?: StatusTone;
+  /** Override the translated label. */
+  label?: string;
 }
 
-export function StatusBadge({ status, className, pulse = true }: StatusBadgeProps) {
+export function StatusBadge({ status, className, pulse = true, tone, label: labelOverride }: StatusBadgeProps) {
   const { t } = useI18n();
   const normalizedStatus = status.toLowerCase() as Status;
-  const style = statusStyles[normalizedStatus] || statusStyles.inactive;
-  const label = normalizedStatus in statusStyles ? t(`status.${normalizedStatus}` as TranslationKey) : status;
+  const known = normalizedStatus in statusTone;
+  const style = toneClass[tone ?? (known ? statusTone[normalizedStatus] : 'off')];
+  const label = labelOverride ?? (known ? t(`status.${normalizedStatus}` as TranslationKey) : status);
   const showPulse = pulse && (
     normalizedStatus === 'running'
     || normalizedStatus === 'starting'
@@ -50,12 +65,12 @@ export function StatusBadge({ status, className, pulse = true }: StatusBadgeProp
       role="status"
       aria-label={label}
       className={clsx(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-mono font-medium',
+        'inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-[3px] rounded-full text-[13px] font-sans font-medium',
         style,
         className,
       )}
     >
-      {showPulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-vf-pulse" aria-hidden />}
+      <span className={clsx('w-1.5 h-1.5 rounded-full bg-current', showPulse && 'animate-vf-pulse')} aria-hidden />
       {label}
     </span>
   );

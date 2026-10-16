@@ -14,6 +14,10 @@ import {
   supportsDesktopResize,
 } from '../lib/console-display';
 import { useI18n } from '../lib/i18n';
+import {
+  PageHeader, SurfaceCard, KeyValueList, InfoBanner, toolbarBtnClass, formTextareaClass,
+} from '../components/shell';
+import { StatusBadge } from '../components/StatusBadge';
 
 type Status = 'connecting' | 'connected' | 'error';
 
@@ -156,148 +160,117 @@ export function VMConsole() {
     rfb.focus();
   };
 
+  const cmdClass = toolbarBtnClass + ' font-mono';
+  const connected = status === 'connected';
+
   return (
-    <div className="h-screen flex flex-col bg-black text-slate-100">
-      <header className="shrink-0 border-b border-slate-600/80 bg-slate-800 shadow-lg shadow-black/40">
-        <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link
-              to={`/vms/${encodeURIComponent(name)}`}
-              className="btn-console-back shrink-0"
-            >
-              <ArrowLeft size={16} /> {t('console.back')}
-            </Link>
-            <div className="min-w-0 border-l border-slate-600 pl-3">
-              <h1 className="font-semibold truncate text-white">Console — {name}</h1>
-            </div>
+    <div className="h-screen flex flex-col gap-4 bg-bg text-on-surface p-4 md:p-6 overflow-hidden">
+      <PageHeader
+        title={`Console · ${name}`}
+        subtitle={t('console.subtitle')}
+        status={
+          status === 'connecting' ? (
+            <StatusBadge status="connecting" tone="warn" label={t('console.connecting')} />
+          ) : status === 'connected' ? (
+            <StatusBadge status="connected" tone="ok" label={t('console.connected')} />
+          ) : (
+            <StatusBadge status="error" tone="bad" label={t('status.error')} />
+          )
+        }
+        actions={
+          <Link to={`/vms/${encodeURIComponent(name)}`} className="btn-secondary">
+            <ArrowLeft size={16} /> {t('console.back')}
+          </Link>
+        }
+      />
+
+      {status === 'error' && error && <InfoBanner variant="warning">{error}</InfoBanner>}
+
+      <div className="shrink-0 flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 mr-1 text-[13px] font-medium text-on-surface-variant">
+          <Keyboard size={14} /> {t('console.commands')}
+        </span>
+
+        {systemCommands.map((cmd) => (
+          <button key={cmd.id} type="button" disabled={!connected} onClick={() => runCommand(cmd.id)} className={cmdClass}>
+            {cmd.label}
+          </button>
+        ))}
+
+        <span className="text-card-border select-none">|</span>
+
+        {inputCommands.map((cmd) => (
+          <button key={cmd.id} type="button" disabled={!connected} onClick={() => runCommand(cmd.id)} className={cmdClass}>
+            {cmd.label}
+          </button>
+        ))}
+
+        <button type="button" disabled={!connected} onClick={() => setPasteOpen((v) => !v)} className={cmdClass}>
+          <ClipboardPaste size={14} /> {t('console.pasteText')}
+        </button>
+
+        <details className="relative">
+          <summary className={cmdClass + ' cursor-pointer list-none'}>Ctrl+Alt+F1–F12</summary>
+          <div className="absolute z-20 mt-1 p-2 bg-card border border-card-border rounded-xl shadow-lg grid grid-cols-4 gap-1.5 min-w-[240px]">
+            {functionCommands.map((cmd, i) => (
+              <button key={cmd.id} type="button" disabled={!connected} onClick={() => runCommand(cmd.id)} className={cmdClass}>
+                F{i + 1}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {resolution && (
-              <span className="text-xs text-slate-300 bg-slate-700/80 border border-slate-500/50 px-2 py-1 rounded-full font-mono">
-                {resolution}
-              </span>
-            )}
-            {status === 'connecting' && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-amber-300 bg-amber-950/60 border border-amber-700/50 px-2.5 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                {t('console.connecting')}
-              </span>
-            )}
-            {status === 'connected' && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-green-300 bg-green-950/60 border border-green-700/50 px-2.5 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
-                {t('console.connected')}
-              </span>
-            )}
-            {status === 'error' && (
-              <span className="text-sm text-red-300 bg-red-950/60 border border-red-700/50 px-2.5 py-1 rounded-full">
-                {error}
-              </span>
-            )}
-          </div>
-        </div>
+        </details>
+      </div>
 
-        <div className="px-4 pb-2.5 flex flex-wrap items-center gap-2 bg-slate-700/30">
-          <span className="text-[11px] uppercase tracking-wider text-slate-300 font-semibold flex items-center gap-1.5 mr-1 px-2 py-1 rounded-md bg-slate-700/80 border border-slate-500/50">
-            <Keyboard size={13} /> {t('console.commands')}
-          </span>
+      {lowResWarning && connected && (
+        <InfoBanner variant="warning" className="shrink-0 text-xs">
+          {t('console.lowResWarning')
+            .replace('{resolution}', resolution ?? '—')
+            .replace('{width}', String(CONSOLE_HD.width))
+            .replace('{height}', String(CONSOLE_HD.height))}
+          {!supportsDesktopResize(rfbRef.current) && ` ${t('console.remoteResizeUnavailable')}`}
+        </InfoBanner>
+      )}
 
-          {systemCommands.map((cmd) => (
-            <button
-              key={cmd.id}
-              type="button"
-              disabled={status !== 'connected'}
-              onClick={() => runCommand(cmd.id)}
-              className="btn-console"
-            >
-              {cmd.label}
-            </button>
-          ))}
-
-          <span className="text-slate-500 select-none">|</span>
-
-          {inputCommands.map((cmd) => (
-            <button
-              key={cmd.id}
-              type="button"
-              disabled={status !== 'connected'}
-              onClick={() => runCommand(cmd.id)}
-              className="btn-console"
-            >
-              {cmd.label}
-            </button>
-          ))}
-
+      {pasteOpen && (
+        <div className="shrink-0 flex gap-2 items-start">
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={t('console.pastePlaceholder')}
+            rows={2}
+            className={formTextareaClass + ' flex-1'}
+          />
           <button
             type="button"
-            disabled={status !== 'connected'}
-            onClick={() => setPasteOpen((v) => !v)}
-            className="btn-console"
+            disabled={!connected || !pasteText.trim()}
+            onClick={handlePaste}
+            className="btn-primary"
           >
-            <ClipboardPaste size={14} /> {t('console.pasteText')}
+            {t('console.send')}
           </button>
-
-          <details className="relative">
-            <summary className="btn-console cursor-pointer list-none">
-              Ctrl+Alt+F1–F12
-            </summary>
-            <div className="absolute z-20 mt-1 p-2 bg-slate-700 border border-slate-500 rounded-lg shadow-2xl grid grid-cols-4 gap-1.5 min-w-[240px]">
-              {functionCommands.map((cmd, i) => (
-                <button
-                  key={cmd.id}
-                  type="button"
-                  disabled={status !== 'connected'}
-                  onClick={() => runCommand(cmd.id)}
-                  className="btn-console"
-                >
-                  F{i + 1}
-                </button>
-              ))}
-            </div>
-          </details>
         </div>
+      )}
 
-        {lowResWarning && status === 'connected' && (
-          <div className="mx-4 mb-2 px-3 py-2 text-xs text-amber-200/90 bg-amber-950/50 border border-amber-700/40 rounded-lg">
-            {t('console.lowResWarning')
-              .replace('{resolution}', resolution ?? '—')
-              .replace('{width}', String(CONSOLE_HD.width))
-              .replace('{height}', String(CONSOLE_HD.height))}
-            {!supportsDesktopResize(rfbRef.current) && ` ${t('console.remoteResizeUnavailable')}`}
-          </div>
-        )}
-
-        {pasteOpen && (
-          <div className="px-4 pb-3 flex gap-2 items-start bg-slate-800/80 border-t border-slate-600/50 pt-3">
-            <textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={t('console.pastePlaceholder')}
-              rows={2}
-              className="flex-1 px-3 py-2 text-sm bg-slate-700 border border-slate-500 rounded-lg text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-            />
-            <button
-              type="button"
-              disabled={status !== 'connected' || !pasteText.trim()}
-              onClick={handlePaste}
-              className="btn-console-action"
-            >
-              {t('console.send')}
-            </button>
-          </div>
-        )}
-      </header>
-
-      <div className="relative flex-1 min-h-0">
-        <div ref={containerRef} className="console-viewport absolute inset-0" />
-        {status === 'connecting' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-slate-300 text-sm pointer-events-none gap-2">
-            <span>{t('console.waiting')}</span>
-            <span className="text-xs text-slate-500">
-              {t('console.targetResolution')}: {CONSOLE_HD.width}×{CONSOLE_HD.height}
-            </span>
-          </div>
-        )}
+      <div className="flex-1 min-h-0 flex gap-4">
+        <div className="relative flex-1 min-w-0 rounded-xl overflow-hidden border border-card-border bg-black">
+          <div ref={containerRef} className="console-viewport absolute inset-0" />
+          {status === 'connecting' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-slate-300 text-sm pointer-events-none gap-2">
+              <span>{t('console.waiting')}</span>
+              <span className="text-xs text-slate-500">
+                {t('console.targetResolution')}: {CONSOLE_HD.width}×{CONSOLE_HD.height}
+              </span>
+            </div>
+          )}
+        </div>
+        <SurfaceCard title={t('console.session')} className="hidden lg:block w-[260px] shrink-0 self-start">
+          <KeyValueList
+            rows={[
+              { k: t('console.protocol'), v: 'VNC / WebSocket' },
+              ...(resolution ? [{ k: t('console.resolution'), v: resolution, mono: true }] : []),
+            ]}
+          />
+        </SurfaceCard>
       </div>
     </div>
   );

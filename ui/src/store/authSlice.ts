@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { getMe, login as apiLogin } from '../lib/platform-api';
+import { ApiError, getMe, login as apiLogin } from '../lib/platform-api';
 
 export interface AuthUser {
   id: string;
@@ -46,7 +46,7 @@ function persistAuth(token: string | null, user: AuthUser | null, tenantId?: str
 export const loginThunk = createAsyncThunk<
   AuthUser,
   { username: string; password: string },
-  { rejectValue: string }
+  { rejectValue: { message: string; attemptsRemaining?: number; retryAfter?: number } }
 >('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const body = await apiLogin(credentials.username, credentials.password);
@@ -60,7 +60,12 @@ export const loginThunk = createAsyncThunk<
     persistAuth(body.token, user, body.user.tenant_id ?? null);
     return user;
   } catch (e) {
-    return rejectWithValue((e as Error).message);
+    const err = e as ApiError;
+    return rejectWithValue({
+      message: err.message,
+      attemptsRemaining: err.attemptsRemaining,
+      retryAfter: err.retryAfter,
+    });
   }
 });
 

@@ -138,9 +138,9 @@ export function NotificationsMenu({ open, onToggle, onClose }: NotificationsMenu
   const levelClass = (level: string) =>
     clsx(
       'w-2 h-2 rounded-full shrink-0 mt-1.5',
-      level === 'error' && 'bg-error animate-vf-pulse',
-      level === 'warning' && 'bg-warning',
-      level !== 'error' && level !== 'warning' && 'bg-primary-container',
+      level === 'error' && 'bg-bad-fg animate-vf-pulse',
+      level === 'warning' && 'bg-warn-fg',
+      level !== 'error' && level !== 'warning' && 'bg-accent',
     );
 
   if (!hasTenant) return null;
@@ -150,12 +150,13 @@ export function NotificationsMenu({ open, onToggle, onClose }: NotificationsMenu
       <button
         type="button"
         onClick={onToggle}
-        className="relative p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-full transition-colors hidden sm:block"
+        aria-label={t('header.notifications')}
+        className="relative w-9 h-9 flex items-center justify-center border border-outline-variant rounded-lg bg-card text-on-surface hover:bg-sunk transition-colors focus-visible:ring-2 focus-visible:ring-accent"
         title={t('header.notifications')}
       >
-        <Bell size={20} />
+        <Bell size={16} strokeWidth={1.8} />
         {items.length > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error border border-surface" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-bad-fg border border-card" />
         )}
       </button>
       {open && (

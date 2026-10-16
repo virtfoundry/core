@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical } from 'lucide-react';
+import { MoreHorizontal, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
 import { useI18n } from '../lib/i18n';
 
@@ -19,6 +19,8 @@ type OverflowMenuProps = {
   label?: string;
   align?: 'left' | 'right';
   className?: string;
+  /** `dots` = redesign row kebab (32px bordered, horizontal dots). */
+  variant?: 'icon' | 'dots';
 };
 
 type MenuCoords = {
@@ -27,7 +29,7 @@ type MenuCoords = {
   minWidth: number;
 };
 
-export function OverflowMenu({ items, label, align = 'right', className }: OverflowMenuProps) {
+export function OverflowMenu({ items, label, align = 'right', className, variant = 'icon' }: OverflowMenuProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<MenuCoords | null>(null);
@@ -159,9 +161,14 @@ export function OverflowMenu({ items, label, align = 'right', className }: Overf
         aria-controls={open ? menuId : undefined}
         title={label ?? t('common.moreActions')}
         aria-label={label ?? t('common.moreActions')}
-        className="btn-icon-neutral focus-visible:ring-2 focus-visible:ring-primary"
+        className={clsx(
+          'focus-visible:ring-2 focus-visible:ring-primary',
+          variant === 'dots'
+            ? 'inline-flex items-center justify-center w-8 h-8 rounded-lg border border-outline-variant bg-card text-on-surface hover:bg-sunk transition-colors'
+            : 'btn-icon-neutral',
+        )}
       >
-        <MoreVertical size={16} />
+        {variant === 'dots' ? <MoreHorizontal size={16} /> : <MoreVertical size={16} />}
       </button>
       {menu}
     </div>

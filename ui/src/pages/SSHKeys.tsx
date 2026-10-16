@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Upload, Copy, Check, AlertCircle, Trash2, Download } from 'lucide-react';
 import {
-  listSSHKeys, createSSHKey, registerSSHKey, deleteSSHKey,
+  listSSHKeys, listVMs, createSSHKey, registerSSHKey, deleteSSHKey,
 } from '../lib/platform-api';
 import type { SSHKeyPair } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu } from '../components/OverflowMenu';
+import { ago } from '../lib/ago';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
@@ -15,15 +17,18 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass, InfoBanner,
 } from '../components/shell';
 
 type CreateMode = 'generate' | 'register';
 
+/** "ssh-ed25519 AAAA…" -> "ed25519" */
+const keyType = (pub?: string) => (pub?.split(' ')[0] ?? '').replace(/^ssh-/, '') || '—';
+
 export function SSHKeys() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>('generate');
@@ -39,6 +44,8 @@ export function SSHKeys() {
     queryFn: listSSHKeys,
     enabled: !needsTenant,
   });
+
+  const { data: vmData } = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs, enabled: !needsTenant });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
 
@@ -82,6 +89,9 @@ export function SSHKeys() {
     k.fingerprint?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { rows, pager } = usePagination(filtered, search);
+  const usedBy = (name: string) => (vmData?.vms ?? []).filter((vm) => vm.ssh_key_refs?.includes(name)).length;
+
   const handleCopyPrivateKey = () => {
     if (!privateKeyModal) return;
     void copyToClipboard(privateKeyModal.pem);
@@ -115,7 +125,7 @@ export function SSHKeys() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('ssh.title')}
         subtitle={`${keys.length} ${t('ssh.subtitle')}`}
@@ -140,54 +150,66 @@ export function SSHKeys() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={680}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('ssh.fingerprint')}</PageTableTh>
-              <PageTableTh>{t('ssh.publicKey')}</PageTableTh>
+              <PageTableTh>{t('ssh.type')}</PageTableTh>
+              <PageTableTh>{t('common.created')}</PageTableTh>
+              <PageTableTh>{t('ssh.usedBy')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-12 text-on-surface-variant">
-                    <p>{t('ssh.empty')}</p>
-                    <p className="mt-2">
-                      <Link to="/vms" className="text-primary-fixed-dim hover:underline text-sm">
-                        → Deploy VM com chave SSH
-                      </Link>
-                    </p>
-                  </td>
-                </tr>
+                <TableMessageRow cols={6}>
+                  <p>{t('ssh.empty')}</p>
+                  <p className="mt-2">
+                    <Link to="/vms" className="text-link hover:underline text-sm">
+                      {t('ssh.deployLink')}
+                    </Link>
+                  </p>
+                </TableMessageRow>
               ) : (
-                filtered.map((key: SSHKeyPair) => (
+                rows.map((key: SSHKeyPair) => (
                   <PageTableRow key={key.id}>
-                    <PageTableTd className="font-medium">{key.name}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{key.fingerprint}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant max-w-md truncate" title={key.public_key}>
-                      {key.public_key}
+                    <PageTableTd className="font-semibold">{key.name}</PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant max-w-xs truncate" title={key.fingerprint}>
+                      {key.fingerprint}
                     </PageTableTd>
+                    <PageTableTd mono>{keyType(key.public_key)}</PageTableTd>
+                    <PageTableTd className="text-on-surface-variant">{ago(key.created_at, dateLocale)}</PageTableTd>
+                    <PageTableTd mono>{t('common.vmCount').replace('{n}', String(usedBy(key.name)))}</PageTableTd>
                     <PageTableTd className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ id: key.id, name: key.name })}
-                        className="btn-icon-danger"
-                        title={t('common.delete')}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <OverflowMenu
+                        variant="dots"
+                        label={t('table.moreActions')}
+                        items={[{
+                          id: 'delete',
+                          label: t('common.delete'),
+                          icon: <Trash2 size={14} />,
+                          danger: true,
+                          onSelect: () => setDeleteTarget({ id: key.id, name: key.name }),
+                        }]}
+                      />
                     </PageTableTd>
                   </PageTableRow>
                 ))
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

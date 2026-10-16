@@ -121,6 +121,11 @@ func TestLoginThrottledAfterRepeatedFailures(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("attempt %d: status = %d, want 401", i+1, rec.Code)
 		}
+		var body map[string]interface{}
+		_ = json.Unmarshal(rec.Body.Bytes(), &body)
+		if got, _ := body["attempts_remaining"].(float64); int(got) != 2-i {
+			t.Fatalf("attempt %d: attempts_remaining = %v, want %d", i+1, body["attempts_remaining"], 2-i)
+		}
 	}
 	blocked := doLogin(t, h, "alice", "wrong-password", "")
 	if blocked.Code != http.StatusTooManyRequests {

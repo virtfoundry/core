@@ -4,15 +4,17 @@ import { Plus, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
 import { listTenants, createTenant, deleteTenant } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SearchField, SurfaceCard,
+  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
@@ -30,7 +32,7 @@ function suggestSlug(name: string): string {
 }
 
 export function Tenants() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -76,6 +78,13 @@ export function Tenants() {
     },
   });
 
+  const tenants = data?.tenants || [];
+  const filtered = tenants.filter((tenant) =>
+    tenant.name.toLowerCase().includes(search.toLowerCase()) ||
+    tenant.slug.toLowerCase().includes(search.toLowerCase())
+  );
+  const { rows, pager } = usePagination(filtered, search);
+
   if (!isRoot) {
     return (
       <div className="text-center py-16 text-on-surface-variant">
@@ -84,11 +93,6 @@ export function Tenants() {
     );
   }
 
-  const tenants = data?.tenants || [];
-  const filtered = tenants.filter((tenant) =>
-    tenant.name.toLowerCase().includes(search.toLowerCase()) ||
-    tenant.slug.toLowerCase().includes(search.toLowerCase())
-  );
 
   const handleCopyUsername = () => {
     if (!createdAdmin) return;
@@ -96,7 +100,7 @@ export function Tenants() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.tenants')}
         subtitle={`${tenants.length} ${t('tenants.subtitle')}`}
@@ -110,51 +114,61 @@ export function Tenants() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('tenants.searchPlaceholder')} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={900}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>Slug</PageTableTh>
+              <PageTableTh>{t('tenants.namespace')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('tenants.adminUser')}</PageTableTh>
+              <PageTableTh>{t('vms.col.age')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('tenants.empty')}</td></tr>
+                <TableMessageRow cols={7}>{t('tenants.empty')}</TableMessageRow>
               ) : (
-                filtered.map((tenant) => {
+                rows.map((tenant) => {
                   const canDelete = tenant.slug !== DEFAULT_TENANT_SLUG;
                   return (
                     <PageTableRow key={tenant.id}>
-                      <PageTableTd className="font-medium">{tenant.name}</PageTableTd>
-                      <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{tenant.slug}</PageTableTd>
+                      <PageTableTd className="font-semibold">{tenant.name}</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{tenant.slug}</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{tenant.namespace || '—'}</PageTableTd>
                       <PageTableTd>
                         <StatusBadge status={tenant.state || 'active'} pulse={false} />
                       </PageTableTd>
-                      <PageTableTd>
-                        <code className="text-sm">{tenant.slug}-admin</code>
+                      <PageTableTd mono>
+                        {tenant.slug}-admin
                         {!canDelete && (
-                          <span className="ml-2 text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</span>
+                          <span className="ml-2 font-sans text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</span>
                         )}
                       </PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(tenant.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
-                        {canDelete && (
-                          <button
-                            type="button"
-                            className="btn-icon-danger"
-                            title={t('tenants.delete')}
-                            aria-label={t('tenants.delete')}
-                            onClick={() => setDeleteTarget({ id: tenant.id, name: tenant.name, slug: tenant.slug })}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+                        <OverflowMenu
+                          variant="dots"
+                          label={t('table.moreActions')}
+                          items={canDelete ? [{
+                            id: 'delete',
+                            label: t('tenants.delete'),
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onSelect: () => setDeleteTarget({ id: tenant.id, name: tenant.name, slug: tenant.slug }),
+                          }] : []}
+                        />
                       </PageTableTd>
                     </PageTableRow>
                   );
@@ -162,6 +176,7 @@ export function Tenants() {
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

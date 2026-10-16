@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, Loader2, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { listNetworks, listSSHKeys, listServiceOfferings, listVMTemplates, listVMs } from '../lib/platform-api';
 import { isIsolatedNetwork } from '../lib/networks';
@@ -55,45 +55,55 @@ export function OnboardingChecklist() {
     setState(next);
   };
 
+  const nextKey = steps.find((s) => !s.done)?.key;
+
   return (
-    <SurfaceCard className="relative border-primary-container/40" padding="md">
-      <button
-        type="button"
-        onClick={dismiss}
-        className="absolute top-3 right-3 p-1 rounded text-on-surface-variant hover:bg-surface-variant"
-        aria-label={t('common.cancel')}
-        title={t('onboarding.dismiss')}
-      >
-        <X size={16} />
-      </button>
-      <h2 className="font-headline text-title-md font-semibold text-on-surface pr-8">{t('onboarding.title')}</h2>
-      <p className="text-sm text-on-surface-variant mt-1 mb-1">{t('onboarding.subtitle')}</p>
-      <p className="text-xs font-mono text-on-surface-variant mb-4">
-        {loading ? t('common.loading') : t('onboarding.progress').replace('{done}', String(doneCount)).replace('{total}', String(steps.length))}
-      </p>
-      <ul className="space-y-2">
-        {steps.map((s) => (
-          <li key={s.key}>
-            <Link
-              to={s.to}
-              className={clsx(
-                'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                s.done
-                  ? 'border-success/30 bg-success-muted/30 text-on-surface'
-                  : 'border-outline-variant hover:border-primary-container/50 text-on-surface',
-              )}
-            >
-              {s.pending ? (
-                <Loader2 size={18} className="text-on-surface-variant shrink-0 animate-spin" aria-hidden />
-              ) : s.done ? (
-                <CheckCircle2 size={18} className="text-success shrink-0" />
-              ) : (
-                <Circle size={18} className="text-on-surface-variant shrink-0" />
-              )}
-              <span className={s.done ? 'line-through opacity-70' : ''}>{s.label}</span>
-            </Link>
-          </li>
-        ))}
+    <SurfaceCard
+      title={t('onboarding.title')}
+      headerAction={
+        <>
+          <span className="text-[13px] font-mono text-on-surface-variant">
+            {loading ? t('common.loading') : `${doneCount} / ${steps.length}`}
+          </span>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="p-1 rounded text-on-surface-variant hover:bg-sunk"
+            aria-label={t('common.cancel')}
+            title={t('onboarding.dismiss')}
+          >
+            <X size={16} />
+          </button>
+        </>
+      }
+    >
+      <p className="m-0 mb-3 text-on-surface-variant">{t('onboarding.subtitle')}</p>
+      <ul className="m-0 p-0 list-none flex flex-col">
+        {steps.map((s) => {
+          const next = s.key === nextKey;
+          return (
+            <li key={s.key}>
+              <Link
+                to={s.to}
+                className={clsx(
+                  'flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors',
+                  next ? 'bg-accent-soft' : 'hover:bg-sunk',
+                )}
+              >
+                <span
+                  className={clsx('w-2 h-2 rounded-full shrink-0', s.done ? 'bg-ok-fg' : next ? 'bg-accent' : 'bg-off-fg')}
+                  aria-hidden
+                />
+                <span className="flex-1 min-w-0 font-medium">{s.label}</span>
+                {s.pending ? (
+                  <Loader2 size={14} className="text-on-surface-variant shrink-0 animate-spin" aria-hidden />
+                ) : (
+                  <span className="font-mono text-xs text-on-surface-variant">{s.done ? '✓' : next ? '→' : ''}</span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </SurfaceCard>
   );

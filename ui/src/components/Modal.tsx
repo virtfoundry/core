@@ -26,7 +26,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} />
         <div className={clsx('relative vf-card shadow-xl w-full', sizeStyles[size])}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
-            <h3 className="font-headline text-headline-md font-semibold text-on-surface">{title}</h3>
+            <h3 className="font-headline text-base font-semibold text-on-surface">{title}</h3>
             <button
               type="button"
               onClick={onClose}

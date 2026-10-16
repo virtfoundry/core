@@ -32,7 +32,9 @@ import {
   formInputClass,
   formSelectClass,
   formTextareaClass,
+  formLabelClass,
   InfoBanner,
+  KeyValueList,
 } from './shell';
 import { StatusBadge } from './StatusBadge';
 import { ComingSoonBadge } from './ComingSoonBadge';
@@ -57,8 +59,8 @@ function deployCloudInitPayload(draft: string): string | undefined {
 
 function optionCardClass(selected: boolean) {
   return clsx(
-    'flex-1 border rounded-lg p-3 cursor-pointer transition-colors inner-glow',
-    selected ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant hover:border-primary-container/40',
+    'flex-1 border-2 rounded-[10px] p-4 cursor-pointer transition-colors',
+    selected ? 'border-accent bg-accent-soft' : 'border-card-border hover:border-accent/40',
   );
 }
 
@@ -365,13 +367,13 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   <li
                     key={p}
                     className={clsx(
-                      'flex items-center gap-3 rounded-lg border px-3 py-2 text-sm',
-                      done && 'border-success/30 bg-success-muted/40 text-on-surface',
-                      active && !done && 'border-primary-container bg-primary-container/10 text-on-surface',
+                      'flex items-center gap-3 rounded-[10px] border px-3 py-2.5 text-sm',
+                      done && 'border-ok-fg/30 bg-ok-bg text-on-surface',
+                      active && !done && 'border-accent bg-accent-soft text-on-surface',
                       !done && !active && 'border-outline-variant text-on-surface-variant',
                     )}
                   >
-                    <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-xs', done ? 'bg-success text-on-success' : 'bg-surface-container-high')}>
+                    <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-xs', done ? 'bg-ok-fg text-white' : 'bg-track')}>
                       {done ? <Check size={12} /> : idx + 1}
                     </span>
                     {phaseLabel(p)}
@@ -388,7 +390,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
             )}
 
             {phase !== 'error' && (
-              <div className="rounded-lg border border-outline-variant bg-surface-container-low px-3 py-3 space-y-3">
+              <div className="rounded-xl border border-card-border bg-sunk px-4 py-3 space-y-3">
                 <div>
                   <p className="text-xs text-on-surface-variant">{t('vmDetail.primaryIp')}</p>
                   {trackedVm?.ip ? (
@@ -406,7 +408,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   {linux && (
                     <button
                       type="button"
-                      className="btn-outline-sm"
+                      className="btn-secondary"
                       disabled={!trackedVm?.ip}
                       title={!trackedVm?.ip ? t('vms.ipPending') : undefined}
                       onClick={async () => {
@@ -422,7 +424,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   )}
                   <button
                     type="button"
-                    className="btn-outline-sm"
+                    className="btn-secondary"
                     disabled={phase !== 'running'}
                     title={phase !== 'running' ? t('vmDetail.consoleHint') : undefined}
                     onClick={() => {
@@ -445,30 +447,46 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="flex flex-wrap gap-2">
-              {STEPS.map((s, i) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => i <= stepIndex && setStep(s)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-lg text-xs font-mono border transition-colors',
-                    s === step
-                      ? 'border-primary-container bg-primary-container/15 text-on-surface'
-                      : i < stepIndex
-                        ? 'border-outline-variant text-on-surface hover:bg-surface-variant'
-                        : 'border-outline-variant/60 text-on-surface-variant',
-                  )}
-                >
-                  {i + 1}. {stepLabel(s)}
-                </button>
-              ))}
-            </div>
+            <ol className="flex flex-wrap gap-3 list-none m-0 p-0">
+              {STEPS.map((s, i) => {
+                const done = i < stepIndex;
+                const now = s === step;
+                return (
+                  <li key={s} className="flex-1 basis-[150px] min-w-[120px]">
+                    <button
+                      type="button"
+                      onClick={() => i <= stepIndex && setStep(s)}
+                      aria-current={now ? 'step' : undefined}
+                      className={clsx(
+                        'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm font-medium border transition-colors text-left',
+                        now ? 'border-accent bg-card text-on-surface' : 'border-card-border',
+                        !now && !done && 'text-on-surface-variant',
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          'w-[26px] h-[26px] shrink-0 rounded-full flex items-center justify-center text-[13px] font-semibold',
+                          done ? 'bg-ok-fg text-white' : now ? 'bg-accent text-white' : 'bg-card-border text-on-surface-variant',
+                        )}
+                      >
+                        {done ? '✓' : i + 1}
+                      </span>
+                      <span className="truncate">{stepLabel(s)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <h3 className="m-0 flex items-baseline gap-2 font-headline text-base font-semibold text-on-surface">
+              {stepLabel(step)}
+              <span className="font-mono text-[13px] font-normal text-on-surface-variant">{stepIndex + 1} / {STEPS.length}</span>
+            </h3>
 
             {step === 'compute' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+                  <label className={formLabelClass}>{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -480,7 +498,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">{t('common.image')}</label>
+                  <label className={formLabelClass}>{t('common.image')}</label>
                   {templates.length === 0 ? (
                     tmplLoading
                       ? <p className="text-sm text-on-surface-variant">{t('common.loading')}</p>
@@ -601,7 +619,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">{t('vms.offering')}</label>
+                  <label className={formLabelClass}>{t('vms.offering')}</label>
                   <select
                     value={form.offering}
                     onChange={(e) => {
@@ -637,7 +655,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
               <div className="space-y-3">
                 {linux ? (
                   <div>
-                    <label className="block text-sm font-medium mb-1">{t('vms.dataVolumeOptional')}</label>
+                    <label className={formLabelClass}>{t('vms.dataVolumeOptional')}</label>
                     <select
                       value={form.data_volume_id}
                       onChange={(e) => setForm({ ...form, data_volume_id: e.target.value })}
@@ -658,8 +676,8 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
 
             {step === 'network' && (
               <div className="space-y-4">
-                <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">
-                  <label className="block text-sm font-medium">{t('vms.networkMode')}</label>
+                <div className="space-y-3 rounded-xl border border-card-border p-4">
+                  <label className={formLabelClass}>{t('vms.networkMode')}</label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <label className={optionCardClass(form.network_mode === 'private')}>
                       <input
@@ -687,8 +705,8 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                 </div>
 
                 {form.network_mode === 'private' && (
-                  <div className="space-y-3 rounded-lg border border-outline-variant p-4 inner-glow">
-                    <label className="block text-sm font-medium">{t('vms.networkBackend')}</label>
+                  <div className="space-y-3 rounded-xl border border-card-border p-4">
+                    <label className={formLabelClass}>{t('vms.networkBackend')}</label>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <label className={optionCardClass(form.network_backend === 'multus')}>
                         <input
@@ -731,7 +749,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                           <InfoBanner variant="warning">{t('vms.noPrivateSubnets')}</InfoBanner>
                         ) : (
                           <>
-                            <label className="block text-sm font-medium mb-2">{t('vms.privateSubnetRequired')}</label>
+                            <label className={formLabelClass}>{t('vms.privateSubnetRequired')}</label>
                             <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label={t('vms.privateSubnetRequired')}>
                               {privateNetworks.map((n) => {
                                 const selected = form.network_ids.includes(n.id);
@@ -765,7 +783,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                 {form.network_mode === 'public' && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-sm font-medium">{t('vms.securityGroupRequired')}</label>
+                      <label className={formLabelClass}>{t('vms.securityGroupRequired')}</label>
                       <button
                         type="button"
                         onClick={() => setCreateSgModal(true)}
@@ -792,7 +810,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     </select>
                     {privateNetworks.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium mb-1">{t('vms.privateSubnetsOptional')}</label>
+                        <label className={formLabelClass}>{t('vms.privateSubnetsOptional')}</label>
                         <select
                           multiple
                           value={form.network_ids}
@@ -817,7 +835,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
               <div className="space-y-3">
                 {linux ? (
                   <div>
-                    <label className="block text-sm font-medium mb-1">{t('vms.sshKeyRequired')}</label>
+                    <label className={formLabelClass}>{t('vms.sshKeyRequired')}</label>
                     <select
                       required
                       value={form.ssh_key_id}
@@ -849,32 +867,27 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     {t('vms.cloneFromHint').replace('{name}', cloneFrom.display_name || cloneFrom.name)}
                   </InfoBanner>
                 )}
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div><dt className="text-on-surface-variant">{t('common.name')}</dt><dd className="font-data-mono">{form.name || '—'}</dd></div>
-                  <div><dt className="text-on-surface-variant">{t('common.image')}</dt><dd>{selectedTemplate?.display_name || '—'}</dd></div>
-                  <div><dt className="text-on-surface-variant">{t('vms.offering')}</dt><dd>{(() => {
-                    const off = templateOfferings.find((o) => o.id === form.offering) || templateOfferings[0];
-                    return off ? offeringLabel(off) : '—';
-                  })()}</dd></div>
-                  <div>
-                    <dt className="text-on-surface-variant">{t('vms.networkMode')}</dt>
-                    <dd>
-                      {isPublic ? t('vms.networkModePublic') : form.network_backend === 'pod' ? t('vms.networkPod') : t('vms.networkMultus')}
-                    </dd>
-                  </div>
-                  {linux && (
-                    <div>
-                      <dt className="text-on-surface-variant">SSH</dt>
-                      <dd>{sshKeys.find((k) => k.id === form.ssh_key_id)?.name || '—'}</dd>
-                    </div>
-                  )}
-                  {costEstimate && (
-                    <div className="sm:col-span-2">
-                      <dt className="text-on-surface-variant">{t('vms.costEstimate')}</dt>
-                      <dd className="font-data-mono text-primary">{costEstimate}</dd>
-                    </div>
-                  )}
-                </dl>
+                <div className="rounded-xl border border-card-border p-4">
+                  <KeyValueList
+                    rows={[
+                      { k: t('common.name'), v: form.name || '—', mono: true },
+                      { k: t('common.image'), v: selectedTemplate?.display_name || '—' },
+                      {
+                        k: t('vms.offering'),
+                        v: (() => {
+                          const off = templateOfferings.find((o) => o.id === form.offering) || templateOfferings[0];
+                          return off ? offeringLabel(off) : '—';
+                        })(),
+                      },
+                      {
+                        k: t('vms.networkMode'),
+                        v: isPublic ? t('vms.networkModePublic') : form.network_backend === 'pod' ? t('vms.networkPod') : t('vms.networkMultus'),
+                      },
+                      ...(linux ? [{ k: 'SSH', v: sshKeys.find((k) => k.id === form.ssh_key_id)?.name || '—' }] : []),
+                      ...(costEstimate ? [{ k: t('vms.costEstimate'), v: costEstimate, mono: true }] : []),
+                    ]}
+                  />
+                </div>
                 <button
                   type="button"
                   className="btn-ghost-muted text-sm"
@@ -883,7 +896,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                   {showAdvanced ? t('vms.hideAdvanced') : t('vms.showAdvanced')}
                 </button>
                 {showAdvanced && (
-                  <div className="space-y-3 rounded-lg border border-dashed border-outline-variant p-3">
+                  <div className="space-y-3 rounded-xl border border-dashed border-outline-variant p-3">
                     <CloudInitEditor
                       vmName={form.name || 'draft'}
                       reviewOnly
@@ -901,10 +914,10 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
                     </div>
                   </div>
                 )}
-                <div className="rounded-lg border border-outline-variant p-3">
-                  <p className="text-sm font-medium mb-2">{t('vms.precheckTitle')}</p>
+                <div className="rounded-xl border border-card-border p-4">
+                  <p className="text-sm font-medium mb-2 mt-0">{t('vms.precheckTitle')}</p>
                   {prechecks.length === 0 ? (
-                    <p className="text-sm text-success">{t('vms.precheckOk')}</p>
+                    <p className="text-sm text-ok-fg m-0">{t('vms.precheckOk')}</p>
                   ) : (
                     <ul className="text-sm text-error list-disc pl-5 space-y-1">
                       {prechecks.map((issue) => <li key={issue}>{issue}</li>)}
@@ -917,7 +930,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
               </div>
             )}
 
-            <div className="flex justify-between gap-3 pt-2 border-t border-outline-variant">
+            <div className="flex justify-between gap-3 pt-4 border-t border-card-border">
               <button
                 type="button"
                 className="btn-secondary"
@@ -966,7 +979,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
           className="space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+            <label className={formLabelClass}>{t('common.name')}</label>
             <input
               required
               value={sgForm.name}
@@ -976,7 +989,7 @@ export function DeployVMWizard({ open, onClose, cloneFrom = null }: Props) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">{t('sg.description')}</label>
+            <label className={formLabelClass}>{t('sg.description')}</label>
             <textarea
               value={sgForm.description}
               onChange={(e) => setSgForm({ ...sgForm, description: e.target.value })}

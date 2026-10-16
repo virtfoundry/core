@@ -5,6 +5,8 @@ import {
   listVMSnapshots, createVMSnapshot, deleteVMSnapshot, restoreVMSnapshot, listVMs,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
+import { OverflowMenu } from '../components/OverflowMenu';
+import { ago } from '../lib/ago';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
@@ -12,14 +14,14 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function VMSnapshots() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ vm_name: '', name: '' });
@@ -78,12 +80,14 @@ export function VMSnapshots() {
     }
   };
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('vmSnapshots.selectTenant')} />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.vmSnapshots')}
         subtitle={`${snapshots.length} ${t('vmSnapshots.subtitle')}`}
@@ -97,56 +101,66 @@ export function VMSnapshots() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('vmSnapshots.searchPlaceholder')} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={680}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>VM</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('common.created')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('vmSnapshots.empty')}</td></tr>
+                <TableMessageRow cols={5}>{t('vmSnapshots.empty')}</TableMessageRow>
               ) : (
-                filtered.map((snap) => (
+                rows.map((snap) => (
                   <PageTableRow key={snap.id}>
-                    <PageTableTd className="font-medium">{snap.name}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-sm">{snap.vm_name}</PageTableTd>
+                    <PageTableTd className="font-semibold">{snap.name}</PageTableTd>
+                    <PageTableTd mono>{snap.vm_name}</PageTableTd>
                     <PageTableTd>
                       <StatusBadge status={phaseStatus(snap.phase)} pulse={false} />
                     </PageTableTd>
-                    <PageTableTd>
-                      <div className="flex justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => restoreMutation.mutate({ name: snap.name, vm_name: snap.vm_name })}
-                          disabled={restoreMutation.isPending || snap.phase !== 'ready'}
-                          className="btn-icon-neutral"
-                          title={t('vmSnapshots.restore')}
-                        >
-                          <RotateCcw size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteMutation.mutate({ name: snap.name })}
-                          className="btn-icon-danger"
-                          title={t('common.delete')}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                    <PageTableTd className="text-on-surface-variant">{ago(snap.created_at, dateLocale)}</PageTableTd>
+                    <PageTableTd className="text-right">
+                      <OverflowMenu
+                        variant="dots"
+                        label={t('table.moreActions')}
+                        items={[
+                          {
+                            id: 'restore',
+                            label: t('vmSnapshots.restore'),
+                            icon: <RotateCcw size={14} />,
+                            disabled: restoreMutation.isPending || snap.phase !== 'ready',
+                            onSelect: () => restoreMutation.mutate({ name: snap.name, vm_name: snap.vm_name }),
+                          },
+                          {
+                            id: 'delete',
+                            label: t('common.delete'),
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onSelect: () => deleteMutation.mutate({ name: snap.name }),
+                          },
+                        ]}
+                      />
                     </PageTableTd>
                   </PageTableRow>
                 ))
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

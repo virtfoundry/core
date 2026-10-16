@@ -18,6 +18,7 @@ export interface Tenant {
   slug: string;
   namespace: string;
   state: string;
+  created_at?: string;
 }
 
 export interface PlatformVM {
@@ -39,7 +40,11 @@ export interface PlatformVM {
   host_name?: string;
   service_offering_id?: string;
   tenant_id?: string;
-  nics?: Array<{ name: string; ip?: string; mac?: string; type?: string }>;
+  nics?: Array<{ name: string; ip?: string; mac?: string; type?: string; network_id?: string; nad_name?: string }>;
+  template_ref?: string;
+  vpc_id?: string;
+  /** SSHKey names injected at deploy (Instance.spec.sshKeyRefs). */
+  ssh_key_refs?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -52,6 +57,7 @@ export interface Volume {
   namespace: string;
   pvc_name: string;
   vm_id?: string;
+  created_at?: string;
 }
 
 export interface VPC {
@@ -72,6 +78,7 @@ export interface Network {
   nad_namespace?: string;
   nad_name?: string;
   state: string;
+  created_at?: string;
 }
 
 export interface CIDRBlock {
@@ -106,6 +113,7 @@ export interface SecurityGroup {
     port_to?: number;
     cidr: string;
   }>;
+  created_at?: string;
 }
 
 export interface Snapshot {
@@ -113,6 +121,7 @@ export interface Snapshot {
   name: string;
   volume_id: string;
   state: string;
+  created_at?: string;
 }
 
 export interface VMSnapshot {
@@ -150,6 +159,16 @@ function getTenantId(): string | null {
   return localStorage.getItem('tenant_id');
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly attemptsRemaining?: number,
+    readonly retryAfter?: number,
+  ) {
+    super(message);
+  }
+}
+
 async function platformFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const tenantId = getTenantId();
@@ -166,12 +185,16 @@ async function platformFetch<T>(path: string, options: RequestInit = {}): Promis
     throw new Error('Session expired');
   }
   if (res.status === 429) {
-    throw new Error('429 Too Many Requests — rate limited');
+    throw new ApiError(
+      '429 Too Many Requests — rate limited',
+      undefined,
+      Number(res.headers.get('Retry-After')) || undefined,
+    );
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = body.error || body.errortext || body.errorText || res.statusText;
-    throw new Error(msg);
+    throw new ApiError(msg, body.attempts_remaining, body.retry_after);
   }
   return body as T;
 }
