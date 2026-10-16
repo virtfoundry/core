@@ -66,14 +66,18 @@ export function TenantSwitcher({
           impersonating
             ? 'border-bad-fg ring-2 ring-bad-fg/40'
             : 'border-outline-variant hover:border-accent/50',
-          loading && 'opacity-60 cursor-wait',
+          loading && 'cursor-wait',
         )}
       >
         <span
           className={clsx('w-2 h-2 rounded-full shrink-0', selectedTenantId ? 'bg-ok-fg' : 'bg-warn-fg')}
           aria-hidden
         />
-        <span className="truncate min-w-0 flex-1 text-left font-mono text-[13px]">{loading ? t('common.loading') : label}</span>
+        {loading && !selected ? (
+          <span className="h-3 w-20 rounded bg-track animate-pulse" aria-hidden />
+        ) : (
+          <span className="truncate min-w-0 flex-1 text-left font-mono text-[13px]">{label}</span>
+        )}
         <ChevronDown size={14} className="text-on-surface-variant shrink-0" aria-hidden />
       </button>
 

@@ -43,7 +43,7 @@ export function StatsCard({ title, value, subtitle, icon: Icon, trend, variant =
         )}
       </div>
       <p className="m-0 flex items-baseline gap-2">
-        <span className="font-mono text-[28px] leading-8 font-medium tracking-[-0.02em] text-on-surface">{value}</span>
+        <span className="font-sans tabular-nums text-[28px] leading-8 font-semibold tracking-[-0.02em] text-on-surface">{value}</span>
         {of && <span className="text-[13px] text-on-surface-variant">{of}</span>}
       </p>
       {subtitle && <p className="m-0 text-[13px] text-on-surface-variant">{subtitle}</p>}
