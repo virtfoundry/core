@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, HardDrive, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { listVolumes, createVolume, deleteVolume, listVMs } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
@@ -12,11 +13,12 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
+import { StatsCard } from '../components/StatsCard';
 
 export function Volumes() {
   const { t } = useI18n();
@@ -64,8 +66,11 @@ export function Volumes() {
     return <TenantRequiredNotice message={t('volumes.selectTenant')} />;
   }
 
+  const attachedCount = volumes.filter((v) => v.vm_id).length;
+  const totalGi = volumes.reduce((n, v) => n + (v.size_gi || 0), 0);
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.volumes')}
         subtitle={`${volumes.length} ${t('volumes.subtitle')}`}
@@ -79,11 +84,29 @@ export function Volumes() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('volumes.searchPlaceholder')} />
+      {volumes.length > 0 && (
+        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+          <StatsCard
+            title={t('volumes.stat.attached')}
+            value={attachedCount}
+            of={t('dashboard.of').replace('{n}', String(volumes.length))}
+            progress={Math.round((attachedCount / volumes.length) * 100)}
+          />
+          <StatsCard title={t('volumes.stat.capacity')} value={`${totalGi} GiB`} />
+        </section>
+      )}
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={760}>
             <PageTableHead>
               <PageTableTh>{t('volumes.col.volume')}</PageTableTh>
               <PageTableTh>{t('volumes.size')}</PageTableTh>
@@ -94,52 +117,53 @@ export function Volumes() {
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={6} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-on-surface-variant">{t('volumes.empty')}</td></tr>
+                <TableMessageRow cols={6}>{t('volumes.empty')}</TableMessageRow>
               ) : (
                 filtered.map((vol) => {
                   const attachedVm = vol.vm_id ? vmById[vol.vm_id] : undefined;
                   return (
-                  <PageTableRow key={vol.id}>
-                    <PageTableTd>
-                      <div className="flex items-center gap-3">
-                        <HardDrive size={16} className="text-primary-fixed-dim" />
-                        <span className="font-medium">{vol.name}</span>
-                      </div>
-                    </PageTableTd>
-                    <PageTableTd>{vol.size_gi} Gi</PageTableTd>
-                    <PageTableTd>
-                      <StatusBadge status={vol.state || 'active'} pulse={false} />
-                    </PageTableTd>
-                    <PageTableTd>
-                      {attachedVm ? (
-                        <Link to={`/vms/${attachedVm.name}`} className="text-primary hover:text-primary-fixed-dim hover:underline">
-                          {attachedVm.display_name || attachedVm.name}
-                        </Link>
-                      ) : (
-                        <span className="text-on-surface-variant">{t('volumes.unattached')}</span>
-                      )}
-                    </PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant">{vol.pvc_name}</PageTableTd>
-                    <PageTableTd className="text-right">
-                      {!vol.vm_id && (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget({ id: vol.id, name: vol.name })}
-                          className="btn-icon-danger"
-                          title={t('volumes.deleteTitle')}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </PageTableTd>
-                  </PageTableRow>
+                    <PageTableRow key={vol.id}>
+                      <PageTableTd className="font-semibold">{vol.name}</PageTableTd>
+                      <PageTableTd mono>{vol.size_gi} GiB</PageTableTd>
+                      <PageTableTd>
+                        <StatusBadge status={vol.state || 'active'} pulse={false} />
+                      </PageTableTd>
+                      <PageTableTd mono>
+                        {attachedVm ? (
+                          <Link to={`/vms/${attachedVm.name}`} className="text-link hover:underline">
+                            {attachedVm.display_name || attachedVm.name}
+                          </Link>
+                        ) : (
+                          <span className="text-on-surface-variant">{t('volumes.unattached')}</span>
+                        )}
+                      </PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{vol.pvc_name}</PageTableTd>
+                      <PageTableTd className="text-right">
+                        <OverflowMenu
+                          variant="dots"
+                          label={t('table.moreActions')}
+                          items={[
+                            ...(vol.vm_id
+                              ? []
+                              : [{
+                                  id: 'delete',
+                                  label: t('common.delete'),
+                                  icon: <Trash2 size={14} />,
+                                  danger: true,
+                                  onSelect: () => setDeleteTarget({ id: vol.id, name: vol.name }),
+                                }]),
+                          ]}
+                        />
+                      </PageTableTd>
+                    </PageTableRow>
                   );
                 })
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager shown={filtered.length} total={volumes.length} />
         </SurfaceCard>
       </RefreshingPanel>
 

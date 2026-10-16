@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import {
   listSecurityGroups, createSecurityGroup, updateSecurityGroup, deleteSecurityGroup,
 } from '../lib/platform-api';
@@ -9,14 +9,14 @@ import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { ResourceActions } from '../components/ResourceActions';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { SGRulesEditor, defaultSGRules, type SGRule } from '../components/SGRulesEditor';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass,
 } from '../components/shell';
@@ -76,7 +76,7 @@ export function SecurityGroups() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('sg.title')}
         subtitle={`${groups.length} ${t('sg.subtitle')}`}
@@ -90,60 +90,75 @@ export function SecurityGroups() {
         }
       />
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={600}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
-              <PageTableTh>{t('templates.description')}</PageTableTh>
-              <PageTableTh>{t('sg.rulesCount')}</PageTableTh>
+              <PageTableTh>{t('sg.rulesInOut')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={3}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-12 text-on-surface-variant">{t('sg.empty')}</td></tr>
+                <TableMessageRow cols={3}>{t('sg.empty')}</TableMessageRow>
               ) : (
-                filtered.map((sg) => (
-                  <PageTableRow key={sg.id}>
-                    <PageTableTd>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{sg.name}</span>
-                        {sg.name === 'default' && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-fixed-dim">
-                            {t('sg.defaultBadge')}
-                          </span>
-                        )}
-                      </div>
-                    </PageTableTd>
-                    <PageTableTd className="text-sm text-on-surface-variant max-w-md truncate">
-                      {sg.description || t('sg.noDescription')}
-                    </PageTableTd>
-                    <PageTableTd>
-                      <span className="text-sm">{sg.rules?.length || 0}</span>
-                      {sg.rules?.[0] && (
-                        <span className="ml-2 text-xs font-data-mono text-on-surface-variant">
-                          {sg.rules[0].direction} {sg.rules[0].protocol}
-                        </span>
-                      )}
-                    </PageTableTd>
-                    <PageTableTd>
-                      <ResourceActions
-                        variant="inline"
-                        editLabel={t('common.edit')}
-                        deleteLabel={t('common.delete')}
-                        onEdit={() => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] })}
-                        onDelete={() => setDeleteTarget({ id: sg.id, name: sg.name })}
-                      />
-                    </PageTableTd>
-                  </PageTableRow>
-                ))
+                filtered.map((sg) => {
+                  const rules = sg.rules ?? [];
+                  const ingress = rules.filter((r) => r.direction?.toLowerCase().startsWith('in')).length;
+                  return (
+                    <PageTableRow key={sg.id}>
+                      <PageTableTd>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold">{sg.name}</span>
+                          {sg.name === 'default' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-link font-medium">
+                              {t('sg.defaultBadge')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-on-surface-variant max-w-md truncate">
+                          {sg.description || t('sg.noDescription')}
+                        </div>
+                      </PageTableTd>
+                      <PageTableTd mono>{ingress} / {rules.length - ingress}</PageTableTd>
+                      <PageTableTd className="text-right">
+                        <OverflowMenu
+                          variant="dots"
+                          label={t('table.moreActions')}
+                          items={[
+                            {
+                              id: 'edit',
+                              label: t('common.edit'),
+                              icon: <Pencil size={14} />,
+                              onSelect: () => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] }),
+                            },
+                            {
+                              id: 'delete',
+                              label: t('common.delete'),
+                              icon: <Trash2 size={14} />,
+                              danger: true,
+                              onSelect: () => setDeleteTarget({ id: sg.id, name: sg.name }),
+                            },
+                          ]}
+                        />
+                      </PageTableTd>
+                    </PageTableRow>
+                  );
+                })
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager shown={filtered.length} total={groups.length} />
         </SurfaceCard>
       </RefreshingPanel>
 

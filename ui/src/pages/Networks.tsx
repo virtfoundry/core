@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import {
   listNetworks, createNetwork, updateNetwork, deleteNetwork, listVPCs, fetchNetworkCIDRPlan,
 } from '../lib/platform-api';
@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { CIDRPicker, SubnetPrefixSelect } from '../components/CIDRPicker';
-import { ResourceActions } from '../components/ResourceActions';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
@@ -18,7 +18,7 @@ import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
 import type { Network, VPC } from '../lib/platform-api';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
@@ -112,7 +112,7 @@ export function Networks() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('networks.title')}
         subtitle={`${filtered.length} ${t('networks.subtitle')}`}
@@ -138,28 +138,33 @@ export function Networks() {
         </InfoBanner>
       )}
 
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
+          <TableToolbar>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+          </TableToolbar>
+          <PageTable minWidth={780}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('networks.vpc')}</PageTableTh>
-              <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('networks.cidr')}</PageTableTh>
+              <PageTableTh>{t('publicNetwork.gateway')}</PageTableTh>
+              <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-12 text-on-surface-variant">
-                    <p>{t('networks.empty')}</p>
-                    <p className="text-sm mt-2 opacity-70">{t('networks.emptyHint')}</p>
-                  </td>
-                </tr>
+                <TableMessageRow cols={6}>
+                  <p>{t('networks.empty')}</p>
+                  <p className="text-sm mt-2 opacity-70">{t('networks.emptyHint')}</p>
+                </TableMessageRow>
               ) : (
                 filtered.map((net) => {
                   const vpc = vpcs.find((v) => v.id === net.vpc_id);
@@ -167,31 +172,34 @@ export function Networks() {
                     <PageTableRow key={net.id}>
                       <PageTableTd>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{net.name}</span>
-                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-surface-container-high text-on-surface-variant">
-                            {t('networks.typeIsolated')}
-                          </span>
+                          <span className="font-semibold">{net.name}</span>
                           {net.name === 'default' && (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-container/20 text-primary-fixed-dim">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-accent-soft text-link">
                               {t('networks.defaultBadge')}
                             </span>
                           )}
                         </div>
                       </PageTableTd>
-                      <PageTableTd className="text-sm text-on-surface-variant">
-                        {vpc ? vpc.name : '—'}
-                      </PageTableTd>
+                      <PageTableTd mono>{vpc ? vpc.name : '—'}</PageTableTd>
+                      <PageTableTd mono>{net.cidr}</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{net.gateway || '—'}</PageTableTd>
                       <PageTableTd>
                         <StatusBadge status={net.state || 'active'} pulse={false} />
                       </PageTableTd>
-                      <PageTableTd className="font-data-mono text-primary-fixed-dim">{net.cidr}</PageTableTd>
-                      <PageTableTd>
-                        <ResourceActions
-                          variant="inline"
-                          editLabel={t('common.edit')}
-                          deleteLabel={t('common.delete')}
-                          onEdit={() => setEditNet(net)}
-                          onDelete={() => setDeleteTarget({ id: net.id, name: net.name })}
+                      <PageTableTd className="text-right">
+                        <OverflowMenu
+                          variant="dots"
+                          label={t('table.moreActions')}
+                          items={[
+                            { id: 'edit', label: t('common.edit'), icon: <Pencil size={14} />, onSelect: () => setEditNet(net) },
+                            {
+                              id: 'delete',
+                              label: t('common.delete'),
+                              icon: <Trash2 size={14} />,
+                              danger: true,
+                              onSelect: () => setDeleteTarget({ id: net.id, name: net.name }),
+                            },
+                          ]}
                         />
                       </PageTableTd>
                     </PageTableRow>
@@ -200,6 +208,7 @@ export function Networks() {
               )}
             </PageTableBody>
           </PageTable>
+          <TablePager shown={filtered.length} total={isolatedNetworks.length} />
         </SurfaceCard>
       </RefreshingPanel>
 
