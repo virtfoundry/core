@@ -1,4 +1,4 @@
-import type { ReactNode, InputHTMLAttributes, TdHTMLAttributes } from 'react';
+import { useState, type ReactNode, type InputHTMLAttributes, type TdHTMLAttributes } from 'react';
 import { Search, type LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { useI18n } from '../../lib/i18n';
@@ -238,19 +238,51 @@ export function TableFooter({ children, actions }: { children?: ReactNode; actio
   );
 }
 
-/** Footer "Showing n of total" + prev/next. Lists are not paginated server-side, so the buttons stay disabled. */
-export function TablePager({ shown, total }: { shown: number; total: number }) {
+export interface Pager {
+  page: number;
+  size: number;
+  total: number;
+  from: number;
+  to: number;
+  setPage: (p: number) => void;
+}
+
+/** Client-side pagination (lists are fetched whole). Page resets when `resetKey` changes (filter/tab). */
+export function usePagination<T>(items: T[], resetKey = '', size = 10): { rows: T[]; pager: Pager } {
+  const [state, setState] = useState({ page: 0, key: resetKey });
+  const last = Math.max(0, Math.ceil(items.length / size) - 1);
+  const page = Math.min(state.key === resetKey ? state.page : 0, last);
+  const start = page * size;
+  const rows = items.slice(start, start + size);
+  return {
+    rows,
+    pager: {
+      page, size, total: items.length,
+      from: rows.length ? start + 1 : 0,
+      to: start + rows.length,
+      setPage: (p) => setState({ page: p, key: resetKey }),
+    },
+  };
+}
+
+/** Footer "Showing a–b of N" + prev/next; buttons hidden when everything fits one page. */
+export function TablePager({ pager }: { pager: Pager }) {
   const { t } = useI18n();
+  const paged = pager.total > pager.size;
   return (
     <TableFooter
       actions={
-        <>
-          <button type="button" disabled className={toolbarBtnClass}>{t('table.prev')}</button>
-          <button type="button" disabled className={toolbarBtnClass}>{t('table.next')}</button>
-        </>
+        paged && (
+          <>
+            <button type="button" disabled={pager.page === 0} onClick={() => pager.setPage(pager.page - 1)} className={toolbarBtnClass}>{t('table.prev')}</button>
+            <button type="button" disabled={pager.to >= pager.total} onClick={() => pager.setPage(pager.page + 1)} className={toolbarBtnClass}>{t('table.next')}</button>
+          </>
+        )
       }
     >
-      {t('table.showing').replace('{n}', String(shown)).replace('{total}', String(total))}
+      {paged
+        ? t('table.range').replace('{from}', String(pager.from)).replace('{to}', String(pager.to)).replace('{total}', String(pager.total))
+        : t('table.showing').replace('{n}', String(pager.total)).replace('{total}', String(pager.total))}
     </TableFooter>
   );
 }

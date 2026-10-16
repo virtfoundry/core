@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, LayoutGrid, List, Rocket, Pencil, Trash2 } from 'lucide-react';
 import {
-  listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
+  listVMTemplates, listVMs, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
 import type { VMTemplate } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
@@ -22,7 +22,7 @@ import {
   useRealtimeConnected,
 } from '../hooks/useRealtimeEvents';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, TableToolbar, TableFilter, TablePager, TableMessageRow, toolbarBtnClass,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow, toolbarBtnClass,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, formTextareaClass,
 } from '../components/shell';
@@ -89,6 +89,8 @@ export function Templates() {
     },
   });
 
+  const { data: vmData } = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs, enabled: !needsTenant });
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.templates });
 
   const createMutation = useMutation({
@@ -127,6 +129,9 @@ export function Templates() {
     tmpl.name?.toLowerCase().includes(q) ||
     tmpl.image?.toLowerCase().includes(q)
   );
+  const { rows, pager } = usePagination(filtered, `${search}|${scope}`);
+  const inUse = (tmpl: VMTemplate) =>
+    (vmData?.vms ?? []).filter((vm) => vm.template_ref === tmpl.name || vm.template === tmpl.display_name).length;
   const scopeTabs = [
     { id: 'all' as Scope, label: t('templates.scopeAll'), count: templates.length },
     { id: 'system' as Scope, label: t('templates.scopeSystem'), count: templates.filter((x) => !x.tenant_id).length },
@@ -217,15 +222,16 @@ export function Templates() {
                 <PageTableTh>{t('templates.sourceType')}</PageTableTh>
                 <PageTableTh>{t('templates.defaultDisk')}</PageTableTh>
                 <PageTableTh>{t('common.state')}</PageTableTh>
+                <PageTableTh>{t('templates.inUse')}</PageTableTh>
                 <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
               </PageTableHead>
               <PageTableBody>
                 {isLoading ? (
-                  <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
+                  <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
                 ) : filtered.length === 0 ? (
-                  <TableMessageRow cols={5}>{t('templates.empty')}</TableMessageRow>
+                  <TableMessageRow cols={6}>{t('templates.empty')}</TableMessageRow>
                 ) : (
-                  filtered.map((tmpl) => (
+                  rows.map((tmpl) => (
                     <PageTableRow key={tmpl.id}>
                       <PageTableTd>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -251,6 +257,7 @@ export function Templates() {
                           <StatusBadge status="active" tone="ok" label={t('templates.ready')} pulse={false} />
                         )}
                       </PageTableTd>
+                      <PageTableTd mono>{t('common.vmCount').replace('{n}', String(inUse(tmpl)))}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
@@ -276,7 +283,7 @@ export function Templates() {
               </PageTableBody>
             </PageTable>
           )}
-          {view === 'list' && <TablePager shown={filtered.length} total={byScope.length} />}
+          {view === 'list' && <TablePager pager={pager} />}
         </SurfaceCard>
       </RefreshingPanel>
 

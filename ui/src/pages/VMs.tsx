@@ -6,7 +6,7 @@ import {
   Star, Pin, Copy, Columns2, Download, Tag, CopyPlus,
 } from 'lucide-react';
 import {
-  listVMs, startVM, stopVM, deleteVM, createVMSnapshot, PlatformVM,
+  listVMs, listNetworks, startVM, stopVM, deleteVM, createVMSnapshot, PlatformVM,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -25,7 +25,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectUser } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, EmptyState, TabBar, TableToolbar, TableFilter, TablePager, toolbarBtnClass,
+  PageHeader, SurfaceCard, TenantRequiredNotice, EmptyState, TabBar, TableToolbar, TableFilter, TablePager, usePagination, toolbarBtnClass,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, InfoBanner,
 } from '../components/shell';
@@ -93,6 +93,15 @@ export function VMs() {
       return realtimePollInterval(wsConnected, transitional, { healthyMs: false });
     },
   });
+
+  const { data: netData } = useQuery({ queryKey: queryKeys.networks, queryFn: listNetworks, enabled: !needsTenant });
+  const netName = useMemo(() => {
+    const byId = Object.fromEntries((netData?.networks ?? []).map((n) => [n.id, n.name]));
+    return (vm: PlatformVM) => {
+      const names = (vm.nics ?? []).map((n) => (n.network_id && byId[n.network_id]) || n.nad_name).filter(Boolean);
+      return names.length ? [...new Set(names)].join(', ') : '—';
+    };
+  }, [netData]);
 
   const withRateLimit = useCallback(async <T,>(fn: () => Promise<T>): Promise<T> => {
     try {
@@ -312,6 +321,8 @@ export function VMs() {
     pushRecentAction({ label: `Clone ${vm.name}`, path: `/vms/${vm.name}` });
   };
 
+  const { rows: pageVMs, pager } = usePagination(filteredVMs, `${search}|${stateFilter}|${mineOnly}|${tagFilter}`);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('vms.selectTenant')} />;
   }
@@ -460,7 +471,7 @@ export function VMs() {
               />
             ) : (
               <>
-              <PageTable minWidth={900}>
+              <PageTable minWidth={980}>
                 <PageTableHead>
                   <PageTableTh className="w-10">
                     <input
@@ -474,13 +485,14 @@ export function VMs() {
                   <PageTableTh>{t('common.state')}</PageTableTh>
                   <PageTableTh>IP</PageTableTh>
                   <PageTableTh>{t('vms.col.offering')}</PageTableTh>
+                  <PageTableTh>{t('vms.col.network')}</PageTableTh>
                   <PageTableTh>{t('vms.col.host')}</PageTableTh>
                   <PageTableTh>Tags</PageTableTh>
                   <PageTableTh>{t('vms.col.age')}</PageTableTh>
                   <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
                 </PageTableHead>
                 <PageTableBody>
-                  {filteredVMs.map((vm: PlatformVM) => {
+                  {pageVMs.map((vm: PlatformVM) => {
                     const displayState = effectiveVmState(vm);
                     const errored = isVmError(displayState);
                     const running = isVmRunning(displayState);
@@ -561,6 +573,7 @@ export function VMs() {
                         <PageTableTd mono className={clsx('whitespace-nowrap', vm.cpu === 0 && vm.memory_mi === 0 && 'text-on-surface-variant')}>
                           {formatVmOffering(vm)}
                         </PageTableTd>
+                        <PageTableTd mono className="text-on-surface-variant whitespace-nowrap">{netName(vm)}</PageTableTd>
                         <PageTableTd mono className="text-on-surface-variant whitespace-nowrap">{vm.host_name || '—'}</PageTableTd>
                         <PageTableTd>
                           <div className="flex flex-wrap gap-1 items-center max-w-[140px]">
@@ -663,7 +676,7 @@ export function VMs() {
                   })}
                 </PageTableBody>
               </PageTable>
-              <TablePager shown={filteredVMs.length} total={vms.length} />
+              <TablePager pager={pager} />
               </>
             )}
           </SurfaceCard>

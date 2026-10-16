@@ -11,9 +11,10 @@ import { queryKeys } from '../lib/query-keys';
 import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
@@ -31,7 +32,7 @@ function suggestSlug(name: string): string {
 }
 
 export function Tenants() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -77,6 +78,13 @@ export function Tenants() {
     },
   });
 
+  const tenants = data?.tenants || [];
+  const filtered = tenants.filter((tenant) =>
+    tenant.name.toLowerCase().includes(search.toLowerCase()) ||
+    tenant.slug.toLowerCase().includes(search.toLowerCase())
+  );
+  const { rows, pager } = usePagination(filtered, search);
+
   if (!isRoot) {
     return (
       <div className="text-center py-16 text-on-surface-variant">
@@ -85,11 +93,6 @@ export function Tenants() {
     );
   }
 
-  const tenants = data?.tenants || [];
-  const filtered = tenants.filter((tenant) =>
-    tenant.name.toLowerCase().includes(search.toLowerCase()) ||
-    tenant.slug.toLowerCase().includes(search.toLowerCase())
-  );
 
   const handleCopyUsername = () => {
     if (!createdAdmin) return;
@@ -121,26 +124,29 @@ export function Tenants() {
               aria-label={t('table.filter')}
             />
           </TableToolbar>
-          <PageTable minWidth={680}>
+          <PageTable minWidth={900}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>Slug</PageTableTh>
+              <PageTableTh>{t('tenants.namespace')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('tenants.adminUser')}</PageTableTh>
+              <PageTableTh>{t('vms.col.age')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={5}>{t('tenants.empty')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('tenants.empty')}</TableMessageRow>
               ) : (
-                filtered.map((tenant) => {
+                rows.map((tenant) => {
                   const canDelete = tenant.slug !== DEFAULT_TENANT_SLUG;
                   return (
                     <PageTableRow key={tenant.id}>
                       <PageTableTd className="font-semibold">{tenant.name}</PageTableTd>
                       <PageTableTd mono className="text-on-surface-variant">{tenant.slug}</PageTableTd>
+                      <PageTableTd mono className="text-on-surface-variant">{tenant.namespace || '—'}</PageTableTd>
                       <PageTableTd>
                         <StatusBadge status={tenant.state || 'active'} pulse={false} />
                       </PageTableTd>
@@ -150,6 +156,7 @@ export function Tenants() {
                           <span className="ml-2 font-sans text-xs text-on-surface-variant">{t('tenants.defaultProtected')}</span>
                         )}
                       </PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(tenant.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
@@ -169,7 +176,7 @@ export function Tenants() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={tenants.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

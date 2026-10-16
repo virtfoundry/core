@@ -18,6 +18,8 @@ export {
   TableFilter,
   TableFooter,
   TablePager,
+  usePagination,
+  type Pager,
   TableMessageRow,
   formInputClass,
   formSelectClass,

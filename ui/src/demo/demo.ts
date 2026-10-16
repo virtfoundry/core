@@ -5,7 +5,8 @@ const ns = 'virtfoundry-tenant-default';
 const vm = (name: string, state: string, ip: string, cpu: number, mem: number, tpl: string, off: string, min: number, extra = {}) => ({
   id: `vm-${name}`, name, display_name: name, namespace: ns, state, power_state: state === 'stopped' ? 'Halted' : 'Running',
   cpu, memory_mi: mem, template: tpl, image: tpl, ip, service_offering_id: off, tenant_id: 'default', zone: 'homelab', host_name: 'worker-01',
-  nics: ip ? [{ name: 'default', ip, mac: '52:54:00:ab:12:34', type: 'bridge' }] : [], created_at: ago(min), updated_at: ago(min / 2), ...extra,
+  template_ref: tpl, ssh_key_refs: min > 1000 ? ['matheus-mac', 'ci-deploy'] : ['matheus-mac'],
+  nics: ip ? [{ name: 'default', ip, mac: '52:54:00:ab:12:34', type: 'bridge', network_id: ip.startsWith('10.0.30') ? 'vks-lab' : ip.startsWith('10.0.2') ? 'vpc-dev-a' : 'vpc-prod-a' }] : [], created_at: ago(min), updated_at: ago(min / 2), ...extra,
 });
 
 const vms = [
@@ -15,6 +16,7 @@ const vms = [
   vm('ci-runner-03', 'starting', '', 2, 4096, 'ubuntu-2404', 'small', 1),
   vm('lab-vks-worker-0', 'running', '10.0.30.12', 4, 16384, 'node-1-36-5', 'medium', 4320),
   vm('backup-old', 'stopped', '10.0.1.40', 2, 4096, 'rocky-9', 'small', 126720),
+  ...Array.from({ length: 8 }, (_, i) => vm(`batch-worker-${i + 1}`, i % 3 === 0 ? 'stopped' : 'running', `10.0.2.${50 + i}`, 2, 4096, 'ubuntu-2404', 'small', 200 + i * 90)),
   vm('gpu-sandbox', 'error', '', 16, 65536, 'ubuntu-2204', 'gpu-xl', 60, { error_message: 'insufficient nvidia.com/gpu on nodes' }),
 ];
 
@@ -24,18 +26,18 @@ const vpcs = [
   { id: 'vpc-lab', name: 'vpc-lab', cidr: '10.2.0.0/16', namespace: ns, state: 'Ready' },
 ];
 const networks = [
-  { id: 'vpc-prod-a', name: 'vpc-prod-a', cidr: '10.0.1.0/24', vpc_id: 'vpc-prod', network_type: 'isolated', gateway: '10.0.1.1', state: 'Ready' },
+  { id: 'vpc-prod-a', name: 'vpc-prod-a', cidr: '10.0.1.0/24', vpc_id: 'vpc-prod', network_type: 'isolated', gateway: '10.0.1.1', state: 'Ready', created_at: ago(30000), nad_name: 'vpc-prod-a' },
   { id: 'vpc-dev-a', name: 'vpc-dev-a', cidr: '10.0.2.0/24', vpc_id: 'vpc-dev', network_type: 'isolated', gateway: '10.0.2.1', state: 'Ready' },
   { id: 'vks-lab', name: 'vks-lab', cidr: '10.0.30.0/24', vpc_id: 'vpc-lab', network_type: 'isolated', gateway: '10.0.30.1', state: 'Ready' },
 ];
 const volumes = [
-  { id: 'v1', name: 'pgdata-primary', size_gi: 500, state: 'Bound', namespace: ns, pvc_name: 'pgdata-primary', vm_id: 'vm-db-primary' },
-  { id: 'v2', name: 'uploads-prod', size_gi: 200, state: 'Bound', namespace: ns, pvc_name: 'uploads-prod', vm_id: 'vm-web-prod-01' },
-  { id: 'v3', name: 'archive-2025', size_gi: 1024, state: 'Bound', namespace: ns, pvc_name: 'archive-2025' },
+  { id: 'v1', name: 'pgdata-primary', size_gi: 500, state: 'Bound', namespace: ns, pvc_name: 'pgdata-primary', vm_id: 'vm-db-primary', created_at: ago(44640) },
+  { id: 'v2', name: 'uploads-prod', size_gi: 200, state: 'Bound', namespace: ns, pvc_name: 'uploads-prod', vm_id: 'vm-web-prod-01', created_at: ago(20000) },
+  { id: 'v3', name: 'archive-2025', size_gi: 1024, state: 'Bound', namespace: ns, pvc_name: 'archive-2025', created_at: ago(9000) },
 ];
 const rule = (direction: string, port: number | undefined, cidr: string) => ({ direction, protocol: port ? 'tcp' : 'all', port_from: port, port_to: port, cidr });
 const sgs = [
-  { id: 'sg-web', name: 'web-public', description: 'HTTP/HTTPS', vpc_id: 'vpc-prod', rules: [rule('ingress', 80, '0.0.0.0/0'), rule('ingress', 443, '0.0.0.0/0'), rule('egress', undefined, '0.0.0.0/0')] },
+  { id: 'sg-web', name: 'web-public', description: 'HTTP/HTTPS', vpc_id: 'vpc-prod', created_at: ago(50000), rules: [rule('ingress', 80, '0.0.0.0/0'), rule('ingress', 443, '0.0.0.0/0'), rule('egress', undefined, '0.0.0.0/0')] },
   { id: 'sg-db', name: 'db-internal', description: 'PostgreSQL from VPC', vpc_id: 'vpc-prod', rules: [rule('ingress', 5432, '10.0.0.0/16'), rule('egress', undefined, '0.0.0.0/0')] },
 ];
 const templates = ['ubuntu-2204', 'ubuntu-2404', 'debian-12', 'rocky-9', 'node-1-36-5'].map((n, i) => ({
@@ -56,9 +58,9 @@ const clusters = [
 
 const ROUTES: Record<string, unknown> = {
   '/auth/me': { id: 'root', username: 'root', role: 'root', tenant_id: 'default' },
-  '/tenants': { tenants: ['default', 'smoke', 'lab'].map((s) => ({ id: s, name: s, slug: s, namespace: `virtfoundry-tenant-${s}`, state: 'Active' })) },
+  '/tenants': { tenants: ['default', 'smoke', 'lab'].map((s) => ({ id: s, name: s, slug: s, namespace: `virtfoundry-tenant-${s}`, state: 'Active', created_at: ago(129600) })) },
   '/vms': { vms }, '/vpcs': { vpcs }, '/networks': { networks }, '/volumes': { volumes }, '/security-groups': { security_groups: sgs },
-  '/snapshots': { snapshots: [{ id: 's1', name: 'pgdata-0930', volume_id: 'v1', state: 'Ready' }] },
+  '/snapshots': { snapshots: [{ id: 's1', name: 'pgdata-0930', volume_id: 'v1', state: 'Ready', created_at: ago(23040) }] },
   '/vm-snapshots': { vm_snapshots: [{ id: 'vs1', name: 'db-primary-0930', vm_id: 'vm-db-primary', vm_name: 'db-primary', phase: 'Succeeded', namespace: ns, created_at: ago(23040) }] },
   '/ssh-keys': { ssh_keys: sshKeys }, '/service-offerings': { service_offerings: offerings }, '/vm-templates': { vm_templates: templates },
   '/users': { users: [{ id: 'u1', username: 'root', role: 'root', email: 'root@virtfoundry.homelab', state: 'Active' }, { id: 'u2', username: 'matheus', role: 'tenant_admin', tenant_id: 'default', email: 'matheus@homelab', state: 'Active' }] },

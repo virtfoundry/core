@@ -12,8 +12,9 @@ import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass,
 } from '../components/shell';
@@ -21,7 +22,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { StatsCard } from '../components/StatsCard';
 
 export function Volumes() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -61,6 +62,8 @@ export function Volumes() {
   const volumes = data?.volumes || [];
   const vmById = Object.fromEntries((vmData?.vms || []).map((vm) => [vm.id, vm]));
   const filtered = volumes.filter((v) => v.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const { rows, pager } = usePagination(filtered, search);
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('volumes.selectTenant')} />;
@@ -106,22 +109,23 @@ export function Volumes() {
               aria-label={t('table.filter')}
             />
           </TableToolbar>
-          <PageTable minWidth={760}>
+          <PageTable minWidth={820}>
             <PageTableHead>
               <PageTableTh>{t('volumes.col.volume')}</PageTableTh>
               <PageTableTh>{t('volumes.size')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('volumes.attachedVm')}</PageTableTh>
               <PageTableTh>PVC</PageTableTh>
+              <PageTableTh>{t('vms.col.age')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={6}>{t('volumes.empty')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('volumes.empty')}</TableMessageRow>
               ) : (
-                filtered.map((vol) => {
+                rows.map((vol) => {
                   const attachedVm = vol.vm_id ? vmById[vol.vm_id] : undefined;
                   return (
                     <PageTableRow key={vol.id}>
@@ -140,6 +144,7 @@ export function Volumes() {
                         )}
                       </PageTableTd>
                       <PageTableTd mono className="text-on-surface-variant">{vol.pvc_name}</PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(vol.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
@@ -163,7 +168,7 @@ export function Volumes() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={volumes.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

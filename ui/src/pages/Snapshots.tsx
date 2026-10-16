@@ -9,15 +9,16 @@ import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 
 export function Snapshots() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState({ volume_id: '', name: '' });
@@ -48,6 +49,8 @@ export function Snapshots() {
   const snapshots = data?.snapshots || [];
   const volumes = volData?.volumes || [];
   const filtered = snapshots.filter((s) => s.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const { rows, pager } = usePagination(filtered, search);
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('snapshots.selectTenant')} />;
@@ -86,14 +89,15 @@ export function Snapshots() {
               <PageTableTh>{t('common.volume')}</PageTableTh>
               <PageTableTh>{t('volumes.size')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('common.created')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={4}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={4}>{t('snapshots.empty')}</TableMessageRow>
+                <TableMessageRow cols={5}>{t('snapshots.empty')}</TableMessageRow>
               ) : (
-                filtered.map((snap) => {
+                rows.map((snap) => {
                   const vol = volById[snap.volume_id];
                   return (
                     <PageTableRow key={snap.id}>
@@ -103,13 +107,14 @@ export function Snapshots() {
                       <PageTableTd>
                         <StatusBadge status={snap.state === 'ready' ? 'active' : 'starting'} pulse={false} />
                       </PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(snap.created_at, dateLocale)}</PageTableTd>
                     </PageTableRow>
                   );
                 })
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={snapshots.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

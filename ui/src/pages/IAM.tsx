@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
 import {
-  listIAMUsers, createIAMUser, deleteIAMUser,
+  listTenants, listIAMUsers, createIAMUser, deleteIAMUser,
   listIAMRoles,
   listIAMAPIKeys, createIAMAPIKey, revokeIAMAPIKey,
 } from '../lib/platform-api';
@@ -17,7 +17,7 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TabBar, TenantRequiredNotice, InfoBanner, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
@@ -57,6 +57,15 @@ export function IAM() {
     enabled: !needsTenant,
   });
 
+  const { data: tenantsData } = useQuery({
+    queryKey: queryKeys.tenants,
+    queryFn: listTenants,
+    enabled: !needsTenant && currentUser?.role === 'root',
+  });
+  const tenantName = (u: { role: string; tenant_id?: string }) =>
+    u.role === 'root' ? t('iam.allTenants')
+      : (tenantsData?.tenants.find((x) => x.id === u.tenant_id)?.name ?? '—');
+
   const inv = () => {
     qc.invalidateQueries({ queryKey: queryKeys.iamUsers });
     qc.invalidateQueries({ queryKey: queryKeys.iamKeys });
@@ -85,10 +94,6 @@ export function IAM() {
     void copyToClipboard(secretModal);
   };
 
-  if (needsTenant) {
-    return <TenantRequiredNotice message={t('iam.selectTenant')} />;
-  }
-
   const users = usersData?.users || [];
   const roles = rolesData?.roles || [];
   const keys = (keysData?.api_keys || []).filter((k) => !k.revoked_at);
@@ -105,8 +110,14 @@ export function IAM() {
     { id: 'keys', label: t('iam.tabKeys'), count: keys.length },
   ];
 
-  const shown = tab === 'users' ? fUsers.length : tab === 'roles' ? fRoles.length : fKeys.length;
-  const total = tab === 'users' ? users.length : tab === 'roles' ? roles.length : keys.length;
+  const pUsers = usePagination(fUsers, q);
+  const pRoles = usePagination(fRoles, q);
+  const pKeys = usePagination(fKeys, q);
+  const pager = tab === 'users' ? pUsers.pager : tab === 'roles' ? pRoles.pager : pKeys.pager;
+
+  if (needsTenant) {
+    return <TenantRequiredNotice message={t('iam.selectTenant')} />;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,18 +156,20 @@ export function IAM() {
             <PageTableHead>
               <PageTableTh>{t('login.username')}</PageTableTh>
               <PageTableTh>{t('iam.role')}</PageTableTh>
+              <PageTableTh>{t('nav.tenants')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {fUsers.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
-              {fUsers.map((u) => (
+              {fUsers.length === 0 && <TableMessageRow cols={5}>{t('iam.empty')}</TableMessageRow>}
+              {pUsers.rows.map((u) => (
                 <PageTableRow key={u.id}>
                   <PageTableTd>
                     <div className="font-semibold">{u.username}</div>
                     {u.email && <div className="font-mono text-xs text-on-surface-variant">{u.email}</div>}
                   </PageTableTd>
                   <PageTableTd>{u.role}</PageTableTd>
+                  <PageTableTd mono className="text-on-surface-variant">{tenantName(u)}</PageTableTd>
                   <PageTableTd>
                     <StatusBadge status={u.state || 'active'} pulse={false} />
                   </PageTableTd>
@@ -187,7 +200,7 @@ export function IAM() {
             </PageTableHead>
             <PageTableBody>
               {fRoles.length === 0 && <TableMessageRow cols={2}>{t('iam.empty')}</TableMessageRow>}
-              {fRoles.map((r) => (
+              {pRoles.rows.map((r) => (
                 <PageTableRow key={r.id}>
                   <PageTableTd>
                     <span className="font-semibold">{r.name}</span>
@@ -214,7 +227,7 @@ export function IAM() {
             </PageTableHead>
             <PageTableBody>
               {fKeys.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
-              {fKeys.map((k) => (
+              {pKeys.rows.map((k) => (
                 <PageTableRow key={k.id}>
                   <PageTableTd className="font-semibold">{k.name}</PageTableTd>
                   <PageTableTd mono>{k.prefix}</PageTableTd>
@@ -238,7 +251,7 @@ export function IAM() {
           </PageTable>
         )}
 
-        <TablePager shown={shown} total={total} />
+        <TablePager pager={pager} />
       </SurfaceCard>
 
       <Modal isOpen={userModal} onClose={() => setUserModal(false)} title={t('iam.addUserTitle')}>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Upload, Copy, Check, AlertCircle, Trash2, Download } from 'lucide-react';
 import {
-  listSSHKeys, createSSHKey, registerSSHKey, deleteSSHKey,
+  listSSHKeys, listVMs, createSSHKey, registerSSHKey, deleteSSHKey,
 } from '../lib/platform-api';
 import type { SSHKeyPair } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
@@ -17,7 +17,7 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass, InfoBanner,
 } from '../components/shell';
@@ -44,6 +44,8 @@ export function SSHKeys() {
     queryFn: listSSHKeys,
     enabled: !needsTenant,
   });
+
+  const { data: vmData } = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs, enabled: !needsTenant });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
 
@@ -86,6 +88,9 @@ export function SSHKeys() {
     k.name?.toLowerCase().includes(search.toLowerCase()) ||
     k.fingerprint?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const { rows, pager } = usePagination(filtered, search);
+  const usedBy = (name: string) => (vmData?.vms ?? []).filter((vm) => vm.ssh_key_refs?.includes(name)).length;
 
   const handleCopyPrivateKey = () => {
     if (!privateKeyModal) return;
@@ -161,13 +166,14 @@ export function SSHKeys() {
               <PageTableTh>{t('ssh.fingerprint')}</PageTableTh>
               <PageTableTh>{t('ssh.type')}</PageTableTh>
               <PageTableTh>{t('common.created')}</PageTableTh>
+              <PageTableTh>{t('ssh.usedBy')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={5}>
+                <TableMessageRow cols={6}>
                   <p>{t('ssh.empty')}</p>
                   <p className="mt-2">
                     <Link to="/vms" className="text-link hover:underline text-sm">
@@ -176,7 +182,7 @@ export function SSHKeys() {
                   </p>
                 </TableMessageRow>
               ) : (
-                filtered.map((key: SSHKeyPair) => (
+                rows.map((key: SSHKeyPair) => (
                   <PageTableRow key={key.id}>
                     <PageTableTd className="font-semibold">{key.name}</PageTableTd>
                     <PageTableTd mono className="text-on-surface-variant max-w-xs truncate" title={key.fingerprint}>
@@ -184,6 +190,7 @@ export function SSHKeys() {
                     </PageTableTd>
                     <PageTableTd mono>{keyType(key.public_key)}</PageTableTd>
                     <PageTableTd className="text-on-surface-variant">{ago(key.created_at, dateLocale)}</PageTableTd>
+                    <PageTableTd mono>{t('common.vmCount').replace('{n}', String(usedBy(key.name)))}</PageTableTd>
                     <PageTableTd className="text-right">
                       <OverflowMenu
                         variant="dots"
@@ -202,7 +209,7 @@ export function SSHKeys() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={keys.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

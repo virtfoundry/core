@@ -15,7 +15,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectIsRoot } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
@@ -91,6 +91,13 @@ export function Offerings() {
     },
   });
 
+  const offerings = data?.service_offerings || [];
+  const filtered = offerings.filter((o) =>
+    o.name.toLowerCase().includes(search.toLowerCase()) ||
+    o.display_name.toLowerCase().includes(search.toLowerCase())
+  );
+  const { rows, pager } = usePagination(filtered, search);
+
   if (!isRoot) {
     return (
       <div className="text-center py-16 text-on-surface-variant">
@@ -99,11 +106,6 @@ export function Offerings() {
     );
   }
 
-  const offerings = data?.service_offerings || [];
-  const filtered = offerings.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
-    o.display_name.toLowerCase().includes(search.toLowerCase())
-  );
 
   const openEdit = (o: ServiceOffering) => {
     setForm({
@@ -181,7 +183,7 @@ export function Offerings() {
               ) : filtered.length === 0 ? (
                 <TableMessageRow cols={6}>{t('offerings.empty')}</TableMessageRow>
               ) : (
-                filtered.map((o) => (
+                rows.map((o) => (
                   <PageTableRow key={o.id}>
                     <PageTableTd>
                       <div className="font-semibold">{offeringLabel(o)}</div>
@@ -214,7 +216,7 @@ export function Offerings() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={offerings.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

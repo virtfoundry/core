@@ -18,6 +18,7 @@ export interface Tenant {
   slug: string;
   namespace: string;
   state: string;
+  created_at?: string;
 }
 
 export interface PlatformVM {
@@ -39,7 +40,11 @@ export interface PlatformVM {
   host_name?: string;
   service_offering_id?: string;
   tenant_id?: string;
-  nics?: Array<{ name: string; ip?: string; mac?: string; type?: string }>;
+  nics?: Array<{ name: string; ip?: string; mac?: string; type?: string; network_id?: string; nad_name?: string }>;
+  template_ref?: string;
+  vpc_id?: string;
+  /** SSHKey names injected at deploy (Instance.spec.sshKeyRefs). */
+  ssh_key_refs?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -52,6 +57,7 @@ export interface Volume {
   namespace: string;
   pvc_name: string;
   vm_id?: string;
+  created_at?: string;
 }
 
 export interface VPC {
@@ -72,6 +78,7 @@ export interface Network {
   nad_namespace?: string;
   nad_name?: string;
   state: string;
+  created_at?: string;
 }
 
 export interface CIDRBlock {
@@ -106,6 +113,7 @@ export interface SecurityGroup {
     port_to?: number;
     cidr: string;
   }>;
+  created_at?: string;
 }
 
 export interface Snapshot {
@@ -113,6 +121,7 @@ export interface Snapshot {
   name: string;
   volume_id: string;
   state: string;
+  created_at?: string;
 }
 
 export interface VMSnapshot {

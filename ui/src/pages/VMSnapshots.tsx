@@ -14,7 +14,7 @@ import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass,
 } from '../components/shell';
@@ -80,6 +80,8 @@ export function VMSnapshots() {
     }
   };
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('vmSnapshots.selectTenant')} />;
   }
@@ -123,7 +125,7 @@ export function VMSnapshots() {
               ) : filtered.length === 0 ? (
                 <TableMessageRow cols={5}>{t('vmSnapshots.empty')}</TableMessageRow>
               ) : (
-                filtered.map((snap) => (
+                rows.map((snap) => (
                   <PageTableRow key={snap.id}>
                     <PageTableTd className="font-semibold">{snap.name}</PageTableTd>
                     <PageTableTd mono>{snap.vm_name}</PageTableTd>
@@ -158,7 +160,7 @@ export function VMSnapshots() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={snapshots.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

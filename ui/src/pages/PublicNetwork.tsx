@@ -9,7 +9,7 @@ import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isPublicNetwork } from '../lib/networks';
 import {
-  PageHeader, SurfaceCard, EmptyState, TenantRequiredNotice, InfoBanner, TablePager,
+  PageHeader, SurfaceCard, EmptyState, TenantRequiredNotice, InfoBanner, TablePager, usePagination,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
@@ -26,6 +26,7 @@ export function PublicNetwork() {
   });
 
   const publicNet = (data?.networks ?? []).find(isPublicNetwork);
+  const { pager } = usePagination(publicNet ? [publicNet] : [], '');
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
@@ -97,7 +98,7 @@ export function PublicNetwork() {
                   </PageTableRow>
                 </PageTableBody>
               </PageTable>
-              <TablePager shown={1} total={1} />
+              <TablePager pager={pager} />
             </SurfaceCard>
 
             <InfoBanner>

@@ -22,7 +22,7 @@ import {
 import { resolveVKSVersionOptions } from '../lib/vks-catalog';
 import { findOfferingByName, offeringLabel } from '../lib/offerings';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
@@ -213,6 +213,8 @@ export function Clusters() {
     });
   };
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
@@ -253,6 +255,10 @@ export function Clusters() {
             progress={pct(readyWorkers, desiredWorkers)}
             variant="success"
           />
+          <StatsCard
+            title={t('vks.stat.vip')}
+            value={clusters.filter((c) => c.control_plane_endpoint).length}
+          />
         </section>
       )}
 
@@ -285,7 +291,7 @@ export function Clusters() {
               ) : filtered.length === 0 ? (
                 <TableMessageRow cols={8}>{t('vks.empty')}</TableMessageRow>
               ) : (
-                filtered.map((c) => (
+                rows.map((c) => (
                   <PageTableRow key={c.name}>
                     <PageTableTd>
                       <Link
@@ -330,7 +336,7 @@ export function Clusters() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={clusters.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

@@ -15,8 +15,9 @@ import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
+import { ago } from '../lib/ago';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formTextareaClass,
 } from '../components/shell';
@@ -24,7 +25,7 @@ import {
 const emptyForm = () => ({ name: '', description: '', rules: defaultSGRules() });
 
 export function SecurityGroups() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [editSg, setEditSg] = useState<SecurityGroup | null>(null);
@@ -71,6 +72,8 @@ export function SecurityGroups() {
   const groups = data?.security_groups || [];
   const filtered = groups.filter((g) => g.name?.toLowerCase().includes(search.toLowerCase()));
 
+  const { rows, pager } = usePagination(filtered, search);
+
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
@@ -104,15 +107,16 @@ export function SecurityGroups() {
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('sg.rulesInOut')}</PageTableTh>
+              <PageTableTh>{t('common.created')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={3}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={4}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={3}>{t('sg.empty')}</TableMessageRow>
+                <TableMessageRow cols={4}>{t('sg.empty')}</TableMessageRow>
               ) : (
-                filtered.map((sg) => {
+                rows.map((sg) => {
                   const rules = sg.rules ?? [];
                   const ingress = rules.filter((r) => r.direction?.toLowerCase().startsWith('in')).length;
                   return (
@@ -131,6 +135,7 @@ export function SecurityGroups() {
                         </div>
                       </PageTableTd>
                       <PageTableTd mono>{ingress} / {rules.length - ingress}</PageTableTd>
+                      <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(sg.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
@@ -158,7 +163,7 @@ export function SecurityGroups() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={groups.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 

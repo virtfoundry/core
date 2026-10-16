@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import {
-  listNetworks, createNetwork, updateNetwork, deleteNetwork, listVPCs, fetchNetworkCIDRPlan,
+  listNetworks, listVMs, createNetwork, updateNetwork, deleteNetwork, listVPCs, fetchNetworkCIDRPlan,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -18,7 +18,7 @@ import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
 import type { Network, VPC } from '../lib/platform-api';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, TableMessageRow,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, InfoBanner,
 } from '../components/shell';
@@ -49,6 +49,8 @@ export function Networks() {
     queryFn: listVPCs,
     enabled: !needsTenant,
   });
+
+  const { data: vmData } = useQuery({ queryKey: queryKeys.vms, queryFn: listVMs, enabled: !needsTenant });
 
   const { data: subnetPlan, isLoading: planLoading } = useQuery({
     queryKey: [...queryKeys.networks, 'cidr-plan', form.vpc_id, prefix],
@@ -97,6 +99,10 @@ export function Networks() {
   const isolatedNetworks = (data?.networks ?? []).filter(isIsolatedNetwork);
   const vpcs = vpcData?.vpcs ?? [];
   const filtered = isolatedNetworks.filter((n) => n.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const { rows, pager } = usePagination(filtered, search);
+  const vmCount = (net: Network) =>
+    (vmData?.vms ?? []).filter((vm) => vm.nics?.some((n) => n.network_id === net.id || (!!net.nad_name && n.nad_name === net.nad_name))).length;
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
@@ -155,18 +161,19 @@ export function Networks() {
               <PageTableTh>{t('networks.cidr')}</PageTableTh>
               <PageTableTh>{t('publicNetwork.gateway')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('networks.vms')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={6}>
+                <TableMessageRow cols={7}>
                   <p>{t('networks.empty')}</p>
                   <p className="text-sm mt-2 opacity-70">{t('networks.emptyHint')}</p>
                 </TableMessageRow>
               ) : (
-                filtered.map((net) => {
+                rows.map((net) => {
                   const vpc = vpcs.find((v) => v.id === net.vpc_id);
                   return (
                     <PageTableRow key={net.id}>
@@ -186,6 +193,7 @@ export function Networks() {
                       <PageTableTd>
                         <StatusBadge status={net.state || 'active'} pulse={false} />
                       </PageTableTd>
+                      <PageTableTd mono>{vmCount(net)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
@@ -208,7 +216,7 @@ export function Networks() {
               )}
             </PageTableBody>
           </PageTable>
-          <TablePager shown={filtered.length} total={isolatedNetworks.length} />
+          <TablePager pager={pager} />
         </SurfaceCard>
       </RefreshingPanel>
 
