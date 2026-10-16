@@ -154,7 +154,7 @@ export function Layout() {
           <button
             type="button"
             onClick={openCmd}
-            className="flex-1 basis-[260px] max-w-[460px] h-9 px-3 flex items-center gap-2.5 box-border border border-outline-variant rounded-lg bg-sunk text-on-surface-variant text-sm text-left hover:border-accent/50 transition-colors focus-visible:ring-2 focus-visible:ring-accent"
+            className="order-last basis-full md:order-none md:flex-1 md:basis-[260px] md:max-w-[460px] h-9 px-3 flex items-center gap-2.5 box-border border border-outline-variant rounded-lg bg-sunk text-on-surface-variant text-sm text-left hover:border-accent/50 transition-colors focus-visible:ring-2 focus-visible:ring-accent"
           >
             <Search size={16} strokeWidth={2} aria-hidden />
             <span className="flex-grow truncate">{t('topbar.search')}</span>

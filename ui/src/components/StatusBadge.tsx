@@ -65,7 +65,7 @@ export function StatusBadge({ status, className, pulse = true, tone, label: labe
       role="status"
       aria-label={label}
       className={clsx(
-        'inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[13px] font-sans font-medium',
+        'inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-[3px] rounded-full text-[13px] font-sans font-medium',
         style,
         className,
       )}

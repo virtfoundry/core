@@ -1,5 +1,5 @@
-import { HardDrive, Globe, Shield, Network, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import clsx from 'clsx';
+import { Plus } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getDashboardSummary } from '../lib/platform-api';
@@ -7,8 +7,11 @@ import { useNeedsTenant } from '../store/hooks';
 import { queryKeys } from '../lib/query-keys';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { useI18n } from '../lib/i18n';
-import { PageHeader, SurfaceCard } from '../components/shell';
-import { StatusBadge } from '../components/StatusBadge';
+import {
+  PageHeader, SurfaceCard, PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+} from '../components/shell';
+import { StatusBadge, toneClass, type StatusTone } from '../components/StatusBadge';
+import { StatsCard } from '../components/StatsCard';
 
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { getRecentActions } from '../lib/preview-prefs';
@@ -21,13 +24,13 @@ import {
 } from '../hooks/useRealtimeEvents';
 
 export function Dashboard() {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const needsTenant = useNeedsTenant();
   const enabled = !needsTenant;
   const wsConnected = useRealtimeConnected();
   const localRecent = useMemo(() => getRecentActions(), []);
 
-  const { data: summary, isFetching, isLoading } = useQuery({
+  const { data: summary, isLoading } = useQuery({
     queryKey: queryKeys.dashboardSummary,
     queryFn: getDashboardSummary,
     enabled,
@@ -47,10 +50,10 @@ export function Dashboard() {
   const runningPct = vms.total ? Math.round((running / vms.total) * 100) : 0;
 
   const stats = [
-    { label: t('nav.volumes'), value: summary?.volumes.total ?? 0, icon: HardDrive },
-    { label: t('nav.vpcs'), value: summary?.vpcs.total ?? 0, icon: Globe },
-    { label: t('nav.securityGroups'), value: summary?.security_groups.total ?? 0, icon: Shield },
-    { label: t('nav.networks'), value: summary?.networks.total ?? 0, icon: Network },
+    { label: t('nav.volumes'), value: summary?.volumes.total ?? 0 },
+    { label: t('nav.vpcs'), value: summary?.vpcs.total ?? 0 },
+    { label: t('nav.securityGroups'), value: summary?.security_groups.total ?? 0 },
+    { label: t('nav.networks'), value: summary?.networks.total ?? 0 },
   ];
 
   const recentVms = summary?.recent_activity ?? [];
@@ -63,121 +66,100 @@ export function Dashboard() {
     );
   }
 
-  const healthLabel =
-    summary?.health === 'critical'
-      ? `${errors} VM errors`
-      : summary?.health === 'warning'
-        ? 'Transitions in progress'
-        : 'All systems nominal';
+  const health: { tone: StatusTone; label: string } | null = !summary
+    ? null
+    : summary.health === 'critical' || errors > 0
+      ? { tone: 'bad', label: t('dashboard.healthCritical').replace('{n}', String(errors)) }
+      : summary.health === 'warning'
+        ? { tone: 'warn', label: t('dashboard.healthWarning') }
+        : { tone: 'ok', label: t('dashboard.healthOk') };
+
+  const ago = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : formatDistanceToNow(d, { addSuffix: true, locale: dateLocale });
+  };
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        title={t('nav.dashboard')}
+        title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
+        status={
+          health && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[13px] font-medium ${toneClass[health.tone]}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />
+              {health.label}
+            </span>
+          )
+        }
         actions={
-          <>
-            <Link to="/vms" className="btn-secondary">{t('dashboard.quickActions')}</Link>
-            <Link to="/vms" className="btn-primary">{t('dashboard.deployVm')}</Link>
-          </>
+          <Link to="/vms" className="btn-primary">
+            <Plus size={16} strokeWidth={2.2} aria-hidden />
+            {t('dashboard.newVm')}
+          </Link>
         }
       />
 
       <OnboardingChecklist />
 
       <RefreshingPanel isLoading={isLoading}>
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <div className="vf-card p-5 flex flex-col gap-3">
-            <p className="text-body-sm text-on-surface-variant">{t('nav.vms')}</p>
-            <p className="flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-medium tracking-tight text-on-surface">{running}</span>
-              <span className="text-body-sm text-on-surface-variant">/ {vms.total} {t('dashboard.running')}</span>
-            </p>
-            <div className="h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-              <div className="h-full bg-success transition-all duration-500" style={{ width: `${runningPct}%` }} />
-            </div>
-          </div>
-          {stats.map((stat) => (
-            <div key={stat.label} className="vf-card p-5 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-body-sm text-on-surface-variant">{stat.label}</p>
-                <span className="p-2 rounded-lg bg-primary-container/10 text-primary"><stat.icon size={16} /></span>
-              </div>
-              <p className="font-mono text-3xl font-medium tracking-tight text-on-surface">{stat.value}</p>
-            </div>
-          ))}
-        </section>
+        <div className="flex flex-col gap-6">
+          <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+            <StatsCard
+              title={t('dashboard.runningVms')}
+              value={running}
+              of={t('dashboard.of').replace('{n}', String(vms.total))}
+              progress={runningPct}
+              variant="success"
+            />
+            {stats.map((stat) => (
+              <StatsCard key={stat.label} title={stat.label} value={stat.value} />
+            ))}
+          </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-          <SurfaceCard className="lg:col-span-2" padding="none" title={t('nav.vms')}>
-            <ul className="divide-y divide-card-border">
-              {localRecent.map((r) => (
-                <li key={r.id}>
-                  <Link to={r.path} className="flex items-center gap-3 px-6 py-3 text-sm hover:bg-surface-container-low">
-                    <span className="w-2 h-2 rounded-full bg-primary-container shrink-0" />
-                    <span className="flex-1 truncate">{r.label}</span>
-                    <ComingSoonBadge label={t('preview.localOnly')} />
-                  </Link>
-                </li>
-              ))}
-              {recentVms.length === 0 && localRecent.length === 0 ? (
-                <li className="px-6 py-8 text-sm text-on-surface-variant">{t('dashboard.subtitle')}</li>
-              ) : (
-                recentVms.map((vm) => {
-                  const isError = vm.state?.toLowerCase() === 'error';
-                  const isRunning = vm.state?.toLowerCase() === 'running';
-                  const Icon = isError ? AlertTriangle : isRunning ? CheckCircle : RefreshCw;
-                  const iconClass = isError ? 'text-error' : isRunning ? 'text-success' : 'text-warning';
-                  return (
-                    <li key={vm.name}>
-                      <Link to={vm.path} className="flex items-center gap-3 px-6 py-3 hover:bg-surface-container-low transition-colors">
-                        <Icon size={16} className={clsx('shrink-0', iconClass)} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-medium text-on-surface truncate">{vm.display_name || vm.name}</span>
-                          <span className="block font-mono text-xs text-on-surface-variant truncate">{vm.name}</span>
-                        </span>
-                        <StatusBadge status={vm.state ?? ''} />
-                      </Link>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </SurfaceCard>
-
-          <div className="flex flex-col gap-4">
-            <SurfaceCard padding="lg" title="Health">
-              <div className="flex items-center gap-3">
-                <span
-                  className={clsx(
-                    'w-2.5 h-2.5 rounded-full',
-                    summary?.health === 'critical' || errors > 0 ? 'bg-error' : summary?.health === 'warning' ? 'bg-warning' : 'bg-success',
-                  )}
-                />
-                <span className="font-medium text-on-surface">{healthLabel}</span>
-              </div>
-              <Link to="/vms" className="mt-4 text-primary text-sm font-medium hover:underline inline-flex">
-                {t('nav.vms')} →
-              </Link>
-            </SurfaceCard>
-            <SurfaceCard padding="lg" title={t('dashboard.quickActions')}>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { to: '/vms', label: t('dashboard.deployVm') },
-                  { to: '/volumes', label: t('dashboard.createVolume') },
-                  { to: '/vpcs', label: t('dashboard.newVpc') },
-                  { to: '/snapshots', label: t('dashboard.snapshot') },
-                ].map((a) => (
-                  <Link key={a.to} to={a.to} className="btn-secondary h-9 text-sm">
-                    {a.label}
-                  </Link>
+          <SurfaceCard padding="none" title={t('dashboard.recentActivity')}>
+            <PageTable minWidth={560}>
+              <PageTableHead>
+                <PageTableTh>{t('dashboard.colResource')}</PageTableTh>
+                <PageTableTh>{t('dashboard.colType')}</PageTableTh>
+                <PageTableTh>{t('dashboard.colWhen')}</PageTableTh>
+                <PageTableTh>Status</PageTableTh>
+              </PageTableHead>
+              <PageTableBody>
+                {localRecent.map((r) => (
+                  <PageTableRow key={r.id}>
+                    <PageTableTd className="font-medium">
+                      <Link to={r.path} className="hover:underline">{r.label}</Link>
+                    </PageTableTd>
+                    <PageTableTd className="text-on-surface-variant">—</PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant">—</PageTableTd>
+                    <PageTableTd><ComingSoonBadge label={t('preview.localOnly')} /></PageTableTd>
+                  </PageTableRow>
                 ))}
-              </div>
-            </SurfaceCard>
-          </div>
+                {recentVms.map((vm) => (
+                  <PageTableRow key={vm.name}>
+                    <PageTableTd>
+                      <Link to={vm.path} className="font-medium hover:underline">{vm.display_name || vm.name}</Link>
+                      {vm.display_name && vm.display_name !== vm.name && (
+                        <div className="font-mono text-xs text-on-surface-variant">{vm.name}</div>
+                      )}
+                    </PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant uppercase">{vm.type || 'vm'}</PageTableTd>
+                    <PageTableTd mono className="text-on-surface-variant">{ago(vm.updated_at)}</PageTableTd>
+                    <PageTableTd><StatusBadge status={vm.state ?? ''} /></PageTableTd>
+                  </PageTableRow>
+                ))}
+                {recentVms.length === 0 && localRecent.length === 0 && (
+                  <PageTableRow>
+                    <PageTableTd colSpan={4} className="py-8 text-on-surface-variant">{t('dashboard.subtitle')}</PageTableTd>
+                  </PageTableRow>
+                )}
+              </PageTableBody>
+            </PageTable>
+          </SurfaceCard>
         </div>
       </RefreshingPanel>
     </div>
   );
 }
-
