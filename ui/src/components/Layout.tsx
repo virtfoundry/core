@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
-import { Menu, Moon, Search, Sun, X } from 'lucide-react';
+import { Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, X } from 'lucide-react';
 import { VirtFoundryLogo } from './VirtFoundryLogo';
 import { SidebarNav } from './SidebarNav';
 import { UserMenu } from './HeaderMenus';
@@ -134,7 +134,7 @@ export function Layout() {
             aria-label={sidebarOpen ? t('topbar.collapse') : t('topbar.expand')}
             className={iconBtn}
           >
-            {sidebarOpen ? <X size={16} className="hidden md:block" /> : <Menu size={16} className="hidden md:block" />}
+            {sidebarOpen ? <PanelLeftClose size={16} className="hidden md:block" /> : <PanelLeftOpen size={16} className="hidden md:block" />}
             <Menu size={16} className="md:hidden" />
           </button>
           <span className="md:hidden flex items-center gap-2.5 font-semibold text-base">
