@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { StatusBadge } from '../components/StatusBadge';
+import { StatsCard } from '../components/StatsCard';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
@@ -18,7 +19,7 @@ import {
 } from '../lib/vks-display';
 import { effectiveVmState, formatVmOffering } from '../lib/vm-display';
 import {
-  PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, InfoBanner,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, InfoBanner, KeyValueList, TerminalBlock,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
 } from '../components/shell';
 
@@ -124,41 +125,55 @@ export function VKSClusterDetail() {
 
   const endpoint = cluster.control_plane_endpoint || '—';
   const canKubeconfig = vksCanDownloadKubeconfig(cluster.phase);
+  const ageDays = cluster.created_at
+    ? Math.max(0, Math.floor((Date.now() - new Date(cluster.created_at).getTime()) / 86_400_000))
+    : null;
+  const kv = (k: string, v: string | number | undefined, mono = false) => ({ k, v: v || '—', mono });
 
   return (
     <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
       <div className="space-y-6">
-        <div>
-          <Link to="/clusters" className="mb-2 inline-flex items-center gap-2 text-sm text-primary-fixed-dim">
-            <ArrowLeft size={16} /> {t('vks.title')}
-          </Link>
-          <PageHeader
-            title={cluster.name}
-            subtitle={`${t('vks.detail.product')} · ${cluster.kubernetes_version || '—'}${endpoint !== '—' ? ` · ${endpoint}` : ''}`}
-            actions={
-              <>
-                <StatusBadge status={vksPhaseBadgeStatus(cluster.phase)} />
-                <RefreshButton
-                  compact
-                  onRefresh={() => refetch()}
-                  isFetching={isRefetching}
-                  dataUpdatedAt={dataUpdatedAt}
-                />
-                <button
-                  type="button"
-                  className="btn-outline-sm"
-                  disabled={!canKubeconfig || downloadMutation.isPending}
-                  onClick={() => downloadMutation.mutate()}
-                >
-                  <Download size={16} /> {t('vks.downloadKubeconfig')}
-                </button>
-                <button type="button" className="btn-outline-sm text-error" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 size={16} /> {t('common.delete')}
-                </button>
-              </>
-            }
+        <PageHeader
+          breadcrumb={`${t('vks.title')} / ${cluster.name}`}
+          title={cluster.name}
+          subtitle={`${t('vks.detail.product')} · ${cluster.kubernetes_version || '—'}`}
+          status={<StatusBadge status={vksPhaseBadgeStatus(cluster.phase)} />}
+          actions={
+            <>
+              <RefreshButton
+                compact
+                onRefresh={() => refetch()}
+                isFetching={isRefetching}
+                dataUpdatedAt={dataUpdatedAt}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={!canKubeconfig || downloadMutation.isPending}
+                onClick={() => downloadMutation.mutate()}
+              >
+                <Download size={16} /> {t('vks.downloadKubeconfig')}
+              </button>
+              <button type="button" className="btn-secondary !border-bad-fg !text-bad-fg" onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={16} /> {t('common.delete')}
+              </button>
+            </>
+          }
+        />
+
+        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+          <StatsCard
+            title={t('vks.detail.readyWorkers')}
+            value={cluster.ready_workers ?? 0}
+            of={`/ ${cluster.workers?.count ?? 0}`}
+            variant={cluster.workers?.count && cluster.ready_workers === cluster.workers.count ? 'success' : 'warning'}
+            progress={cluster.workers?.count ? ((cluster.ready_workers ?? 0) / cluster.workers.count) * 100 : 0}
           />
-        </div>
+          <StatsCard title={t('vks.detail.k8sVersion')} value={cluster.kubernetes_version || '—'} />
+          {ageDays !== null && (
+            <StatsCard title={t('vks.detail.age')} value={ageDays} of={t('vks.detail.days')} />
+          )}
+        </section>
 
         {!canKubeconfig && (
           <InfoBanner variant="warning">{t('vks.detail.kubeconfigWait')}</InfoBanner>
@@ -167,59 +182,27 @@ export function VKSClusterDetail() {
         <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
         {tab === 'overview' && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <SurfaceCard className="lg:col-span-2">
-              <h2 className="mb-4 font-headline text-headline-md font-semibold text-on-surface">
-                {t('vks.detail.clusterDetails')}
-              </h2>
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.name')}</dt>
-                  <dd className="font-mono text-on-surface">{cluster.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.status')}</dt>
-                  <dd className="text-on-surface">{cluster.phase || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.k8sVersion')}</dt>
-                  <dd className="font-mono text-on-surface">{cluster.kubernetes_version || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.controlPlane')}</dt>
-                  <dd className="text-on-surface">{t('vks.detail.controlPlaneManaged')}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.totalNodes')}</dt>
-                  <dd className="text-on-surface">
-                    {vksNodesLabel(cluster.ready_workers, cluster.workers?.count)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.tenantNs')}</dt>
-                  <dd className="font-mono text-xs text-on-surface">{cluster.namespace || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.createdAt')}</dt>
-                  <dd className="text-on-surface">{formatDate(cluster.created_at)}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.kubeconfigSecret')}</dt>
-                  <dd className="font-mono text-xs text-on-surface">
-                    {cluster.kubeconfig_secret_ref || '—'}
-                  </dd>
-                </div>
-              </dl>
+          <div className="flex flex-wrap gap-4 items-stretch [&>*]:flex-1 [&>*]:basis-[340px] [&>*]:min-w-0">
+            <SurfaceCard title={t('vks.detail.clusterDetails')}>
+              <KeyValueList
+                rows={[
+                  kv(t('vks.col.name'), cluster.name, true),
+                  kv(t('vks.col.status'), cluster.phase),
+                  kv(t('vks.detail.k8sVersion'), cluster.kubernetes_version, true),
+                  kv(t('vks.detail.controlPlane'), t('vks.detail.controlPlaneManaged')),
+                  kv(t('vks.detail.totalNodes'), vksNodesLabel(cluster.ready_workers, cluster.workers?.count)),
+                  kv(t('vks.detail.tenantNs'), cluster.namespace, true),
+                  kv(t('vks.detail.createdAt'), formatDate(cluster.created_at)),
+                  kv(t('vks.detail.kubeconfigSecret'), cluster.kubeconfig_secret_ref, true),
+                ]}
+              />
             </SurfaceCard>
 
-            <SurfaceCard>
-              <h2 className="mb-4 font-headline text-headline-md font-semibold text-on-surface">
-                {t('vks.detail.credentials')}
-              </h2>
-              <p className="mb-4 text-sm text-on-surface-variant">{t('vks.detail.credentialsHint')}</p>
+            <SurfaceCard title={t('vks.detail.credentials')}>
+              <p className="mt-0 mb-4 text-sm text-on-surface-variant">{t('vks.detail.credentialsHint')}</p>
               <button
                 type="button"
-                className="btn-primary w-full justify-center"
+                className="btn-primary w-full"
                 disabled={!canKubeconfig || downloadMutation.isPending}
                 onClick={() => downloadMutation.mutate()}
               >
@@ -227,14 +210,14 @@ export function VKSClusterDetail() {
               </button>
               {endpoint !== '—' && (
                 <div className="mt-4">
-                  <p className="mb-1 text-xs text-on-surface-variant">{t('vks.col.location')}</p>
+                  <p className="mt-0 mb-1.5 text-[13px] text-on-surface-variant">{t('vks.col.location')}</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 truncate rounded bg-surface-container px-2 py-1 font-mono text-xs">
+                    <code className="flex-1 truncate rounded-lg bg-sunk px-3 py-2 font-mono text-[13px]">
                       {endpoint}
                     </code>
                     <button
                       type="button"
-                      className="btn-outline-sm"
+                      className="btn-secondary !px-3"
                       onClick={() => {
                         resetCopy();
                         void copy(endpoint);
@@ -247,64 +230,38 @@ export function VKSClusterDetail() {
                 </div>
               )}
             </SurfaceCard>
+
+            {canKubeconfig && (
+              <SurfaceCard title={t('vks.detail.access')} className="!basis-full">
+                <TerminalBlock
+                  lines={[
+                    { text: `$ kubectl --kubeconfig ${cluster.name}.kubeconfig get nodes` },
+                    { text: 'NAME   STATUS   ROLES   AGE   VERSION', tone: 'muted' },
+                  ]}
+                />
+              </SurfaceCard>
+            )}
           </div>
         )}
 
         {tab === 'nodes' && (
-          <div className="space-y-6">
-            <SurfaceCard>
-              <h2 className="mb-2 font-headline text-headline-md font-semibold text-on-surface">
-                {t('vks.detail.nodePool')}
-              </h2>
-              <p className="mb-4 text-sm text-on-surface-variant">{t('vks.detail.nodePoolHint')}</p>
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.poolName')}</dt>
-                  <dd className="font-mono text-on-surface">default-pool</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.nodes')}</dt>
-                  <dd className="text-on-surface">
-                    {vksNodesLabel(cluster.ready_workers, cluster.workers?.count)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.machineType')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.workers?.offering_ref?.name || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.nodeImage')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.workers?.template_ref?.name || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.form.workers')}</dt>
-                  <dd className="text-on-surface">{cluster.workers?.count ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.network')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.workers?.network_ref?.name || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.sshKeys')}</dt>
-                  <dd className="font-mono text-xs text-on-surface">
-                    {(cluster.workers?.ssh_key_refs || []).map((r) => r.name).join(', ') || '—'}
-                  </dd>
-                </div>
-              </dl>
+          <div className="space-y-4">
+            <SurfaceCard title={t('vks.detail.nodePool')}>
+              <p className="mt-0 mb-4 text-sm text-on-surface-variant">{t('vks.detail.nodePoolHint')}</p>
+              <KeyValueList
+                rows={[
+                  kv(t('vks.detail.poolName'), 'default-pool', true),
+                  kv(t('vks.col.nodes'), vksNodesLabel(cluster.ready_workers, cluster.workers?.count)),
+                  kv(t('vks.col.machineType'), cluster.workers?.offering_ref?.name, true),
+                  kv(t('vks.detail.nodeImage'), cluster.workers?.template_ref?.name, true),
+                  kv(t('vks.form.workers'), cluster.workers?.count ?? '—'),
+                  kv(t('vks.col.network'), cluster.workers?.network_ref?.name, true),
+                  kv(t('vks.detail.sshKeys'), (cluster.workers?.ssh_key_refs || []).map((r) => r.name).join(', '), true),
+                ]}
+              />
             </SurfaceCard>
 
-            <SurfaceCard padding="none" className="overflow-hidden">
-              <div className="border-b border-outline-variant/40 px-6 py-4">
-                <h2 className="font-headline text-headline-md font-semibold text-on-surface">
-                  {t('vks.detail.workerInstances')}
-                </h2>
-              </div>
+            <SurfaceCard padding="none" title={t('vks.detail.workerInstances')}>
               {vmsLoading ? (
                 <p className="px-6 py-8 text-sm text-on-surface-variant">{t('common.loading')}</p>
               ) : vmsIsError ? (
@@ -352,7 +309,7 @@ export function VKSClusterDetail() {
         )}
 
         {tab === 'workloads' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {!canKubeconfig ? (
               <InfoBanner variant="warning">{t('vks.detail.workloadsWait')}</InfoBanner>
             ) : summaryIsError ? (
@@ -377,11 +334,8 @@ export function VKSClusterDetail() {
                 {summary?.message && (
                   <InfoBanner variant="warning">{summary.message}</InfoBanner>
                 )}
-                <SurfaceCard>
-                  <h2 className="mb-2 font-headline text-headline-md font-semibold text-on-surface">
-                    {t('vks.detail.podTotals')}
-                  </h2>
-                  <p className="mb-4 text-sm text-on-surface-variant">{t('vks.detail.workloadsHint')}</p>
+                <SurfaceCard title={t('vks.detail.podTotals')}>
+                  <p className="mt-0 mb-4 text-sm text-on-surface-variant">{t('vks.detail.workloadsHint')}</p>
                   <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
                     <div>
                       <dt className="text-on-surface-variant">{t('vks.detail.podRunning')}</dt>
@@ -410,12 +364,7 @@ export function VKSClusterDetail() {
                   </dl>
                 </SurfaceCard>
 
-                <SurfaceCard padding="none" className="overflow-hidden">
-                  <div className="border-b border-outline-variant/40 px-6 py-4">
-                    <h2 className="font-headline text-headline-md font-semibold text-on-surface">
-                      {t('vks.detail.namespaces')}
-                    </h2>
-                  </div>
+                <SurfaceCard padding="none" title={t('vks.detail.namespaces')}>
                   {(summary?.namespaces || []).length === 0 ? (
                     <p className="px-6 py-8 text-sm text-on-surface-variant">
                       {t('vks.detail.noNamespaces')}
@@ -438,12 +387,7 @@ export function VKSClusterDetail() {
                   )}
                 </SurfaceCard>
 
-                <SurfaceCard padding="none" className="overflow-hidden">
-                  <div className="border-b border-outline-variant/40 px-6 py-4">
-                    <h2 className="font-headline text-headline-md font-semibold text-on-surface">
-                      {t('vks.detail.guestNodes')}
-                    </h2>
-                  </div>
+                <SurfaceCard padding="none" title={t('vks.detail.guestNodes')}>
                   {(summary?.guest_nodes || []).length === 0 ? (
                     <p className="px-6 py-8 text-sm text-on-surface-variant">
                       {t('vks.detail.noGuestNodes')}
@@ -476,69 +420,35 @@ export function VKSClusterDetail() {
         )}
 
         {tab === 'networking' && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <SurfaceCard>
-              <h2 className="mb-4 font-headline text-headline-md font-semibold text-on-surface">
-                {t('vks.detail.apiAccess')}
-              </h2>
-              <dl className="grid grid-cols-1 gap-y-4 text-sm">
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.location')}</dt>
-                  <dd className="font-mono text-on-surface">{endpoint}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.serviceType')}</dt>
-                  <dd className="text-on-surface">
-                    {cluster.control_plane?.service_type || 'LoadBalancer'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.advertisedAddress')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.control_plane?.address || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.form.nodePort')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.control_plane?.port || '—'}
-                  </dd>
-                </div>
-              </dl>
+          <div className="flex flex-wrap gap-4 items-stretch [&>*]:flex-1 [&>*]:basis-[340px] [&>*]:min-w-0">
+            <SurfaceCard title={t('vks.detail.apiAccess')}>
+              <KeyValueList
+                rows={[
+                  kv(t('vks.col.location'), endpoint, true),
+                  kv(t('vks.detail.serviceType'), cluster.control_plane?.service_type || 'LoadBalancer'),
+                  kv(t('vks.detail.advertisedAddress'), cluster.control_plane?.address, true),
+                  kv(t('vks.form.nodePort'), cluster.control_plane?.port, true),
+                ]}
+              />
             </SurfaceCard>
-            <SurfaceCard>
-              <h2 className="mb-4 font-headline text-headline-md font-semibold text-on-surface">
-                {t('vks.detail.vpcNetwork')}
-              </h2>
-              <dl className="grid grid-cols-1 gap-y-4 text-sm">
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.col.network')}</dt>
-                  <dd className="font-mono text-on-surface">
-                    {cluster.workers?.network_ref?.name || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.tcpHost')}</dt>
-                  <dd className="font-mono text-xs text-on-surface">
-                    {cluster.tcp_namespace && cluster.tcp_name
-                      ? `${cluster.tcp_namespace}/${cluster.tcp_name}`
-                      : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">{t('vks.detail.cni')}</dt>
-                  <dd className="text-on-surface">{t('vks.detail.cniFlannel')}</dd>
-                </div>
-              </dl>
+            <SurfaceCard title={t('vks.detail.vpcNetwork')}>
+              <KeyValueList
+                rows={[
+                  kv(t('vks.col.network'), cluster.workers?.network_ref?.name, true),
+                  kv(
+                    t('vks.detail.tcpHost'),
+                    cluster.tcp_namespace && cluster.tcp_name ? `${cluster.tcp_namespace}/${cluster.tcp_name}` : undefined,
+                    true,
+                  ),
+                  kv(t('vks.detail.cni'), t('vks.detail.cniFlannel')),
+                ]}
+              />
             </SurfaceCard>
           </div>
         )}
 
         {tab === 'status' && (
-          <SurfaceCard>
-            <h2 className="mb-4 font-headline text-headline-md font-semibold text-on-surface">
-              {t('vks.detail.conditions')}
-            </h2>
+          <SurfaceCard title={t('vks.detail.conditions')}>
             {(cluster.conditions || []).length === 0 ? (
               <p className="text-sm text-on-surface-variant">{t('vks.detail.noConditions')}</p>
             ) : (
@@ -546,7 +456,7 @@ export function VKSClusterDetail() {
                 {(cluster.conditions || []).map((cond) => (
                   <li
                     key={cond.type}
-                    className="rounded-lg border border-outline-variant/40 bg-surface-container/40 px-4 py-3"
+                    className="rounded-[10px] border border-outline-variant bg-sunk px-4 py-3"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-sm font-medium text-on-surface">{cond.type}</span>

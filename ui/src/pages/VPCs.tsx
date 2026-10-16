@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
-import { listVPCs, createVPC, updateVPC, deleteVPC, fetchVPCCIDRPlan } from '../lib/platform-api';
+import { Plus, Network as NetworkIcon } from 'lucide-react';
+import { listVPCs, listNetworks, createVPC, updateVPC, deleteVPC, fetchVPCCIDRPlan } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
@@ -9,15 +9,13 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { CIDRPicker } from '../components/CIDRPicker';
 import { ResourceActions } from '../components/ResourceActions';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import type { VPC } from '../lib/platform-api';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice, formInputClass, InfoBanner,
-  PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
+  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice, formInputClass, formLabelClass, InfoBanner, EmptyState,
 } from '../components/shell';
-import { StatusBadge } from '../components/StatusBadge';
+import { StatsCard } from '../components/StatsCard';
 
 export function VPCs() {
   const { t } = useI18n();
@@ -30,9 +28,15 @@ export function VPCs() {
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vpcs,
     queryFn: listVPCs,
+    enabled: !needsTenant,
+  });
+
+  const { data: netData } = useQuery({
+    queryKey: queryKeys.networks,
+    queryFn: listNetworks,
     enabled: !needsTenant,
   });
 
@@ -83,6 +87,8 @@ export function VPCs() {
 
   const vpcs = data?.vpcs || [];
   const filtered = vpcs.filter((v) => v.name.toLowerCase().includes(search.toLowerCase()));
+  const subnetsOf = (id: string) => (netData?.networks || []).filter((n) => n.vpc_id === id);
+  const subnetCount = vpcs.reduce((acc, v) => acc + subnetsOf(v.id).length, 0);
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
@@ -103,47 +109,66 @@ export function VPCs() {
         }
       />
 
+      <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+        <StatsCard title="VPCs" value={vpcs.length} />
+        {netData && <StatsCard title={t('vpcs.subnets')} value={subnetCount} />}
+      </section>
+
       <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
 
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-      <SurfaceCard padding="none" className="overflow-hidden">
-        <PageTable>
-          <PageTableHead>
-            <PageTableTh>{t('common.name')}</PageTableTh>
-            <PageTableTh>{t('common.state')}</PageTableTh>
-            <PageTableTh>{t('vpcs.privateNet')}</PageTableTh>
-            <PageTableTh>CIDR</PageTableTh>
-            <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
-          </PageTableHead>
-          <PageTableBody>
-            {isLoading ? (
-              <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-12 text-on-surface-variant">{t('vpcs.empty')}</td></tr>
-            ) : (
-              filtered.map((vpc) => (
-                <PageTableRow key={vpc.id}>
-                  <PageTableTd className="font-medium">{vpc.name}</PageTableTd>
-                  <PageTableTd>
-                    <StatusBadge status={vpc.state || 'active'} pulse={false} />
-                  </PageTableTd>
-                  <PageTableTd className="text-on-surface-variant text-sm">{t('vpcs.privateNet')}</PageTableTd>
-                  <PageTableTd className="font-data-mono text-primary-fixed-dim">{vpc.cidr}</PageTableTd>
-                  <PageTableTd>
-                    <ResourceActions
-                      variant="inline"
-                      editLabel={t('common.edit')}
-                      deleteLabel={t('common.delete')}
-                      onEdit={() => setEditVpc(vpc)}
-                      onDelete={() => setDeleteTarget({ id: vpc.id, name: vpc.name })}
-                    />
-                  </PageTableTd>
-                </PageTableRow>
-              ))
-            )}
-          </PageTableBody>
-        </PageTable>
-      </SurfaceCard>
+        {isLoading ? (
+          <p className="text-center py-12 text-on-surface-variant">{t('common.loading')}</p>
+        ) : filtered.length === 0 ? (
+          <SurfaceCard>
+            <EmptyState icon={<NetworkIcon />} title={t('vpcs.empty')} />
+          </SurfaceCard>
+        ) : (
+          <div className="flex flex-wrap gap-4 items-stretch">
+            {filtered.map((vpc) => {
+              const subnets = subnetsOf(vpc.id);
+              return (
+                <SurfaceCard
+                  key={vpc.id}
+                  className="flex-1 basis-[420px] min-w-0"
+                  title={vpc.name}
+                  headerAction={
+                    <>
+                      <span className="font-mono text-[13px] text-on-surface-variant">{vpc.cidr}</span>
+                      <ResourceActions
+                        variant="inline"
+                        editLabel={t('common.edit')}
+                        deleteLabel={t('common.delete')}
+                        onEdit={() => setEditVpc(vpc)}
+                        onDelete={() => setDeleteTarget({ id: vpc.id, name: vpc.name })}
+                      />
+                    </>
+                  }
+                >
+                  {subnets.length === 0 ? (
+                    <p className="m-0 text-sm text-on-surface-variant">{t('vpcs.noSubnets')}</p>
+                  ) : (
+                    <ul className="m-0 p-0 list-none flex flex-col">
+                      {subnets.map((n) => (
+                        <li key={n.id} className="flex items-center gap-3 px-2 py-2.5 rounded-lg">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${n.state === 'active' || n.state === 'Ready' ? 'bg-ok-fg' : 'bg-off-fg'}`}
+                            aria-hidden
+                          />
+                          <span className="flex-1 min-w-0 flex flex-col">
+                            <span className="font-medium">{n.name}</span>
+                            <span className="font-mono text-xs text-on-surface-variant">{n.cidr}</span>
+                          </span>
+                          <span className="font-mono text-xs text-on-surface-variant">NAD</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </SurfaceCard>
+              );
+            })}
+          </div>
+        )}
       </RefreshingPanel>
 
       <ConfirmDialog
@@ -170,12 +195,12 @@ export function VPCs() {
           className="space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+            <label className={formLabelClass}>{t('common.name')}</label>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               className={formInputClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">{t('vpcs.cidrLabel')}</label>
+            <label className={formLabelClass}>{t('vpcs.cidrLabel')}</label>
             <p className="text-xs text-on-surface-variant mb-2">{t('vpcs.cidrHint')}</p>
             <InfoBanner className="mb-3 text-xs">{t('vpcs.defaultSubnetInfo')}</InfoBanner>
             <CIDRPicker
@@ -209,7 +234,7 @@ export function VPCs() {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium mb-1">{t('common.name')}</label>
+              <label className={formLabelClass}>{t('common.name')}</label>
               <input required value={editVpc.name} onChange={(e) => setEditVpc({ ...editVpc, name: e.target.value })}
                 className={formInputClass} />
             </div>
