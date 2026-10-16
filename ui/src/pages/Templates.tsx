@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, LayoutGrid, List, Rocket } from 'lucide-react';
+import { Plus, LayoutGrid, List, Rocket, Pencil, Trash2 } from 'lucide-react';
 import {
   listVMTemplates, createVMTemplate, updateVMTemplate, deleteVMTemplate,
 } from '../lib/platform-api';
@@ -10,7 +10,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DeployVMWizard } from '../components/DeployVMWizard';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
-import { ResourceActions } from '../components/ResourceActions';
+import { OverflowMenu } from '../components/OverflowMenu';
+import { StatusBadge } from '../components/StatusBadge';
 import { queryKeys } from '../lib/query-keys';
 import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
@@ -21,11 +22,13 @@ import {
   useRealtimeConnected,
 } from '../hooks/useRealtimeEvents';
 import {
-  PageHeader, SearchField, SurfaceCard, TenantRequiredNotice,
+  PageHeader, SurfaceCard, TenantRequiredNotice, TabBar, TableToolbar, TableFilter, TablePager, TableMessageRow, toolbarBtnClass,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, formSelectClass, formTextareaClass,
 } from '../components/shell';
 import clsx from 'clsx';
+
+type Scope = 'all' | 'system' | 'custom';
 
 type TemplateForm = {
   name: string;
@@ -60,7 +63,8 @@ const emptyForm = (): TemplateForm => ({
 export function Templates() {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<'gallery' | 'list'>('gallery');
+  const [view, setView] = useState<'gallery' | 'list'>('list');
+  const [scope, setScope] = useState<Scope>('all');
   const [createModal, setCreateModal] = useState(false);
   const [editTmpl, setEditTmpl] = useState<VMTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -114,39 +118,45 @@ export function Templates() {
   });
 
   const templates = data?.vm_templates || [];
-  const filtered = templates.filter((tmpl) =>
-    tmpl.display_name?.toLowerCase().includes(search.toLowerCase()) ||
-    tmpl.name?.toLowerCase().includes(search.toLowerCase()) ||
-    tmpl.image?.toLowerCase().includes(search.toLowerCase())
+  const q = search.toLowerCase();
+  const byScope = templates.filter((tmpl) =>
+    scope === 'all' ? true : scope === 'system' ? !tmpl.tenant_id : !!tmpl.tenant_id,
   );
+  const filtered = byScope.filter((tmpl) =>
+    tmpl.display_name?.toLowerCase().includes(q) ||
+    tmpl.name?.toLowerCase().includes(q) ||
+    tmpl.image?.toLowerCase().includes(q)
+  );
+  const scopeTabs = [
+    { id: 'all' as Scope, label: t('templates.scopeAll'), count: templates.length },
+    { id: 'system' as Scope, label: t('templates.scopeSystem'), count: templates.filter((x) => !x.tenant_id).length },
+    { id: 'custom' as Scope, label: t('templates.scopeCustom'), count: templates.filter((x) => !!x.tenant_id).length },
+  ];
 
   if (needsTenant) {
     return <TenantRequiredNotice message={t('common.selectTenant')} />;
   }
 
+  const viewBtn = (id: 'gallery' | 'list', Icon: typeof List, label: string) => (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={view === id}
+      onClick={() => setView(id)}
+      className={clsx(toolbarBtnClass, '!px-2', view === id && '!bg-accent-soft !text-link !border-accent/40')}
+    >
+      <Icon size={14} />
+    </button>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={t('templates.title')}
-        subtitle={`${templates.length} ${t('templates.subtitle')}`}
+        subtitle={t('templates.hint')}
         actions={
           <>
-            <div className="inline-flex rounded-lg border border-outline-variant overflow-hidden">
-              <button
-                type="button"
-                className={clsx('px-3 py-1.5 text-sm inline-flex items-center gap-1', view === 'gallery' ? 'bg-primary-container/25 text-primary' : 'text-on-surface-variant')}
-                onClick={() => setView('gallery')}
-              >
-                <LayoutGrid size={14} /> {t('templates.gallery')}
-              </button>
-              <button
-                type="button"
-                className={clsx('px-3 py-1.5 text-sm inline-flex items-center gap-1', view === 'list' ? 'bg-primary-container/25 text-primary' : 'text-on-surface-variant')}
-                onClick={() => setView('list')}
-              >
-                <List size={14} /> {t('templates.list')}
-              </button>
-            </div>
             <RefreshButton onRefresh={() => refetch()} isFetching={isRefetching} dataUpdatedAt={dataUpdatedAt} />
             <button type="button" onClick={() => setCreateModal(true)} className="btn-primary">
               <Plus size={18} /> {t('templates.create')}
@@ -155,112 +165,119 @@ export function Templates() {
         }
       />
 
-      <p className="text-sm text-on-surface-variant">{t('templates.hint')}</p>
-
-      <SearchField value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t('common.search')}...`} />
-
       <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
-        {view === 'gallery' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading && <p className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</p>}
-            {!isLoading && filtered.length === 0 && (
-              <p className="col-span-full text-center py-12 text-on-surface-variant">{t('templates.empty')}</p>
-            )}
-            {filtered.map((tmpl) => (
-              <SurfaceCard key={tmpl.id} padding="md" className="flex flex-col">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl border border-outline-variant bg-surface-container-high flex items-center justify-center font-mono text-xs text-primary shrink-0">
-                    {(tmpl.os_type || 'linux').slice(0, 3).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-medium text-on-surface truncate">{tmpl.display_name || tmpl.name}</h3>
-                    <p className="text-xs font-data-mono text-on-surface-variant truncate">{tmpl.name}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-on-surface-variant line-clamp-2 mb-2">{tmpl.description || tmpl.image}</p>
-                <p className="text-[11px] text-on-surface-variant mb-3">
-                  {t('templates.minOffering')}: {tmpl.boot_disk_size_gi ? `${tmpl.boot_disk_size_gi} Gi` : 'small+'}
-                </p>
-                <button
-                  type="button"
-                  className="btn-primary mt-auto justify-center text-sm"
-                  onClick={() => setDeployOpen(true)}
-                >
-                  <Rocket size={14} /> {t('templates.deploy')}
-                </button>
-              </SurfaceCard>
-            ))}
-          </div>
-        ) : (
         <SurfaceCard padding="none" className="overflow-hidden">
-          <PageTable>
-            <PageTableHead>
-              <PageTableTh>{t('templates.displayName')}</PageTableTh>
-              <PageTableTh>{t('common.name')}</PageTableTh>
-              <PageTableTh>{t('templates.imageUrl')}</PageTableTh>
-              <PageTableTh>OS</PageTableTh>
-              <PageTableTh>{t('templates.sourceType')}</PageTableTh>
-              <PageTableTh>{t('common.state')}</PageTableTh>
-              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
-            </PageTableHead>
-            <PageTableBody>
-              {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('common.loading')}</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-on-surface-variant">{t('templates.empty')}</td></tr>
-              ) : (
-                filtered.map((tmpl) => (
-                  <PageTableRow key={tmpl.id}>
-                    <PageTableTd>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{tmpl.display_name}</span>
-                        {!tmpl.tenant_id && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
-                            {t('templates.platformBadge')}
-                          </span>
-                        )}
-                      </div>
-                    </PageTableTd>
-                    <PageTableTd className="text-on-surface-variant text-xs font-data-mono">{tmpl.name}</PageTableTd>
-                    <PageTableTd className="font-data-mono text-xs text-on-surface-variant max-w-xs truncate" title={tmpl.image}>
-                      {tmpl.image}
-                    </PageTableTd>
-                    <PageTableTd>{tmpl.os_type || 'linux'}</PageTableTd>
-                    <PageTableTd>{tmpl.source_type || 'container'}</PageTableTd>
-                    <PageTableTd>
-                      {isTemplateImporting(tmpl.import_state) ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-warning">
-                          <Loader2 size={12} className="animate-spin" />
-                          {tmpl.import_state}
-                        </span>
-                      ) : tmpl.import_state === 'failed' ? (
-                        <span className="text-xs text-error">{tmpl.import_state}</span>
-                      ) : (
-                        <span className="text-xs text-on-surface-variant">
-                          {tmpl.cloud_init_user_data && tmpl.source_type !== 'iso' ? t('templates.cloudInit') : '—'}
-                        </span>
-                      )}
-                    </PageTableTd>
-                    <PageTableTd>
-                      {tmpl.tenant_id ? (
-                        <ResourceActions
-                          variant="inline"
-                          editLabel={t('common.edit')}
-                          deleteLabel={t('common.delete')}
-                          onEdit={() => setEditTmpl({ ...tmpl })}
-                          onDelete={() => setDeleteTarget({ id: tmpl.id, name: tmpl.display_name })}
-                        />
-                      ) : (
-                        <span className="text-xs text-on-surface-variant/70">{t('templates.platformReadOnly')}</span>
-                      )}
-                    </PageTableTd>
-                  </PageTableRow>
-                ))
+          <TableToolbar tabs={<TabBar variant="inline" tabs={scopeTabs} active={scope} onChange={setScope} />}>
+            <TableFilter
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('table.filter')}
+              aria-label={t('table.filter')}
+            />
+            <div className="inline-flex gap-1.5">
+              {viewBtn('list', List, t('templates.list'))}
+              {viewBtn('gallery', LayoutGrid, t('templates.gallery'))}
+            </div>
+          </TableToolbar>
+          {view === 'gallery' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5">
+              {isLoading && <p className="col-span-full text-center py-12 text-on-surface-variant">{t('common.loading')}</p>}
+              {!isLoading && filtered.length === 0 && (
+                <p className="col-span-full text-center py-12 text-on-surface-variant">{t('templates.empty')}</p>
               )}
-            </PageTableBody>
-          </PageTable>
+              {filtered.map((tmpl) => (
+                <div key={tmpl.id} className="flex flex-col rounded-xl border border-outline-variant bg-card p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-xl border border-outline-variant bg-sunk flex items-center justify-center font-mono text-xs text-link shrink-0">
+                      {(tmpl.os_type || 'linux').slice(0, 3).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-on-surface truncate m-0">{tmpl.display_name || tmpl.name}</h3>
+                      <p className="text-xs font-mono text-on-surface-variant truncate m-0">{tmpl.name}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-on-surface-variant line-clamp-2 mb-2">{tmpl.description || tmpl.image}</p>
+                  <p className="text-[11px] text-on-surface-variant mb-3">
+                    {t('templates.minOffering')}: {tmpl.boot_disk_size_gi ? `${tmpl.boot_disk_size_gi} Gi` : 'small+'}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-primary mt-auto justify-center text-sm"
+                    onClick={() => setDeployOpen(true)}
+                  >
+                    <Rocket size={14} /> {t('templates.deploy')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PageTable minWidth={820}>
+              <PageTableHead>
+                <PageTableTh>{t('common.name')}</PageTableTh>
+                <PageTableTh>{t('templates.sourceType')}</PageTableTh>
+                <PageTableTh>{t('templates.defaultDisk')}</PageTableTh>
+                <PageTableTh>{t('common.state')}</PageTableTh>
+                <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
+              </PageTableHead>
+              <PageTableBody>
+                {isLoading ? (
+                  <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
+                ) : filtered.length === 0 ? (
+                  <TableMessageRow cols={5}>{t('templates.empty')}</TableMessageRow>
+                ) : (
+                  filtered.map((tmpl) => (
+                    <PageTableRow key={tmpl.id}>
+                      <PageTableTd>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold">{tmpl.display_name || tmpl.name}</span>
+                          {!tmpl.tenant_id && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-off-bg text-off-fg font-medium">
+                              {t('templates.platformBadge')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-mono text-xs text-on-surface-variant max-w-xs truncate" title={tmpl.image}>
+                          {tmpl.name}
+                        </div>
+                      </PageTableTd>
+                      <PageTableTd>{tmpl.source_type || 'container'}</PageTableTd>
+                      <PageTableTd mono>{tmpl.boot_disk_size_gi ? `${tmpl.boot_disk_size_gi} GiB` : '—'}</PageTableTd>
+                      <PageTableTd>
+                        {isTemplateImporting(tmpl.import_state) ? (
+                          <StatusBadge status="creating" tone="warn" label={tmpl.import_state} />
+                        ) : tmpl.import_state === 'failed' ? (
+                          <StatusBadge status="error" label={tmpl.import_state} pulse={false} />
+                        ) : (
+                          <StatusBadge status="active" tone="ok" label={t('templates.ready')} pulse={false} />
+                        )}
+                      </PageTableTd>
+                      <PageTableTd className="text-right">
+                        <OverflowMenu
+                          variant="dots"
+                          label={t('table.moreActions')}
+                          items={[
+                            { id: 'deploy', label: t('templates.deploy'), icon: <Rocket size={14} />, onSelect: () => setDeployOpen(true) },
+                            ...(tmpl.tenant_id ? [
+                              { id: 'edit', label: t('common.edit'), icon: <Pencil size={14} />, onSelect: () => setEditTmpl({ ...tmpl }) },
+                              {
+                                id: 'delete',
+                                label: t('common.delete'),
+                                icon: <Trash2 size={14} />,
+                                danger: true,
+                                onSelect: () => setDeleteTarget({ id: tmpl.id, name: tmpl.display_name }),
+                              },
+                            ] : []),
+                          ]}
+                        />
+                      </PageTableTd>
+                    </PageTableRow>
+                  ))
+                )}
+              </PageTableBody>
+            </PageTable>
+          )}
+          {view === 'list' && <TablePager shown={filtered.length} total={byScope.length} />}
         </SurfaceCard>
-        )}
       </RefreshingPanel>
 
       <DeployVMWizard open={deployOpen} onClose={() => setDeployOpen(false)} />

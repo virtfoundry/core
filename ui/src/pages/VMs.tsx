@@ -13,6 +13,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DeployVMWizard } from '../components/DeployVMWizard';
 import { ComingSoonBadge } from '../components/ComingSoonBadge';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { ago } from '../lib/ago';
 import { openConsole } from '../lib/console-url';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
@@ -24,7 +25,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectUser } from '../store/authSlice';
 import { useI18n } from '../lib/i18n';
 import {
-  PageHeader, SurfaceCard, SearchField, TenantRequiredNotice, EmptyState,
+  PageHeader, SurfaceCard, TenantRequiredNotice, EmptyState, TabBar, TableToolbar, TableFilter, TablePager, toolbarBtnClass,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
   formInputClass, InfoBanner,
 } from '../components/shell';
@@ -54,7 +55,7 @@ type BulkProgress = {
 } | null;
 
 export function VMs() {
-  const { t, locale } = useI18n();
+  const { t, locale, dateLocale } = useI18n();
   const user = useAppSelector(selectUser);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<StateFilter>('all');
@@ -316,11 +317,11 @@ export function VMs() {
   }
 
   return (
-    <div className={clsx('space-y-6', split && 'xl:grid xl:grid-cols-5 xl:gap-6 xl:space-y-0')}>
-      <div className={clsx('space-y-6', split && 'xl:col-span-3')}>
+    <div className={clsx('flex flex-col gap-6', split && 'xl:grid xl:grid-cols-5 xl:gap-6 xl:space-y-0')}>
+      <div className={clsx('flex flex-col gap-6', split && 'xl:col-span-3')}>
         <PageHeader
           title={t('nav.vms')}
-          subtitle={`${vms.length} ${t('vms.subtitle')}`}
+          subtitle={t('vms.summary').replace('{total}', String(vms.length)).replace('{running}', String(filterCounts.running)).replace('{error}', String(filterCounts.error))}
           actions={
             <>
               <RefreshButton
@@ -372,57 +373,6 @@ export function VMs() {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
-          <SearchField
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('vms.searchPlaceholder')}
-            containerClassName="flex-1 max-w-xl"
-          />
-          <div className="flex flex-wrap gap-2 items-center" role="group" aria-label={t('common.filterState')}>
-            {([
-              ['all', t('common.filterAll'), filterCounts.all],
-              ['running', t('vms.filterRunning'), filterCounts.running],
-              ['error', t('vms.filterError'), filterCounts.error],
-              ['stopped', t('vms.filterStopped'), filterCounts.stopped],
-            ] as const).map(([id, label, count]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setStateFilter(id)}
-                className={
-                  stateFilter === id
-                    ? 'btn-primary text-xs !h-8 !px-3'
-                    : 'btn-outline-sm text-xs !h-8'
-                }
-              >
-                {label} ({count})
-              </button>
-            ))}
-            <label className="inline-flex items-center gap-2 text-xs text-on-surface-variant ml-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={mineOnly}
-                onChange={(e) => setMineOnly(e.target.checked)}
-              />
-              {t('common.mine')}
-            </label>
-            {allTags.length > 0 && (
-              <select
-                value={tagFilter}
-                onChange={(e) => setTagFilter(e.target.value)}
-                className="text-xs h-8 border border-outline-variant rounded-lg bg-card px-2"
-                aria-label={t('vms.filterTag')}
-              >
-                <option value="">{t('vms.allTags')}</option>
-                {allTags.map((tg) => (
-                  <option key={tg} value={tg}>{tg}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-outline-variant bg-surface-container-high">
             <span className="text-sm font-medium">{t('vms.bulkSelected').replace('{n}', String(selected.size))}</span>
@@ -454,11 +404,50 @@ export function VMs() {
 
         <RefreshingPanel isFetching={isRefetching} isLoading={isLoading}>
           <SurfaceCard padding="none" className="overflow-hidden">
+            <TableToolbar
+              tabs={
+                <TabBar
+                  variant="inline"
+                  active={stateFilter}
+                  onChange={setStateFilter}
+                  tabs={[
+                    { id: 'all', label: t('common.filterAll'), count: filterCounts.all },
+                    { id: 'running', label: t('vms.filterRunning'), count: filterCounts.running },
+                    { id: 'stopped', label: t('vms.filterStopped'), count: filterCounts.stopped },
+                    { id: 'error', label: t('vms.filterError'), count: filterCounts.error },
+                  ]}
+                />
+              }
+            >
+              <label className="inline-flex items-center gap-2 text-[13px] text-on-surface-variant cursor-pointer">
+                <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} />
+                {t('common.mine')}
+              </label>
+              {allTags.length > 0 && (
+                <select
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  className="text-[13px] h-8 border border-outline-variant rounded-lg bg-card text-on-surface px-2"
+                  aria-label={t('vms.filterTag')}
+                >
+                  <option value="">{t('vms.allTags')}</option>
+                  {allTags.map((tg) => (
+                    <option key={tg} value={tg}>{tg}</option>
+                  ))}
+                </select>
+              )}
+              <TableFilter
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('table.filter')}
+                aria-label={t('vms.searchPlaceholder')}
+              />
+            </TableToolbar>
             {isLoading ? (
               <div className="text-center py-16 text-on-surface-variant">{t('common.loading')}</div>
             ) : filteredVMs.length === 0 ? (
               <EmptyState
-                icon={<Server size={40} />}
+                icon={<Server />}
                 title={vms.length === 0 ? t('vms.empty') : t('header.searchEmpty')}
                 hint={vms.length === 0 ? t('vms.emptyHint') : undefined}
                 action={
@@ -470,7 +459,8 @@ export function VMs() {
                 }
               />
             ) : (
-              <PageTable>
+              <>
+              <PageTable minWidth={900}>
                 <PageTableHead>
                   <PageTableTh className="w-10">
                     <input
@@ -480,14 +470,13 @@ export function VMs() {
                       aria-label={t('vms.selectAll')}
                     />
                   </PageTableTh>
-                  <PageTableTh className="w-16" />
                   <PageTableTh>{t('common.name')}</PageTableTh>
-                  <PageTableTh>{t('vms.col.displayName')}</PageTableTh>
                   <PageTableTh>{t('common.state')}</PageTableTh>
                   <PageTableTh>IP</PageTableTh>
-                  <PageTableTh>{t('vms.col.host')}</PageTableTh>
                   <PageTableTh>{t('vms.col.offering')}</PageTableTh>
+                  <PageTableTh>{t('vms.col.host')}</PageTableTh>
                   <PageTableTh>Tags</PageTableTh>
+                  <PageTableTh>{t('vms.col.age')}</PageTableTh>
                   <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
                 </PageTableHead>
                 <PageTableBody>
@@ -501,8 +490,8 @@ export function VMs() {
                       <PageTableRow
                         key={vm.id || vm.name}
                         className={clsx(
-                          errored && 'bg-error-container/5',
-                          splitName === vm.name && 'ring-1 ring-inset ring-primary-container/50',
+                          errored && 'bg-bad-bg/30',
+                          splitName === vm.name && 'ring-1 ring-inset ring-accent/50',
                         )}
                       >
                         <PageTableTd>
@@ -514,38 +503,12 @@ export function VMs() {
                           />
                         </PageTableTd>
                         <PageTableTd>
-                          <div className="flex gap-0.5">
-                            <button
-                              type="button"
-                              className="btn-icon-neutral !p-1"
-                              title={t('vms.favorite')}
-                              aria-pressed={favs.has(vm.name)}
-                              onClick={() => setFavs(toggleFavoriteVM(vm.name))}
-                            >
-                              <Star size={14} className={favs.has(vm.name) ? 'fill-warning text-warning' : ''} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-icon-neutral !p-1"
-                              title={t('vms.pin')}
-                              aria-pressed={pins.has(vm.name)}
-                              onClick={() => setPins(togglePinnedVM(vm.name))}
-                            >
-                              <Pin size={14} className={pins.has(vm.name) ? 'text-primary' : ''} />
-                            </button>
-                          </div>
-                        </PageTableTd>
-                        <PageTableTd>
-                          <button
-                            type="button"
-                            className="text-left"
-                            onClick={() => {
-                              if (split) setSplitName(vm.name);
-                            }}
-                          >
+                          <div className="flex items-center gap-1.5">
+                            {favs.has(vm.name) && <Star size={13} className="fill-warn-fg text-warn-fg shrink-0" aria-label={t('vms.favorite')} />}
+                            {pins.has(vm.name) && <Pin size={13} className="text-accent shrink-0" aria-label={t('vms.pin')} />}
                             <Link
                               to={`/vms/${vm.name}`}
-                              className="font-medium text-primary hover:text-primary-fixed-dim hover:underline"
+                              className="font-semibold text-on-surface hover:text-link hover:underline"
                               onClick={(e) => {
                                 pushRecentAction({ label: vm.display_name || vm.name, path: `/vms/${vm.name}` });
                                 if (split) {
@@ -556,9 +519,14 @@ export function VMs() {
                             >
                               {vm.name}
                             </Link>
-                          </button>
+                          </div>
+                          {(vm.template || (vm.display_name && vm.display_name !== vm.name)) && (
+                            <div className="font-mono text-xs text-on-surface-variant">
+                              {vm.template || vm.display_name}
+                            </div>
+                          )}
                           {errored && vm.error_message && (
-                            <p className="mt-1 text-xs text-error line-clamp-2 max-w-xs" title={vm.error_message}>
+                            <p className="mt-1 text-xs text-bad-fg line-clamp-2 max-w-xs" title={vm.error_message}>
                               {vm.error_message}
                             </p>
                           )}
@@ -568,17 +536,16 @@ export function VMs() {
                             </p>
                           )}
                         </PageTableTd>
-                        <PageTableTd>{vm.display_name || vm.name}</PageTableTd>
                         <PageTableTd>
                           <StatusBadge status={displayState || 'inactive'} />
                         </PageTableTd>
-                        <PageTableTd className="font-mono text-xs">
+                        <PageTableTd mono>
                           <span className="inline-flex items-center gap-1">
                             {vm.ip || '—'}
                             {vm.ip && (
                               <button
                                 type="button"
-                                className="btn-icon-neutral !p-1"
+                                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-sunk"
                                 title={t('vms.copySsh')}
                                 aria-label={t('vms.copySsh')}
                                 onClick={() => copySsh(vm)}
@@ -588,60 +555,73 @@ export function VMs() {
                             )}
                           </span>
                           {copiedSsh === vm.name && (
-                            <span className="block text-[10px] text-success">{t('vms.copied')}</span>
+                            <span className="block font-sans text-[10px] text-ok-fg">{t('vms.copied')}</span>
                           )}
                         </PageTableTd>
-                        <PageTableTd className="text-xs">{vm.host_name || '—'}</PageTableTd>
-                        <PageTableTd className={vm.cpu === 0 && vm.memory_mi === 0 ? 'text-on-surface-variant' : undefined}>
+                        <PageTableTd mono className={clsx('whitespace-nowrap', vm.cpu === 0 && vm.memory_mi === 0 && 'text-on-surface-variant')}>
                           {formatVmOffering(vm)}
                         </PageTableTd>
+                        <PageTableTd mono className="text-on-surface-variant whitespace-nowrap">{vm.host_name || '—'}</PageTableTd>
                         <PageTableTd>
-                          <div className="flex flex-wrap gap-1 items-center max-w-[140px] min-h-[28px]">
+                          <div className="flex flex-wrap gap-1 items-center max-w-[140px]">
                             {tags.map((tg) => (
-                              <span key={tg} className="text-[10px] px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container">
+                              <span key={tg} className="text-[11px] px-1.5 py-0.5 rounded border border-outline-variant bg-sunk">
                                 {tg}
                               </span>
                             ))}
-                            {tags.length === 0 && (
-                              <span className="text-xs text-on-surface-variant">—</span>
-                            )}
+                            {tags.length === 0 && <span className="text-on-surface-variant">—</span>}
                           </div>
                         </PageTableTd>
+                        <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(vm.created_at, dateLocale)}</PageTableTd>
                         <PageTableTd>
-                          <div className="flex justify-end gap-1" role="group" aria-label={t('common.actions')}>
+                          <div className="flex justify-end items-center gap-1.5" role="group" aria-label={t('common.actions')}>
                             {running ? (
                               <button
                                 type="button"
                                 onClick={() => stopMutation.mutate(vm.name)}
-                                className="btn-icon-warning focus-visible:ring-2 focus-visible:ring-primary"
+                                className={clsx(toolbarBtnClass, '!w-8 !px-0')}
                                 title={t('vms.stop')}
                                 aria-label={t('vms.stop')}
                               >
-                                <Power size={16} />
+                                <Power size={15} />
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => startMutation.mutate(vm.name)}
-                                className="btn-icon-success focus-visible:ring-2 focus-visible:ring-primary"
+                                className={clsx(toolbarBtnClass, '!w-8 !px-0')}
                                 title={errored ? t('vmDetail.retry') : t('vms.start')}
                                 aria-label={errored ? t('vmDetail.retry') : t('vms.start')}
                               >
-                                <Play size={16} />
+                                <Play size={15} />
                               </button>
                             )}
                             <button
                               type="button"
                               onClick={() => openConsole(vm.name, vm.namespace)}
                               disabled={!running}
-                              className="btn-icon-neutral focus-visible:ring-2 focus-visible:ring-primary"
+                              className={clsx(toolbarBtnClass, '!w-8 !px-0')}
                               title={t('vms.console')}
                               aria-label={t('vms.console')}
                             >
-                              <Monitor size={16} />
+                              <Monitor size={15} />
                             </button>
                             <OverflowMenu
+                              variant="dots"
+                              label={t('table.moreActions')}
                               items={[
+                                {
+                                  id: 'fav',
+                                  label: t('vms.favorite'),
+                                  icon: <Star size={14} />,
+                                  onSelect: () => setFavs(toggleFavoriteVM(vm.name)),
+                                },
+                                {
+                                  id: 'pin',
+                                  label: t('vms.pin'),
+                                  icon: <Pin size={14} />,
+                                  onSelect: () => setPins(togglePinnedVM(vm.name)),
+                                },
                                 {
                                   id: 'clone',
                                   label: t('vms.clone'),
@@ -683,6 +663,8 @@ export function VMs() {
                   })}
                 </PageTableBody>
               </PageTable>
+              <TablePager shown={filteredVMs.length} total={vms.length} />
+              </>
             )}
           </SurfaceCard>
         </RefreshingPanel>

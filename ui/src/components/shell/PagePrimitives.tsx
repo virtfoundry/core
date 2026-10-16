@@ -1,6 +1,7 @@
 import type { ReactNode, InputHTMLAttributes, TdHTMLAttributes } from 'react';
 import { Search, type LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
+import { useI18n } from '../../lib/i18n';
 
 export const formInputClass =
   'w-full px-3.5 h-11 border border-outline-variant rounded-lg bg-card text-on-surface text-[15px] placeholder:text-on-surface-variant focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-colors disabled:opacity-60';
@@ -234,5 +235,31 @@ export function TableFooter({ children, actions }: { children?: ReactNode; actio
       <span className="flex-grow">{children}</span>
       {actions}
     </div>
+  );
+}
+
+/** Footer "Showing n of total" + prev/next. Lists are not paginated server-side, so the buttons stay disabled. */
+export function TablePager({ shown, total }: { shown: number; total: number }) {
+  const { t } = useI18n();
+  return (
+    <TableFooter
+      actions={
+        <>
+          <button type="button" disabled className={toolbarBtnClass}>{t('table.prev')}</button>
+          <button type="button" disabled className={toolbarBtnClass}>{t('table.next')}</button>
+        </>
+      }
+    >
+      {t('table.showing').replace('{n}', String(shown)).replace('{total}', String(total))}
+    </TableFooter>
+  );
+}
+
+/** Full-width message row for loading / empty states inside a table body. */
+export function TableMessageRow({ cols, children }: { cols: number; children: ReactNode }) {
+  return (
+    <tr>
+      <td colSpan={cols} className="text-center py-12 text-on-surface-variant">{children}</td>
+    </tr>
   );
 }
