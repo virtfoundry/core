@@ -18,25 +18,29 @@ const (
 )
 
 type User struct {
-	ID           string    `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Role         Role      `json:"role"`
-	RoleID       string    `json:"role_id,omitempty"`
-	TenantID     string    `json:"tenant_id,omitempty"`
-	Email        string    `json:"email,omitempty"`
-	State        string    `json:"state,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"-"`
+	Role         Role   `json:"role"`
+	RoleID       string `json:"role_id,omitempty"`
+	TenantID     string `json:"tenant_id,omitempty"`
+	Email        string `json:"email,omitempty"`
+	State        string `json:"state,omitempty"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type RoleRecord struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id,omitempty"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	IsSystem    bool      `json:"is_system"`
-	Permissions []string  `json:"permissions,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string   `json:"id"`
+	TenantID    string   `json:"tenant_id,omitempty"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	IsSystem    bool     `json:"is_system"`
+	Permissions []string `json:"permissions,omitempty"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type APIKey struct {
@@ -50,7 +54,9 @@ type APIKey struct {
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Tenant struct {
@@ -65,12 +71,14 @@ type Tenant struct {
 }
 
 type VPC struct {
-	ID        string    `json:"id"`
-	TenantID  string    `json:"tenant_id"`
-	Name      string    `json:"name"`
-	CIDR      string    `json:"cidr"`
-	Namespace string    `json:"namespace"`
-	State     string    `json:"state"`
+	ID        string `json:"id"`
+	TenantID  string `json:"tenant_id"`
+	Name      string `json:"name"`
+	CIDR      string `json:"cidr"`
+	Namespace string `json:"namespace"`
+	State     string `json:"state"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -81,7 +89,9 @@ type SecurityGroup struct {
 	Name        string              `json:"name"`
 	Description string              `json:"description,omitempty"`
 	Rules       []SecurityGroupRule `json:"rules"`
-	CreatedAt   time.Time           `json:"created_at"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type SecurityGroupRule struct {
@@ -93,19 +103,21 @@ type SecurityGroupRule struct {
 }
 
 type Network struct {
-	ID           string    `json:"id"`
-	TenantID     string    `json:"tenant_id,omitempty"`
-	VPCID        string    `json:"vpc_id,omitempty"`
-	Name         string    `json:"name"`
-	NetworkType  string    `json:"network_type,omitempty"` // isolated | shared
-	CIDR         string    `json:"cidr"`
-	Gateway      string    `json:"gateway,omitempty"`
-	NADNamespace string    `json:"nad_namespace,omitempty"`
-	NADName      string    `json:"nad_name,omitempty"`
-	State        string    `json:"state"`
-	ExternalUUID string    `json:"external_uuid,omitempty"`
-	ImportSource string    `json:"import_source,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string `json:"id"`
+	TenantID     string `json:"tenant_id,omitempty"`
+	VPCID        string `json:"vpc_id,omitempty"`
+	Name         string `json:"name"`
+	NetworkType  string `json:"network_type,omitempty"` // isolated | shared
+	CIDR         string `json:"cidr"`
+	Gateway      string `json:"gateway,omitempty"`
+	NADNamespace string `json:"nad_namespace,omitempty"`
+	NADName      string `json:"nad_name,omitempty"`
+	State        string `json:"state"`
+	ExternalUUID string `json:"external_uuid,omitempty"`
+	ImportSource string `json:"import_source,omitempty"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 const (
@@ -137,72 +149,78 @@ type IPAddress struct {
 }
 
 type Volume struct {
-	ID        string    `json:"id"`
-	TenantID  string    `json:"tenant_id"`
-	Name      string    `json:"name"`
-	SizeGi    int       `json:"size_gi"`
-	Namespace string    `json:"namespace"`
-	PVCName   string    `json:"pvc_name"`
-	State     string    `json:"state"`
-	VMID      string    `json:"vm_id,omitempty"`
+	ID        string `json:"id"`
+	TenantID  string `json:"tenant_id"`
+	Name      string `json:"name"`
+	SizeGi    int    `json:"size_gi"`
+	Namespace string `json:"namespace"`
+	PVCName   string `json:"pvc_name"`
+	State     string `json:"state"`
+	VMID      string `json:"vm_id,omitempty"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type Snapshot struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id"`
-	VolumeID    string    `json:"volume_id"`
-	Name        string    `json:"name"`
-	Namespace   string    `json:"namespace"`
-	SnapshotUID string    `json:"snapshot_uid,omitempty"`
-	State       string    `json:"state"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string `json:"id"`
+	TenantID    string `json:"tenant_id"`
+	VolumeID    string `json:"volume_id"`
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	SnapshotUID string `json:"snapshot_uid,omitempty"`
+	State       string `json:"state"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type VMSnapshot struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id"`
-	VMID        string    `json:"vm_id"`
-	VMName      string    `json:"vm_name"`
-	Name        string    `json:"name"`
-	Namespace   string    `json:"namespace"`
-	SnapshotUID string    `json:"snapshot_uid,omitempty"`
-	Phase       string    `json:"phase"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string `json:"id"`
+	TenantID    string `json:"tenant_id"`
+	VMID        string `json:"vm_id"`
+	VMName      string `json:"vm_name"`
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	SnapshotUID string `json:"snapshot_uid,omitempty"`
+	Phase       string `json:"phase"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type PlatformVM struct {
-	ID                string    `json:"id"`
-	TenantID          string    `json:"tenant_id"`
-	VPCID             string    `json:"vpc_id,omitempty"`
-	Name              string    `json:"name"`
-	DisplayName       string    `json:"display_name,omitempty"`
-	Namespace         string    `json:"namespace"`
-	State             string    `json:"state"`
-	ErrorMsg          string    `json:"error_message,omitempty"`
-	CPU               int       `json:"cpu"`
-	MemoryMi          int64     `json:"memory_mi"`
-	Image             string    `json:"image,omitempty"`
-	Template          string    `json:"template,omitempty"`
-	IP                string    `json:"ip,omitempty"`
-	Hypervisor        string    `json:"hypervisor,omitempty"`
-	Zone              string    `json:"zone,omitempty"`
-	HostName          string    `json:"host_name,omitempty"`
-	ServiceOfferingID string    `json:"service_offering_id,omitempty"`
-	TemplateRef       string    `json:"template_ref,omitempty"`
-	PowerState        string    `json:"power_state,omitempty"`
-	DedicatedCPU      bool      `json:"dedicated_cpu,omitempty"`
+	ID                string `json:"id"`
+	TenantID          string `json:"tenant_id"`
+	VPCID             string `json:"vpc_id,omitempty"`
+	Name              string `json:"name"`
+	DisplayName       string `json:"display_name,omitempty"`
+	Namespace         string `json:"namespace"`
+	State             string `json:"state"`
+	ErrorMsg          string `json:"error_message,omitempty"`
+	CPU               int    `json:"cpu"`
+	MemoryMi          int64  `json:"memory_mi"`
+	Image             string `json:"image,omitempty"`
+	Template          string `json:"template,omitempty"`
+	IP                string `json:"ip,omitempty"`
+	Hypervisor        string `json:"hypervisor,omitempty"`
+	Zone              string `json:"zone,omitempty"`
+	HostName          string `json:"host_name,omitempty"`
+	ServiceOfferingID string `json:"service_offering_id,omitempty"`
+	TemplateRef       string `json:"template_ref,omitempty"`
+	PowerState        string `json:"power_state,omitempty"`
+	DedicatedCPU      bool   `json:"dedicated_cpu,omitempty"`
 	// SSHKeyRefs are SSHKey CR names (metadata.name) on the Instance.
 	SSHKeyRefs []string `json:"ssh_key_refs,omitempty"`
 	// CloudInitUserData maps to Instance.spec.cloudInitUserData (overrides Template when set).
 	CloudInitUserData string `json:"cloud_init_user_data,omitempty"`
 	// Tags maps to Instance.spec.tags.
-	Tags         []string `json:"tags,omitempty"`
-	ExternalUUID string   `json:"external_uuid,omitempty"`
-	ImportSource      string `json:"import_source,omitempty"`
-	NICs              []VMNic `json:"nics,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at,omitempty"`
+	Tags         []string  `json:"tags,omitempty"`
+	ExternalUUID string    `json:"external_uuid,omitempty"`
+	ImportSource string    `json:"import_source,omitempty"`
+	NICs         []VMNic   `json:"nics,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 }
 
 type VMNic struct {
@@ -266,12 +284,14 @@ type AsyncJob struct {
 // SSHKeyPair stores public material only. The private key PEM is never persisted;
 // it is returned once from POST /ssh-keys (generate) and cannot be re-fetched.
 type SSHKeyPair struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id"`
-	Name        string    `json:"name"`
-	PublicKey   string    `json:"public_key"`
-	Fingerprint string    `json:"fingerprint"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string `json:"id"`
+	TenantID    string `json:"tenant_id"`
+	Name        string `json:"name"`
+	PublicKey   string `json:"public_key"`
+	Fingerprint string `json:"fingerprint"`
+	// Tags maps to the underlying CR spec.tags when persisted.
+	Tags      []string  `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type TenantQuota struct {

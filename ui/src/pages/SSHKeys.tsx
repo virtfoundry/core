@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Upload, Copy, Check, AlertCircle, Trash2, Download } from 'lucide-react';
+import { Plus, Upload, Copy, Check, AlertCircle, Trash2, Download, Pencil } from 'lucide-react';
 import {
-  listSSHKeys, listVMs, createSSHKey, registerSSHKey, deleteSSHKey,
+  listSSHKeys, listVMs, createSSHKey, registerSSHKey, deleteSSHKey, updateSSHKey,
 } from '../lib/platform-api';
 import type { SSHKeyPair } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { OverflowMenu } from '../components/OverflowMenu';
-import { ago } from '../lib/ago';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
+import { TagsEditorModal } from '../components/TagsEditorModal';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { ago } from '../lib/ago';
+import { OverflowMenu } from '../components/OverflowMenu';
 import {
   PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -32,14 +34,14 @@ export function SSHKeys() {
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>('generate');
-  const [form, setForm] = useState({ name: '', public_key: '' });
+  const [form, setForm] = useState<{ name: string; public_key: string; tags: string[] }>({ name: '', public_key: '', tags: [] });
   const [privateKeyModal, setPrivateKeyModal] = useState<{ name: string; pem: string } | null>(null);
   const { state: copyState, copy: copyToClipboard, reset: resetCopy } = useCopyToClipboard();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.sshKeys,
     queryFn: listSSHKeys,
     enabled: !needsTenant,
@@ -49,29 +51,40 @@ export function SSHKeys() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
 
+  const [editKey, setEditKey] = useState<SSHKeyPair | null>(null);
+  const [tagDraft, setTagDraft] = useState('');
+
   const resetForm = () => {
-    setForm({ name: '', public_key: '' });
+    setForm({ name: '', public_key: '', tags: [] });
+    setTagDraft('');
     setCreateMode('generate');
   };
 
   const createMutation = useMutation({
-    mutationFn: createSSHKey,
+    mutationFn: ({ name, tags }: { name: string; tags: string[] }) => createSSHKey({ name, tags }),
     onSuccess: (res) => {
       invalidate();
       setCreateModal(false);
       resetForm();
-      // One-time secret: private_key_pem is only present on POST create (never on list).
       setPrivateKeyModal({ name: res.key.name, pem: res.private_key_pem });
       resetCopy();
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: registerSSHKey,
+    mutationFn: ({ name, public_key, tags }: { name: string; public_key: string; tags: string[] }) => registerSSHKey({ name, public_key, tags }),
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
       resetForm();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) => updateSSHKey(id, { tags }),
+    onSuccess: () => {
+      invalidate();
+      setEditKey(null);
     },
   });
 
@@ -110,10 +123,11 @@ export function SSHKeys() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const tags = mergeTags(form.tags, tagDraft);
     if (createMode === 'generate') {
-      createMutation.mutate({ name: form.name });
+      createMutation.mutate({ name: form.name, tags });
     } else {
-      registerMutation.mutate({ name: form.name, public_key: form.public_key });
+      registerMutation.mutate({ name: form.name, public_key: form.public_key, tags });
     }
   };
 
@@ -167,13 +181,14 @@ export function SSHKeys() {
               <PageTableTh>{t('ssh.type')}</PageTableTh>
               <PageTableTh>{t('common.created')}</PageTableTh>
               <PageTableTh>{t('ssh.usedBy')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={6}>
+                <TableMessageRow cols={7}>
                   <p>{t('ssh.empty')}</p>
                   <p className="mt-2">
                     <Link to="/vms" className="text-link hover:underline text-sm">
@@ -191,17 +206,26 @@ export function SSHKeys() {
                     <PageTableTd mono>{keyType(key.public_key)}</PageTableTd>
                     <PageTableTd className="text-on-surface-variant">{ago(key.created_at, dateLocale)}</PageTableTd>
                     <PageTableTd mono>{t('common.vmCount').replace('{n}', String(usedBy(key.name)))}</PageTableTd>
+                    <PageTableTd><TagPills tags={key.tags} /></PageTableTd>
                     <PageTableTd className="text-right">
                       <OverflowMenu
                         variant="dots"
                         label={t('table.moreActions')}
-                        items={[{
-                          id: 'delete',
-                          label: t('common.delete'),
-                          icon: <Trash2 size={14} />,
-                          danger: true,
-                          onSelect: () => setDeleteTarget({ id: key.id, name: key.name }),
-                        }]}
+                        items={[
+                          {
+                            id: 'edit-tags',
+                            label: t('tags.editTitle'),
+                            icon: <Pencil size={14} />,
+                            onSelect: () => setEditKey(key),
+                          },
+                          {
+                            id: 'delete',
+                            label: t('common.delete'),
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onSelect: () => setDeleteTarget({ id: key.id, name: key.name }),
+                          },
+                        ]}
                       />
                     </PageTableTd>
                   </PageTableRow>
@@ -244,6 +268,16 @@ export function SSHKeys() {
               <p className="text-xs text-on-surface-variant mt-1">{t('ssh.registerHint')}</p>
             </div>
           )}
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMode === 'generate' && (
             <InfoBanner variant="warning">{t('ssh.privateKeyWarning')}</InfoBanner>
           )}
@@ -302,6 +336,16 @@ export function SSHKeys() {
           </div>
         )}
       </Modal>
+
+      <TagsEditorModal
+        key={editKey?.id ?? 'none'}
+        isOpen={!!editKey}
+        onClose={() => setEditKey(null)}
+        initialTags={editKey?.tags ?? []}
+        onSubmit={(tags) => editKey && updateMutation.mutate({ id: editKey.id, tags })}
+        loading={updateMutation.isPending}
+        error={updateMutation.isError ? (updateMutation.error as Error).message : null}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

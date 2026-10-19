@@ -32,7 +32,7 @@ func (s *Service) ConfigureStorage(defaultClass, snapshotClass string) {
 	}
 }
 
-func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int) (*platform.Volume, error) {
+func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int, tags []string) (*platform.Volume, error) {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,21 @@ func (s *Service) CreateVolume(ctx context.Context, tenantID, name string, sizeG
 	}
 	vol := &platform.Volume{
 		ID: store.NewID(), TenantID: tenantID, Name: name, SizeGi: sizeGi,
-		Namespace: ns, PVCName: pvcName, State: "ready", CreatedAt: store.Now(),
+		Namespace: ns, PVCName: pvcName, State: "ready", Tags: normalizeTags(tags), CreatedAt: store.Now(),
+	}
+	s.store.SaveVolume(vol)
+	return vol, nil
+}
+
+// UpdateVolume applies tag changes to an existing volume. A nil tags pointer
+// leaves the current tags untouched (same convention as UpdateVMInput.Tags).
+func (s *Service) UpdateVolume(ctx context.Context, tenantID, volumeID string, tags *[]string) (*platform.Volume, error) {
+	vol, ok := s.store.GetVolume(volumeID)
+	if !ok || vol.TenantID != tenantID {
+		return nil, iaerrors.NewNotFoundError("volume", volumeID)
+	}
+	if tags != nil {
+		vol.Tags = normalizeTags(*tags)
 	}
 	s.store.SaveVolume(vol)
 	return vol, nil
@@ -68,7 +82,7 @@ func (s *Service) DeleteVolume(ctx context.Context, tenantID, volumeID string) e
 	return nil
 }
 
-func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string) (*platform.Snapshot, error) {
+func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string, tags []string) (*platform.Snapshot, error) {
 	vol, ok := s.store.GetVolume(volumeID)
 	if !ok || vol.TenantID != tenantID {
 		return nil, fmt.Errorf("volume not found")
@@ -81,7 +95,7 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name s
 	snap := &platform.Snapshot{
 		ID: store.NewID(), TenantID: tenantID, VolumeID: volumeID, Name: name,
 		Namespace: vol.Namespace, SnapshotUID: string(created.GetUID()),
-		State: "creating", CreatedAt: store.Now(),
+		State: "creating", Tags: normalizeTags(tags), CreatedAt: store.Now(),
 	}
 	s.store.SaveSnapshot(snap)
 	if ready, err := s.k8s.WaitVolumeSnapshotReady(ctx, vol.Namespace, snapName, 180); err == nil && ready {
@@ -89,6 +103,26 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, volumeID, name s
 		s.store.SaveSnapshot(snap)
 	}
 	return snap, nil
+}
+
+// UpdateSnapshot applies tag changes to an existing volume snapshot. A nil
+// tags pointer leaves the current tags untouched.
+func (s *Service) UpdateSnapshot(ctx context.Context, tenantID, snapshotID string, tags *[]string) (*platform.Snapshot, error) {
+	var target *platform.Snapshot
+	for _, snap := range s.store.ListSnapshots(tenantID) {
+		if snap.ID == snapshotID {
+			target = snap
+			break
+		}
+	}
+	if target == nil {
+		return nil, iaerrors.NewNotFoundError("snapshot", snapshotID)
+	}
+	if tags != nil {
+		target.Tags = normalizeTags(*tags)
+	}
+	s.store.SaveSnapshot(target)
+	return target, nil
 }
 
 func (s *Service) ListSnapshots(tenantID string) []*platform.Snapshot {
@@ -107,4 +141,10 @@ func (s *Service) ListSnapshots(tenantID string) []*platform.Snapshot {
 		}
 	}
 	return snaps
+}
+
+// normalizeTags trims whitespace and drops empty entries, matching the shared
+// VM tags convention.
+func normalizeTags(tags []string) []string {
+	return shared.NormalizeTags(tags)
 }

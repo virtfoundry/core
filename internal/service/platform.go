@@ -114,8 +114,8 @@ func (s *PlatformService) ListUsers(tenantID string) []*platform.User {
 	return s.identity.ListUsers(tenantID)
 }
 
-func (s *PlatformService) UpdateUser(tenantID, userID, email, roleID, state string, actor *auth.Actor) (*platform.User, error) {
-	return s.identity.UpdateUser(tenantID, userID, email, roleID, state, actor)
+func (s *PlatformService) UpdateUser(tenantID, userID, email, roleID, state string, tags *[]string, actor *auth.Actor) (*platform.User, error) {
+	return s.identity.UpdateUser(tenantID, userID, email, roleID, state, tags, actor)
 }
 
 func (s *PlatformService) DeleteUser(tenantID, userID string) error {
@@ -130,8 +130,8 @@ func (s *PlatformService) ListRoles(tenantID string) []*platform.RoleRecord {
 	return s.identity.ListRoles(tenantID)
 }
 
-func (s *PlatformService) UpdateRole(tenantID, roleID, desc string, perms []string, actor *auth.Actor) (*platform.RoleRecord, error) {
-	return s.identity.UpdateRole(tenantID, roleID, desc, perms, actor)
+func (s *PlatformService) UpdateRole(tenantID, roleID, desc string, perms []string, tags *[]string, actor *auth.Actor) (*platform.RoleRecord, error) {
+	return s.identity.UpdateRole(tenantID, roleID, desc, perms, tags, actor)
 }
 
 func (s *PlatformService) DeleteRole(tenantID, roleID string) error {
@@ -148,6 +148,10 @@ func (s *PlatformService) ListAPIKeys(userID, username, tenantID string, adminVi
 
 func (s *PlatformService) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool) error {
 	return s.identity.RevokeAPIKey(userID, keyID, tenantID, admin, root)
+}
+
+func (s *PlatformService) UpdateAPIKeyTags(userID, keyID, tenantID string, tags *[]string, admin, root bool) (*platform.APIKey, error) {
+	return s.identity.UpdateAPIKeyTags(userID, keyID, tenantID, tags, admin, root)
 }
 
 func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.NetworkingConfig) error {
@@ -212,37 +216,37 @@ func (s *PlatformService) DeleteTenant(ctx context.Context, id string) error {
 
 // --- network ---
 
-func (s *PlatformService) CreateVPC(ctx context.Context, tenantID, name, cidr string) (*platform.VPC, error) {
-	vpc, _, err := s.network.CreateVPC(ctx, tenantID, name, cidr)
+func (s *PlatformService) CreateVPC(ctx context.Context, tenantID, name, cidr string, tags []string) (*platform.VPC, error) {
+	vpc, _, err := s.network.CreateVPC(ctx, tenantID, name, cidr, tags)
 	return vpc, err
 }
 
-func (s *PlatformService) CreateVPCWithDefaultNet(ctx context.Context, tenantID, name, cidr string) (*platform.VPC, *platform.Network, error) {
-	return s.network.CreateVPC(ctx, tenantID, name, cidr)
+func (s *PlatformService) CreateVPCWithDefaultNet(ctx context.Context, tenantID, name, cidr string, tags []string) (*platform.VPC, *platform.Network, error) {
+	return s.network.CreateVPC(ctx, tenantID, name, cidr, tags)
 }
 
 func (s *PlatformService) ListVPCs(tenantID string) []*platform.VPC {
 	return s.network.ListVPCs(tenantID)
 }
 
-func (s *PlatformService) UpdateVPC(ctx context.Context, tenantID, vpcID, name string) (*platform.VPC, error) {
-	return s.network.UpdateVPC(ctx, tenantID, vpcID, name)
+func (s *PlatformService) UpdateVPC(ctx context.Context, tenantID, vpcID, name string, tags *[]string) (*platform.VPC, error) {
+	return s.network.UpdateVPC(ctx, tenantID, vpcID, name, tags)
 }
 
 func (s *PlatformService) DeleteVPC(ctx context.Context, tenantID, vpcID string) error {
 	return s.network.DeleteVPC(ctx, tenantID, vpcID)
 }
 
-func (s *PlatformService) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name, desc string, rules []platform.SecurityGroupRule) (*platform.SecurityGroup, error) {
-	return s.network.CreateSecurityGroup(ctx, tenantID, vpcID, name, desc, rules)
+func (s *PlatformService) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name, desc string, rules []platform.SecurityGroupRule, tags []string) (*platform.SecurityGroup, error) {
+	return s.network.CreateSecurityGroup(ctx, tenantID, vpcID, name, desc, rules, tags)
 }
 
 func (s *PlatformService) ListSecurityGroups(tenantID string) []*platform.SecurityGroup {
 	return s.network.ListSecurityGroups(tenantID)
 }
 
-func (s *PlatformService) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name, desc string, rules []platform.SecurityGroupRule) (*platform.SecurityGroup, error) {
-	return s.network.UpdateSecurityGroup(ctx, tenantID, sgID, name, desc, rules)
+func (s *PlatformService) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name string, desc *string, rules []platform.SecurityGroupRule, tags *[]string) (*platform.SecurityGroup, error) {
+	return s.network.UpdateSecurityGroup(ctx, tenantID, sgID, name, desc, rules, tags)
 }
 
 func (s *PlatformService) DeleteSecurityGroup(ctx context.Context, tenantID, sgID string) error {
@@ -261,16 +265,16 @@ func (s *PlatformService) PlanSubnetCIDRs(tenantID, vpcID string, prefix int) (c
 	return s.network.PlanSubnetCIDRs(tenantID, vpcID, prefix)
 }
 
-func (s *PlatformService) CreateNetwork(ctx context.Context, tenantID, vpcID, name, cidr string, prefix int) (*platform.Network, error) {
-	return s.network.CreateNetwork(ctx, tenantID, vpcID, name, cidr, prefix)
+func (s *PlatformService) CreateNetwork(ctx context.Context, tenantID, vpcID, name, cidr string, prefix int, tags []string) (*platform.Network, error) {
+	return s.network.CreateNetwork(ctx, tenantID, vpcID, name, cidr, prefix, tags)
 }
 
 func (s *PlatformService) ListNetworks(tenantID string) []*platform.Network {
 	return s.network.ListNetworks(tenantID)
 }
 
-func (s *PlatformService) UpdateNetwork(ctx context.Context, tenantID, networkID, name string) (*platform.Network, error) {
-	return s.network.UpdateNetwork(ctx, tenantID, networkID, name)
+func (s *PlatformService) UpdateNetwork(ctx context.Context, tenantID, networkID, name string, tags *[]string) (*platform.Network, error) {
+	return s.network.UpdateNetwork(ctx, tenantID, networkID, name, tags)
 }
 
 func (s *PlatformService) DeleteNetwork(ctx context.Context, tenantID, networkID string) error {
@@ -279,12 +283,16 @@ func (s *PlatformService) DeleteNetwork(ctx context.Context, tenantID, networkID
 
 // --- storage ---
 
-func (s *PlatformService) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int) (*platform.Volume, error) {
-	return s.storage.CreateVolume(ctx, tenantID, name, sizeGi)
+func (s *PlatformService) CreateVolume(ctx context.Context, tenantID, name string, sizeGi int, tags []string) (*platform.Volume, error) {
+	return s.storage.CreateVolume(ctx, tenantID, name, sizeGi, tags)
 }
 
 func (s *PlatformService) ListVolumes(tenantID string) []*platform.Volume {
 	return s.storage.ListVolumes(tenantID)
+}
+
+func (s *PlatformService) UpdateVolume(ctx context.Context, tenantID, volumeID string, tags *[]string) (*platform.Volume, error) {
+	return s.storage.UpdateVolume(ctx, tenantID, volumeID, tags)
 }
 
 func (s *PlatformService) DeleteVolume(ctx context.Context, tenantID, volumeID string) error {
@@ -303,12 +311,16 @@ func (s *PlatformService) DetachVolumeFromVM(ctx context.Context, tenantID, vmNa
 	return s.compute.DetachVolumeFromVM(ctx, tenantID, vmName, volumeID)
 }
 
-func (s *PlatformService) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string) (*platform.Snapshot, error) {
-	return s.storage.CreateSnapshot(ctx, tenantID, volumeID, name)
+func (s *PlatformService) CreateSnapshot(ctx context.Context, tenantID, volumeID, name string, tags []string) (*platform.Snapshot, error) {
+	return s.storage.CreateSnapshot(ctx, tenantID, volumeID, name, tags)
 }
 
 func (s *PlatformService) ListSnapshots(tenantID string) []*platform.Snapshot {
 	return s.storage.ListSnapshots(tenantID)
+}
+
+func (s *PlatformService) UpdateSnapshot(ctx context.Context, tenantID, snapshotID string, tags *[]string) (*platform.Snapshot, error) {
+	return s.storage.UpdateSnapshot(ctx, tenantID, snapshotID, tags)
 }
 
 // --- compute ---
@@ -377,8 +389,12 @@ func (s *PlatformService) DeleteVM(ctx context.Context, tenantID, vmName string)
 	return s.compute.DeleteVM(ctx, tenantID, vmName)
 }
 
-func (s *PlatformService) CreateVMSnapshot(ctx context.Context, tenantID, vmName, name string) (*platform.VMSnapshot, error) {
-	return s.compute.CreateVMSnapshot(ctx, tenantID, vmName, name)
+func (s *PlatformService) CreateVMSnapshot(ctx context.Context, tenantID, vmName, name string, tags []string) (*platform.VMSnapshot, error) {
+	return s.compute.CreateVMSnapshot(ctx, tenantID, vmName, name, tags)
+}
+
+func (s *PlatformService) UpdateVMSnapshot(ctx context.Context, tenantID, snapshotID string, tags *[]string) (*platform.VMSnapshot, error) {
+	return s.compute.UpdateVMSnapshot(ctx, tenantID, snapshotID, tags)
 }
 
 func (s *PlatformService) ListVMSnapshots(ctx context.Context, tenantID string) ([]*platform.VMSnapshot, error) {
@@ -403,12 +419,16 @@ func (s *PlatformService) ListSSHKeys(tenantID string) []*platform.SSHKeyPair {
 	return s.sshkeys.List(tenantID)
 }
 
-func (s *PlatformService) CreateSSHKey(tenantID, name string) (*sshkeys.CreateResult, error) {
-	return s.sshkeys.Create(tenantID, name)
+func (s *PlatformService) CreateSSHKey(tenantID, name string, tags []string) (*sshkeys.CreateResult, error) {
+	return s.sshkeys.Create(tenantID, name, tags)
 }
 
-func (s *PlatformService) RegisterSSHKey(tenantID, name, publicKey string) (*platform.SSHKeyPair, error) {
-	return s.sshkeys.Register(tenantID, name, publicKey)
+func (s *PlatformService) RegisterSSHKey(tenantID, name, publicKey string, tags []string) (*platform.SSHKeyPair, error) {
+	return s.sshkeys.Register(tenantID, name, publicKey, tags)
+}
+
+func (s *PlatformService) UpdateSSHKey(tenantID, id string, tags *[]string) (*platform.SSHKeyPair, error) {
+	return s.sshkeys.UpdateTags(tenantID, id, tags)
 }
 
 func (s *PlatformService) DeleteSSHKey(tenantID, id string) error {

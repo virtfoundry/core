@@ -318,6 +318,15 @@ func DiskToUnstructured(v *platform.Volume, tenantSlug, instanceCR string) *unst
 	if instanceCR != "" {
 		spec["instanceRef"] = localRef(instanceCR)
 	}
+	tags := make([]interface{}, 0, len(v.Tags))
+	for _, tag := range v.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -339,6 +348,22 @@ func DiskFromUnstructured(obj *unstructured.Unstructured, tenantID string) *plat
 	v.Name = name
 	v.SizeGi = int(size)
 	v.PVCName = pvc
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			v.Tags = tags
+		}
+	}
 	return v
 }
 
@@ -349,12 +374,21 @@ func DiskSnapshotToUnstructured(s *platform.Snapshot, diskCR string) *unstructur
 		"name":    s.Name,
 		"diskRef": localRef(diskCR),
 	}
+	tags := make([]interface{}, 0, len(s.Tags))
+	for _, tag := range s.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
 
 func DiskSnapshotFromUnstructured(obj *unstructured.Unstructured, tenantID, volumeID string) *platform.Snapshot {
-	return &platform.Snapshot{
+	snap := &platform.Snapshot{
 		ID:          ResourceID(obj),
 		TenantID:    tenantID,
 		VolumeID:    volumeID,
@@ -364,6 +398,23 @@ func DiskSnapshotFromUnstructured(obj *unstructured.Unstructured, tenantID, volu
 		State:       stringFromStatus(obj, "phase"),
 		CreatedAt:   obj.GetCreationTimestamp().Time,
 	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			snap.Tags = tags
+		}
+	}
+	return snap
 }
 
 func InstanceSnapshotToUnstructured(s *platform.VMSnapshot, instanceCR string) *unstructured.Unstructured {
@@ -373,6 +424,15 @@ func InstanceSnapshotToUnstructured(s *platform.VMSnapshot, instanceCR string) *
 		"name":        s.Name,
 		"instanceRef": localRef(instanceCR),
 	}
+	tags := make([]interface{}, 0, len(s.Tags))
+	for _, tag := range s.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -391,10 +451,13 @@ func MergeVMSnapshot(dst, prior, fromCR *platform.VMSnapshot) {
 	if dst.VMID == "" {
 		dst.VMID = prior.VMID
 	}
+	if len(dst.Tags) == 0 && len(prior.Tags) > 0 {
+		dst.Tags = prior.Tags
+	}
 }
 
 func InstanceSnapshotFromUnstructured(obj *unstructured.Unstructured, tenantID, vmID string) *platform.VMSnapshot {
-	return &platform.VMSnapshot{
+	snap := &platform.VMSnapshot{
 		ID:          ResourceID(obj),
 		TenantID:    tenantID,
 		VMID:        vmID,
@@ -404,6 +467,23 @@ func InstanceSnapshotFromUnstructured(obj *unstructured.Unstructured, tenantID, 
 		Phase:       stringFromStatus(obj, "phase"),
 		CreatedAt:   obj.GetCreationTimestamp().Time,
 	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			snap.Tags = tags
+		}
+	}
+	return snap
 }
 
 func SSHKeyToUnstructured(k *platform.SSHKeyPair, tenantSlug string) *unstructured.Unstructured {
@@ -411,6 +491,15 @@ func SSHKeyToUnstructured(k *platform.SSHKeyPair, tenantSlug string) *unstructur
 	obj.SetLabels(BaseLabels(tenantSlug))
 	SetLegacyID(obj, k.ID)
 	spec := map[string]interface{}{"publicKey": k.PublicKey}
+	tags := make([]interface{}, 0, len(k.Tags))
+	for _, tag := range k.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -427,6 +516,22 @@ func SSHKeyFromUnstructured(obj *unstructured.Unstructured, tenantID string) *pl
 	// Nothing writes status.fingerprint, so derive it from the public key.
 	if k.Fingerprint == "" {
 		k.Fingerprint = sshFingerprint(k.PublicKey)
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			k.Tags = tags
+		}
 	}
 	return k
 }

@@ -8,6 +8,7 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { CIDRPicker } from '../components/CIDRPicker';
 import { ResourceActions } from '../components/ResourceActions';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
 import { queryKeys } from '../lib/query-keys';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
@@ -23,7 +24,8 @@ export function VPCs() {
   const [createModal, setCreateModal] = useState(false);
   const [editVpc, setEditVpc] = useState<VPC | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [form, setForm] = useState({ name: '', cidr: '' });
+  const [form, setForm] = useState({ name: '', cidr: '', tags: [] as string[] });
+  const [tagDraft, setTagDraft] = useState('');
   const [cidrMode, setCidrMode] = useState<'auto' | 'custom'>('auto');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
@@ -64,13 +66,14 @@ export function VPCs() {
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
-      setForm({ name: '', cidr: '' });
+      setForm({ name: '', cidr: '', tags: [] });
+      setTagDraft('');
       setCidrMode('auto');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => updateVPC(id, { name }),
+    mutationFn: ({ id, name, tags }: { id: string; name: string; tags: string[] }) => updateVPC(id, { name, tags }),
     onSuccess: () => {
       invalidate();
       setEditVpc(null);
@@ -139,12 +142,15 @@ export function VPCs() {
                         variant="inline"
                         editLabel={t('common.edit')}
                         deleteLabel={t('common.delete')}
-                        onEdit={() => setEditVpc(vpc)}
+                        onEdit={() => { setTagDraft(''); setEditVpc(vpc); }}
                         onDelete={() => setDeleteTarget({ id: vpc.id, name: vpc.name })}
                       />
                     </>
                   }
                 >
+                  {vpc.tags && vpc.tags.length > 0 && (
+                    <div className="mb-3"><TagPills tags={vpc.tags} /></div>
+                  )}
                   {subnets.length === 0 ? (
                     <p className="m-0 text-sm text-on-surface-variant">{t('vpcs.noSubnets')}</p>
                   ) : (
@@ -189,6 +195,7 @@ export function VPCs() {
             e.preventDefault();
             createMutation.mutate({
               name: form.name,
+              tags: mergeTags(form.tags, tagDraft),
               ...(cidrMode === 'custom' ? { cidr: form.cidr } : {}),
             });
           }}
@@ -214,6 +221,16 @@ export function VPCs() {
               customPlaceholder="10.0.0.0/16"
             />
           </div>
+          <div>
+            <label className={formLabelClass}>{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -229,7 +246,7 @@ export function VPCs() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              updateMutation.mutate({ id: editVpc.id, name: editVpc.name });
+              updateMutation.mutate({ id: editVpc.id, name: editVpc.name, tags: mergeTags(editVpc.tags || [], tagDraft) });
             }}
             className="space-y-4"
           >
@@ -239,6 +256,16 @@ export function VPCs() {
                 className={formInputClass} />
             </div>
             <p className="text-sm text-on-surface-variant font-data-mono">CIDR: {editVpc.cidr}</p>
+            <div>
+              <label className={formLabelClass}>{t('tags.column')}</label>
+              <TagsInput
+                tags={editVpc.tags || []}
+                onTagsChange={(tags) => setEditVpc({ ...editVpc, tags })}
+                draft={tagDraft}
+                onDraftChange={setTagDraft}
+                placeholder={t('common.tagsPlaceholder')}
+              />
+            </div>
             {updateMutation.isError && (
               <p className="text-error text-sm">{(updateMutation.error as Error).message}</p>
             )}

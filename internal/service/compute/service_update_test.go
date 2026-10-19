@@ -48,3 +48,24 @@ func TestUpdateVMUsesGetVMWhenStoreLookupMisses(t *testing.T) {
 		t.Fatalf("tags not applied: %#v", got.Tags)
 	}
 }
+
+func TestUpdateVMSnapshotTags(t *testing.T) {
+	mem := store.NewMemory()
+	s := New(mem, nil, nil, nil)
+	const tenantID = "t-vsnap"
+	snap := &platform.VMSnapshot{ID: "vs-1", TenantID: tenantID, VMName: "web", Name: "before-upgrade"}
+	mem.SaveVMSnapshot(snap)
+
+	got, err := s.UpdateVMSnapshot(context.Background(), tenantID, snap.ID, &[]string{"pre-upgrade", " keep "})
+	if err != nil {
+		t.Fatalf("UpdateVMSnapshot: %v", err)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "pre-upgrade" || got.Tags[1] != "keep" {
+		t.Fatalf("tags not normalized: %#v", got.Tags)
+	}
+
+	stored, _ := mem.GetVMSnapshot(snap.ID)
+	if len(stored.Tags) != 2 {
+		t.Fatalf("tags not persisted: %#v", stored.Tags)
+	}
+}

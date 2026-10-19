@@ -23,6 +23,32 @@ func TenantNamespace(st store.Repository, tenantID string) (string, error) {
 	return t.Namespace, nil
 }
 
+// NormalizeTags trims whitespace, drops empty entries and removes duplicates
+// while preserving first-occurrence order. Returns nil when nothing remains so
+// the field is omitted from JSON, matching the VM tags convention.
+func NormalizeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(tags))
+	out := make([]string, 0, len(tags))
+	for _, t := range tags {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 var slugRe = regexp.MustCompile(`[^a-z0-9-]+`)
 
 // SanitizeSlug normalizes resource names for K8s and KubeVirt.

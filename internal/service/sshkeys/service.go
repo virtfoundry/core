@@ -51,7 +51,7 @@ func (s *Service) nameTaken(tenantID, name string) bool {
 	return false
 }
 
-func (s *Service) Create(tenantID, name string) (*CreateResult, error) {
+func (s *Service) Create(tenantID, name string, tags []string) (*CreateResult, error) {
 	name = shared.SanitizeSlug(name)
 	if name == "" {
 		return nil, fmt.Errorf("invalid key name")
@@ -76,6 +76,7 @@ func (s *Service) Create(tenantID, name string) (*CreateResult, error) {
 		Name:        name,
 		PublicKey:   pubLine,
 		Fingerprint: fp,
+		Tags:        shared.NormalizeTags(tags),
 		CreatedAt:   store.Now(),
 	}
 	s.store.SaveSSHKeyPair(key)
@@ -87,7 +88,7 @@ func (s *Service) Create(tenantID, name string) (*CreateResult, error) {
 	return &CreateResult{Key: key, PrivateKey: privPEM}, nil
 }
 
-func (s *Service) Register(tenantID, name, publicKey string) (*platform.SSHKeyPair, error) {
+func (s *Service) Register(tenantID, name, publicKey string, tags []string) (*platform.SSHKeyPair, error) {
 	name = shared.SanitizeSlug(name)
 	if name == "" {
 		return nil, fmt.Errorf("invalid key name")
@@ -112,10 +113,25 @@ func (s *Service) Register(tenantID, name, publicKey string) (*platform.SSHKeyPa
 		Name:        name,
 		PublicKey:   pubLine,
 		Fingerprint: fp,
+		Tags:        shared.NormalizeTags(tags),
 		CreatedAt:   store.Now(),
 	}
 	s.store.SaveSSHKeyPair(key)
 	return key, nil
+}
+
+// UpdateTags applies tag changes to an existing SSH key. A nil tags pointer
+// leaves the current tags untouched.
+func (s *Service) UpdateTags(tenantID, id string, tags *[]string) (*platform.SSHKeyPair, error) {
+	k, ok := s.Get(tenantID, id)
+	if !ok {
+		return nil, fmt.Errorf("ssh key not found")
+	}
+	if tags != nil {
+		k.Tags = shared.NormalizeTags(*tags)
+	}
+	s.store.SaveSSHKeyPair(k)
+	return k, nil
 }
 
 func (s *Service) Delete(tenantID, id string) error {

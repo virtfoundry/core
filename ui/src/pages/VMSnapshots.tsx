@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import {
-  listVMSnapshots, createVMSnapshot, deleteVMSnapshot, restoreVMSnapshot, listVMs,
+  listVMSnapshots, createVMSnapshot, updateVMSnapshot, deleteVMSnapshot, restoreVMSnapshot, listVMs,
 } from '../lib/platform-api';
+import type { VMSnapshot } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { ago } from '../lib/ago';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
+import { TagsEditorModal } from '../components/TagsEditorModal';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import {
@@ -24,11 +26,13 @@ export function VMSnapshots() {
   const { t, dateLocale } = useI18n();
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
-  const [form, setForm] = useState({ vm_name: '', name: '' });
+  const [editSnap, setEditSnap] = useState<VMSnapshot | null>(null);
+  const [form, setForm] = useState<{ vm_name: string; name: string; tags: string[] }>({ vm_name: '', name: '', tags: [] });
+  const [tagDraft, setTagDraft] = useState('');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.vmSnapshots,
     queryFn: listVMSnapshots,
     enabled: !needsTenant,
@@ -47,7 +51,16 @@ export function VMSnapshots() {
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
-      setForm({ vm_name: '', name: '' });
+      setForm({ vm_name: '', name: '', tags: [] });
+      setTagDraft('');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) => updateVMSnapshot(id, { tags }),
+    onSuccess: () => {
+      invalidate();
+      setEditSnap(null);
     },
   });
 
@@ -111,19 +124,20 @@ export function VMSnapshots() {
               aria-label={t('table.filter')}
             />
           </TableToolbar>
-          <PageTable minWidth={680}>
+          <PageTable minWidth={820}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>VM</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh>{t('common.created')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={6}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={5}>{t('vmSnapshots.empty')}</TableMessageRow>
+                <TableMessageRow cols={6}>{t('vmSnapshots.empty')}</TableMessageRow>
               ) : (
                 rows.map((snap) => (
                   <PageTableRow key={snap.id}>
@@ -132,12 +146,19 @@ export function VMSnapshots() {
                     <PageTableTd>
                       <StatusBadge status={phaseStatus(snap.phase)} pulse={false} />
                     </PageTableTd>
+                    <PageTableTd><TagPills tags={snap.tags} /></PageTableTd>
                     <PageTableTd className="text-on-surface-variant">{ago(snap.created_at, dateLocale)}</PageTableTd>
                     <PageTableTd className="text-right">
                       <OverflowMenu
                         variant="dots"
                         label={t('table.moreActions')}
                         items={[
+                          {
+                            id: 'edit-tags',
+                            label: t('tags.editTitle'),
+                            icon: <Pencil size={14} />,
+                            onSelect: () => setEditSnap(snap),
+                          },
                           {
                             id: 'restore',
                             label: t('vmSnapshots.restore'),
@@ -165,7 +186,7 @@ export function VMSnapshots() {
       </RefreshingPanel>
 
       <Modal isOpen={createModal} onClose={() => setCreateModal(false)} title={t('vmSnapshots.modalTitle')}>
-        <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(form); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate({ ...form, tags: mergeTags(form.tags, tagDraft) }); }} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">VM</label>
             <select required value={form.vm_name} onChange={(e) => setForm({ ...form, vm_name: e.target.value })}
@@ -182,6 +203,16 @@ export function VMSnapshots() {
               onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
               className={formInputClass} placeholder="snap-before-upgrade" />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -191,6 +222,16 @@ export function VMSnapshots() {
           </div>
         </form>
       </Modal>
+
+      <TagsEditorModal
+        key={editSnap?.id ?? 'none'}
+        isOpen={!!editSnap}
+        onClose={() => setEditSnap(null)}
+        initialTags={editSnap?.tags ?? []}
+        onSubmit={(tags) => editSnap && updateMutation.mutate({ id: editSnap.id, tags })}
+        loading={updateMutation.isPending}
+        error={updateMutation.isError ? (updateMutation.error as Error).message : null}
+      />
     </div>
   );
 }

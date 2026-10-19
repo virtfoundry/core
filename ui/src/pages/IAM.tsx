@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Copy, Check, AlertCircle, Pencil } from 'lucide-react';
 import {
-  listTenants, listIAMUsers, createIAMUser, deleteIAMUser,
-  listIAMRoles,
-  listIAMAPIKeys, createIAMAPIKey, revokeIAMAPIKey,
+  listTenants, listIAMUsers, createIAMUser, updateIAMUser, deleteIAMUser,
+  listIAMRoles, updateIAMRole,
+  listIAMAPIKeys, createIAMAPIKey, updateIAMAPIKey, revokeIAMAPIKey,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
 import { ago } from '../lib/ago';
 import { RefreshButton } from '../components/RefreshButton';
 import { queryKeys } from '../lib/query-keys';
@@ -36,8 +37,10 @@ export function IAM() {
   const [secretModal, setSecretModal] = useState<string | null>(null);
   const { state: copyState, copy: copyToClipboard, reset: resetCopy } = useCopyToClipboard();
   const [deleteUser, setDeleteUser] = useState<{ id: string; name: string } | null>(null);
-  const [userForm, setUserForm] = useState({ username: '', password: '', email: '', role_name: 'tenant.operator' });
-  const [keyForm, setKeyForm] = useState({ name: '', expires_in_days: 90 });
+  const [tagEdit, setTagEdit] = useState<{ kind: 'user' | 'role' | 'key'; id: string; label: string; tags: string[] } | null>(null);
+  const [tagDraft, setTagDraft] = useState('');
+  const [userForm, setUserForm] = useState({ username: '', password: '', email: '', role_name: 'tenant.operator', tags: [] as string[] });
+  const [keyForm, setKeyForm] = useState({ name: '', expires_in_days: 90, tags: [] as string[] });
   const qc = useQueryClient();
   const needsTenant = useNeedsTenant();
 
@@ -74,7 +77,7 @@ export function IAM() {
 
   const createUserMut = useMutation({
     mutationFn: createIAMUser,
-    onSuccess: () => { inv(); setUserModal(false); setUserForm({ username: '', password: '', email: '', role_name: 'tenant.operator' }); },
+    onSuccess: () => { inv(); setUserModal(false); setUserForm({ username: '', password: '', email: '', role_name: 'tenant.operator', tags: [] }); setTagDraft(''); },
   });
   const deleteUserMut = useMutation({
     mutationFn: deleteIAMUser,
@@ -82,11 +85,19 @@ export function IAM() {
   });
   const createKeyMut = useMutation({
     mutationFn: createIAMAPIKey,
-    onSuccess: (res) => { inv(); setKeyModal(false); setSecretModal(res.secret); resetCopy(); },
+    onSuccess: (res) => { inv(); setKeyModal(false); setSecretModal(res.secret); setKeyForm({ name: '', expires_in_days: 90, tags: [] }); setTagDraft(''); resetCopy(); },
   });
   const revokeKeyMut = useMutation({
     mutationFn: revokeIAMAPIKey,
     onSuccess: inv,
+  });
+  const updateTagsMut = useMutation({
+    mutationFn: async ({ kind, id, tags }: { kind: 'user' | 'role' | 'key'; id: string; tags: string[] }) => {
+      if (kind === 'user') { await updateIAMUser(id, { tags }); return; }
+      if (kind === 'role') { await updateIAMRole(id, { tags }); return; }
+      await updateIAMAPIKey(id, { tags });
+    },
+    onSuccess: () => { inv(); setTagEdit(null); },
   });
 
   const handleCopySecret = () => {
@@ -157,11 +168,12 @@ export function IAM() {
               <PageTableTh>{t('login.username')}</PageTableTh>
               <PageTableTh>{t('iam.role')}</PageTableTh>
               <PageTableTh>{t('nav.tenants')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {fUsers.length === 0 && <TableMessageRow cols={5}>{t('iam.empty')}</TableMessageRow>}
+              {fUsers.length === 0 && <TableMessageRow cols={6}>{t('iam.empty')}</TableMessageRow>}
               {pUsers.rows.map((u) => (
                 <PageTableRow key={u.id}>
                   <PageTableTd>
@@ -170,6 +182,7 @@ export function IAM() {
                   </PageTableTd>
                   <PageTableTd>{u.role}</PageTableTd>
                   <PageTableTd mono className="text-on-surface-variant">{tenantName(u)}</PageTableTd>
+                  <PageTableTd><TagPills tags={u.tags} /></PageTableTd>
                   <PageTableTd>
                     <StatusBadge status={u.state || 'active'} pulse={false} />
                   </PageTableTd>
@@ -177,13 +190,21 @@ export function IAM() {
                     <OverflowMenu
                       variant="dots"
                       label={t('table.moreActions')}
-                      items={u.role !== 'root' ? [{
-                        id: 'delete',
-                        label: t('common.delete'),
-                        icon: <Trash2 size={14} />,
-                        danger: true,
-                        onSelect: () => setDeleteUser({ id: u.id, name: u.username }),
-                      }] : []}
+                      items={u.role !== 'root' ? [
+                        {
+                          id: 'edit',
+                          label: t('common.edit'),
+                          icon: <Pencil size={14} />,
+                          onSelect: () => { setTagDraft(''); setTagEdit({ kind: 'user', id: u.id, label: u.username, tags: u.tags ? [...u.tags] : [] }); },
+                        },
+                        {
+                          id: 'delete',
+                          label: t('common.delete'),
+                          icon: <Trash2 size={14} />,
+                          danger: true,
+                          onSelect: () => setDeleteUser({ id: u.id, name: u.username }),
+                        },
+                      ] : []}
                     />
                   </PageTableTd>
                 </PageTableRow>
@@ -197,9 +218,11 @@ export function IAM() {
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('iam.permissions')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
+              <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {fRoles.length === 0 && <TableMessageRow cols={2}>{t('iam.empty')}</TableMessageRow>}
+              {fRoles.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
               {pRoles.rows.map((r) => (
                 <PageTableRow key={r.id}>
                   <PageTableTd>
@@ -211,6 +234,21 @@ export function IAM() {
                     )}
                   </PageTableTd>
                   <PageTableTd mono className="text-on-surface-variant text-xs">{(r.permissions || []).join(', ') || '—'}</PageTableTd>
+                  <PageTableTd><TagPills tags={r.tags} /></PageTableTd>
+                  <PageTableTd className="text-right">
+                    {!r.is_system && (
+                      <OverflowMenu
+                        variant="dots"
+                        label={t('table.moreActions')}
+                        items={[{
+                          id: 'edit',
+                          label: t('common.edit'),
+                          icon: <Pencil size={14} />,
+                          onSelect: () => { setTagDraft(''); setTagEdit({ kind: 'role', id: r.id, label: r.name, tags: r.tags ? [...r.tags] : [] }); },
+                        }]}
+                      />
+                    )}
+                  </PageTableTd>
                 </PageTableRow>
               ))}
             </PageTableBody>
@@ -222,27 +260,37 @@ export function IAM() {
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('iam.prefix')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh>{t('iam.created')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
-              {fKeys.length === 0 && <TableMessageRow cols={4}>{t('iam.empty')}</TableMessageRow>}
+              {fKeys.length === 0 && <TableMessageRow cols={5}>{t('iam.empty')}</TableMessageRow>}
               {pKeys.rows.map((k) => (
                 <PageTableRow key={k.id}>
                   <PageTableTd className="font-semibold">{k.name}</PageTableTd>
                   <PageTableTd mono>{k.prefix}</PageTableTd>
+                  <PageTableTd><TagPills tags={k.tags} /></PageTableTd>
                   <PageTableTd className="text-on-surface-variant">{ago(k.created_at, dateLocale)}</PageTableTd>
                   <PageTableTd className="text-right">
                     <OverflowMenu
                       variant="dots"
                       label={t('table.moreActions')}
-                      items={[{
-                        id: 'revoke',
-                        label: t('iam.revoke'),
-                        icon: <Trash2 size={14} />,
-                        danger: true,
-                        onSelect: () => revokeKeyMut.mutate(k.id),
-                      }]}
+                      items={[
+                        {
+                          id: 'edit',
+                          label: t('common.edit'),
+                          icon: <Pencil size={14} />,
+                          onSelect: () => { setTagDraft(''); setTagEdit({ kind: 'key', id: k.id, label: k.name, tags: k.tags ? [...k.tags] : [] }); },
+                        },
+                        {
+                          id: 'revoke',
+                          label: t('iam.revoke'),
+                          icon: <Trash2 size={14} />,
+                          danger: true,
+                          onSelect: () => revokeKeyMut.mutate(k.id),
+                        },
+                      ]}
                     />
                   </PageTableTd>
                 </PageTableRow>
@@ -255,7 +303,7 @@ export function IAM() {
       </SurfaceCard>
 
       <Modal isOpen={userModal} onClose={() => setUserModal(false)} title={t('iam.addUserTitle')}>
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createUserMut.mutate(userForm); }}>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createUserMut.mutate({ ...userForm, tags: mergeTags(userForm.tags, tagDraft) }); }}>
           <div>
             <label className="block text-sm font-medium mb-1">{t('login.username')}</label>
             <input
@@ -297,6 +345,16 @@ export function IAM() {
             </select>
             <p className="text-xs text-on-surface-variant mt-1">{t('iam.roleHint')}</p>
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={userForm.tags}
+              onTagsChange={(tags) => setUserForm({ ...userForm, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setUserModal(false)} className="btn-secondary">{t('common.cancel')}</button>
             <button type="submit" className="btn-primary" disabled={createUserMut.isPending}>{t('common.create')}</button>
@@ -305,7 +363,7 @@ export function IAM() {
       </Modal>
 
       <Modal isOpen={keyModal} onClose={() => setKeyModal(false)} title={t('iam.createKeyTitle')}>
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createKeyMut.mutate(keyForm); }}>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createKeyMut.mutate({ ...keyForm, tags: mergeTags(keyForm.tags, tagDraft) }); }}>
           <div>
             <label className="block text-sm font-medium mb-1">{t('iam.keyName')}</label>
             <input
@@ -328,6 +386,16 @@ export function IAM() {
               onChange={(e) => setKeyForm({ ...keyForm, expires_in_days: Number(e.target.value) })}
             />
             <p className="text-xs text-on-surface-variant mt-1">{t('iam.expiresHint')}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={keyForm.tags}
+              onTagsChange={(tags) => setKeyForm({ ...keyForm, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
           </div>
           <InfoBanner variant="warning">{t('iam.secretWarning')}</InfoBanner>
           <div className="flex justify-end gap-3 pt-2">
@@ -363,6 +431,37 @@ export function IAM() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      <Modal isOpen={tagEdit !== null} onClose={() => setTagEdit(null)} title={t('common.edit')}>
+        {tagEdit && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateTagsMut.mutate({ kind: tagEdit.kind, id: tagEdit.id, tags: mergeTags(tagEdit.tags, tagDraft) });
+            }}
+          >
+            <p className="text-sm text-on-surface-variant">{tagEdit.label}</p>
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+              <TagsInput
+                tags={tagEdit.tags}
+                onTagsChange={(tags) => setTagEdit({ ...tagEdit, tags })}
+                draft={tagDraft}
+                onDraftChange={setTagDraft}
+                placeholder={t('common.tagsPlaceholder')}
+              />
+            </div>
+            {updateTagsMut.isError && (
+              <p className="text-sm text-error">{(updateTagsMut.error as Error).message}</p>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setTagEdit(null)} className="btn-secondary">{t('common.cancel')}</button>
+              <button type="submit" className="btn-primary" disabled={updateTagsMut.isPending}>{t('common.save')}</button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       <ConfirmDialog

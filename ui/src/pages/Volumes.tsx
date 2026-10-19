@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
-import { listVolumes, createVolume, deleteVolume, listVMs } from '../lib/platform-api';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { listVolumes, createVolume, updateVolume, deleteVolume, listVMs } from '../lib/platform-api';
+import type { Volume } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
+import { TagsEditorModal } from '../components/TagsEditorModal';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { ago } from '../lib/ago';
@@ -26,11 +28,13 @@ export function Volumes() {
   const [search, setSearch] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [form, setForm] = useState({ name: '', size_gi: 10 });
+  const [editVol, setEditVol] = useState<Volume | null>(null);
+  const [form, setForm] = useState<{ name: string; size_gi: number; tags: string[] }>({ name: '', size_gi: 10, tags: [] });
+  const [tagDraft, setTagDraft] = useState('');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.volumes,
     queryFn: listVolumes,
     enabled: !needsTenant,
@@ -47,7 +51,16 @@ export function Volumes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.volumes });
       setCreateModal(false);
-      setForm({ name: '', size_gi: 10 });
+      setForm({ name: '', size_gi: 10, tags: [] });
+      setTagDraft('');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) => updateVolume(id, { tags }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.volumes });
+      setEditVol(null);
     },
   });
 
@@ -109,21 +122,22 @@ export function Volumes() {
               aria-label={t('table.filter')}
             />
           </TableToolbar>
-          <PageTable minWidth={820}>
+          <PageTable minWidth={900}>
             <PageTableHead>
               <PageTableTh>{t('volumes.col.volume')}</PageTableTh>
               <PageTableTh>{t('volumes.size')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('volumes.attachedVm')}</PageTableTh>
               <PageTableTh>PVC</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh>{t('vms.col.age')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={8}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={7}>{t('volumes.empty')}</TableMessageRow>
+                <TableMessageRow cols={8}>{t('volumes.empty')}</TableMessageRow>
               ) : (
                 rows.map((vol) => {
                   const attachedVm = vol.vm_id ? vmById[vol.vm_id] : undefined;
@@ -144,12 +158,19 @@ export function Volumes() {
                         )}
                       </PageTableTd>
                       <PageTableTd mono className="text-on-surface-variant">{vol.pvc_name}</PageTableTd>
+                      <PageTableTd><TagPills tags={vol.tags} /></PageTableTd>
                       <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(vol.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
                           label={t('table.moreActions')}
                           items={[
+                            {
+                              id: 'edit-tags',
+                              label: t('tags.editTitle'),
+                              icon: <Pencil size={14} />,
+                              onSelect: () => setEditVol(vol),
+                            },
                             ...(vol.vm_id
                               ? []
                               : [{
@@ -188,7 +209,7 @@ export function Volumes() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate(form);
+            createMutation.mutate({ ...form, tags: mergeTags(form.tags, tagDraft) });
           }}
           className="space-y-4"
         >
@@ -204,6 +225,16 @@ export function Volumes() {
               onChange={(e) => setForm({ ...form, size_gi: parseInt(e.target.value, 10) })}
               className={formInputClass} />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -215,6 +246,16 @@ export function Volumes() {
           </div>
         </form>
       </Modal>
+
+      <TagsEditorModal
+        key={editVol?.id ?? 'none'}
+        isOpen={!!editVol}
+        onClose={() => setEditVol(null)}
+        initialTags={editVol?.tags ?? []}
+        onSubmit={(tags) => editVol && updateMutation.mutate({ id: editVol.id, tags })}
+        loading={updateMutation.isPending}
+        error={updateMutation.isError ? (updateMutation.error as Error).message : null}
+      />
     </div>
   );
 }
