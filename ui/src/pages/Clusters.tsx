@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Download } from 'lucide-react';
+import { Plus, Trash2, Download, Pencil } from 'lucide-react';
 import {
-  listVKSClusters, createVKSCluster, deleteVKSCluster, downloadVKSKubeconfig,
+  listVKSClusters, createVKSCluster, updateVKSCluster, deleteVKSCluster, downloadVKSKubeconfig,
   listNetworks, listSSHKeys, listVMTemplates, listServiceOfferings,
 } from '../lib/platform-api';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
 import { StatsCard } from '../components/StatsCard';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
@@ -39,6 +40,7 @@ type CreateFormState = {
   workers: number;
   port: string;
   sshKeyNames: string[];
+  tags: string[];
 };
 
 function emptyCreateForm(): CreateFormState {
@@ -51,6 +53,7 @@ function emptyCreateForm(): CreateFormState {
     workers: DEFAULT_WORKERS,
     port: '',
     sshKeyNames: [],
+    tags: [],
   };
 }
 
@@ -60,6 +63,8 @@ export function Clusters() {
   const [createModal, setCreateModal] = useState(false);
   const [form, setForm] = useState<CreateFormState>(emptyCreateForm);
   const [deleteTarget, setDeleteTarget] = useState<{ name: string } | null>(null);
+  const [editCluster, setEditCluster] = useState<{ name: string; tags: string[] } | null>(null);
+  const [tagDraft, setTagDraft] = useState('');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
@@ -157,6 +162,15 @@ export function Clusters() {
       invalidate();
       setCreateModal(false);
       resetForm();
+      setTagDraft('');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ name, tags }: { name: string; tags: string[] }) => updateVKSCluster(name, { tags }),
+    onSuccess: () => {
+      invalidate();
+      setEditCluster(null);
     },
   });
 
@@ -210,6 +224,7 @@ export function Clusters() {
           ? { ssh_key_refs: form.sshKeyNames.map((name) => ({ name })) }
           : {}),
       },
+      tags: mergeTags(form.tags, tagDraft),
     });
   };
 
@@ -283,13 +298,14 @@ export function Clusters() {
               <PageTableTh>{t('vks.col.workers')}</PageTableTh>
               <PageTableTh>{t('vks.col.machineType')}</PageTableTh>
               <PageTableTh>{t('vks.col.network')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh className="text-right">{t('vks.col.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={8}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={9}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={8}>{t('vks.empty')}</TableMessageRow>
+                <TableMessageRow cols={9}>{t('vks.empty')}</TableMessageRow>
               ) : (
                 rows.map((c) => (
                   <PageTableRow key={c.name}>
@@ -309,6 +325,7 @@ export function Clusters() {
                     <PageTableTd mono>{vksNodesLabel(c.ready_workers, c.workers?.count)}</PageTableTd>
                     <PageTableTd mono className="text-on-surface-variant">{c.workers?.offering_ref?.name || '—'}</PageTableTd>
                     <PageTableTd mono className="text-on-surface-variant">{c.workers?.network_ref?.name || '—'}</PageTableTd>
+                    <PageTableTd><TagPills tags={c.tags} /></PageTableTd>
                     <PageTableTd className="text-right">
                       <OverflowMenu
                         variant="dots"
@@ -320,6 +337,12 @@ export function Clusters() {
                             icon: <Download size={14} />,
                             disabled: !vksCanDownloadKubeconfig(c.phase) || downloadMutation.isPending,
                             onSelect: () => downloadMutation.mutate(c.name),
+                          },
+                          {
+                            id: 'edit',
+                            label: t('common.edit'),
+                            icon: <Pencil size={14} />,
+                            onSelect: () => { setTagDraft(''); setEditCluster({ name: c.name, tags: c.tags ? [...c.tags] : [] }); },
                           },
                           {
                             id: 'delete',
@@ -471,6 +494,16 @@ export function Clusters() {
             />
             <span className="mt-1 block text-xs text-on-surface-variant">{t('vks.form.nodePortHelp')}</span>
           </label>
+          <div>
+            <label className="block text-sm mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm((f) => ({ ...f, tags }))}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.error && (
             <p className="text-sm text-error">{(createMutation.error as Error).message}</p>
           )}
@@ -487,6 +520,41 @@ export function Clusters() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={editCluster !== null} onClose={() => setEditCluster(null)} title={t('common.edit')}>
+        {editCluster && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateMutation.mutate({ name: editCluster.name, tags: mergeTags(editCluster.tags, tagDraft) });
+            }}
+          >
+            <p className="text-sm text-on-surface-variant">{editCluster.name}</p>
+            <div>
+              <label className="block text-sm mb-1">{t('tags.column')}</label>
+              <TagsInput
+                tags={editCluster.tags}
+                onTagsChange={(tags) => setEditCluster({ ...editCluster, tags })}
+                draft={tagDraft}
+                onDraftChange={setTagDraft}
+                placeholder={t('common.tagsPlaceholder')}
+              />
+            </div>
+            {updateMutation.isError && (
+              <p className="text-sm text-error">{(updateMutation.error as Error).message}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn-secondary" onClick={() => setEditCluster(null)}>
+                {t('common.cancel')}
+              </button>
+              <button type="submit" disabled={updateMutation.isPending} className="btn-primary">
+                {t('common.save')}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       <ConfirmDialog

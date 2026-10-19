@@ -10,13 +10,13 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { CIDRPicker, SubnetPrefixSelect } from '../components/CIDRPicker';
-import { OverflowMenu } from '../components/OverflowMenu';
-import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
-import type { Network, VPC } from '../lib/platform-api';
+import type { Network } from '../lib/platform-api';
+import { queryKeys } from '../lib/query-keys';
+import { OverflowMenu } from '../components/OverflowMenu';
 import {
   PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -32,13 +32,14 @@ export function Networks() {
   const [createModal, setCreateModal] = useState(false);
   const [editNet, setEditNet] = useState<Network | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [form, setForm] = useState({ name: '', cidr: '', vpc_id: '' });
+  const [form, setForm] = useState({ name: '', cidr: '', vpc_id: '', tags: [] as string[] });
+  const [tagDraft, setTagDraft] = useState('');
   const [cidrMode, setCidrMode] = useState<'auto' | 'custom'>('auto');
   const [prefix, setPrefix] = useState(24);
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.networks,
     queryFn: listNetworks,
     enabled: !needsTenant,
@@ -74,14 +75,15 @@ export function Networks() {
     onSuccess: () => {
       invalidate();
       setCreateModal(false);
-      setForm({ name: '', cidr: '', vpc_id: '' });
+      setForm({ name: '', cidr: '', vpc_id: '', tags: [] });
+      setTagDraft('');
       setCidrMode('auto');
       setPrefix(24);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => updateNetwork(id, { name }),
+    mutationFn: ({ id, name, tags }: { id: string; name?: string; tags?: string[] }) => updateNetwork(id, { name, tags }),
     onSuccess: () => {
       invalidate();
       setEditNet(null);
@@ -154,7 +156,7 @@ export function Networks() {
               aria-label={t('table.filter')}
             />
           </TableToolbar>
-          <PageTable minWidth={780}>
+          <PageTable minWidth={860}>
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('networks.vpc')}</PageTableTh>
@@ -162,13 +164,14 @@ export function Networks() {
               <PageTableTh>{t('publicNetwork.gateway')}</PageTableTh>
               <PageTableTh>{t('common.state')}</PageTableTh>
               <PageTableTh>{t('networks.vms')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={7}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={8}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={7}>
+                <TableMessageRow cols={8}>
                   <p>{t('networks.empty')}</p>
                   <p className="text-sm mt-2 opacity-70">{t('networks.emptyHint')}</p>
                 </TableMessageRow>
@@ -194,12 +197,13 @@ export function Networks() {
                         <StatusBadge status={net.state || 'active'} pulse={false} />
                       </PageTableTd>
                       <PageTableTd mono>{vmCount(net)}</PageTableTd>
+                      <PageTableTd><TagPills tags={net.tags} /></PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
                           variant="dots"
                           label={t('table.moreActions')}
                           items={[
-                            { id: 'edit', label: t('common.edit'), icon: <Pencil size={14} />, onSelect: () => setEditNet(net) },
+                            { id: 'edit', label: t('common.edit'), icon: <Pencil size={14} />, onSelect: () => { setTagDraft(''); setEditNet(net); } },
                             {
                               id: 'delete',
                               label: t('common.delete'),
@@ -241,6 +245,7 @@ export function Networks() {
               name: form.name,
               vpc_id: form.vpc_id,
               prefix,
+              tags: mergeTags(form.tags, tagDraft),
               ...(cidrMode === 'custom' ? { cidr: form.cidr } : {}),
             });
           }}
@@ -284,6 +289,16 @@ export function Networks() {
               </div>
             </>
           )}
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -299,7 +314,7 @@ export function Networks() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              updateMutation.mutate({ id: editNet.id, name: editNet.name });
+              updateMutation.mutate({ id: editNet.id, name: editNet.name, tags: mergeTags(editNet.tags || [], tagDraft) });
             }}
             className="space-y-4"
           >
@@ -309,6 +324,16 @@ export function Networks() {
                 className={formInputClass} />
             </div>
             <p className="text-sm text-on-surface-variant">{t('networks.cidr')}: {editNet.cidr}</p>
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+              <TagsInput
+                tags={editNet.tags || []}
+                onTagsChange={(tags) => setEditNet({ ...editNet, tags })}
+                draft={tagDraft}
+                onDraftChange={setTagDraft}
+                placeholder={t('common.tagsPlaceholder')}
+              />
+            </div>
             {updateMutation.isError && (
               <p className="text-error text-sm">{(updateMutation.error as Error).message}</p>
             )}

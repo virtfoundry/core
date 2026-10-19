@@ -90,7 +90,7 @@ func TestCreateSSHKey_PrivateKeyOnlyOnce(t *testing.T) {
 
 func TestSSHKeys_NoPrivateKeyRefetchRoute(t *testing.T) {
 	h, tid := newSSHKeyTestHandler(t)
-	out, err := h.svc.CreateSSHKey(tid, "blocked")
+	out, err := h.svc.CreateSSHKey(tid, "blocked", nil)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestSSHKeys_NoPrivateKeyRefetchRoute(t *testing.T) {
 
 func TestRegisterSSHKey_PublicOnly(t *testing.T) {
 	h, tid := newSSHKeyTestHandler(t)
-	seed, err := h.svc.CreateSSHKey(tid, "seed")
+	seed, err := h.svc.CreateSSHKey(tid, "seed", nil)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}

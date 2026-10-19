@@ -54,7 +54,7 @@ export function Offerings() {
   const queryClient = useQueryClient();
   const isRoot = useAppSelector(selectIsRoot);
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.allOfferings,
     queryFn: listAllServiceOfferings,
     enabled: isRoot,

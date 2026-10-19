@@ -4,7 +4,6 @@ import { listNetworks } from '../lib/platform-api';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isPublicNetwork } from '../lib/networks';
@@ -14,12 +13,13 @@ import {
 } from '../components/shell';
 import { StatusBadge } from '../components/StatusBadge';
 import { StatsCard } from '../components/StatsCard';
+import { TagPills } from '../components/TagsInput';
 
 export function PublicNetwork() {
   const { t } = useI18n();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.networks,
     queryFn: listNetworks,
     enabled: !needsTenant,
@@ -68,13 +68,14 @@ export function PublicNetwork() {
             </section>
 
             <SurfaceCard padding="none" className="overflow-hidden">
-              <PageTable minWidth={720}>
+              <PageTable minWidth={800}>
                 <PageTableHead>
                   <PageTableTh>{t('common.name')}</PageTableTh>
                   <PageTableTh>{t('networks.cidr')}</PageTableTh>
                   <PageTableTh>{t('publicNetwork.gateway')}</PageTableTh>
                   <PageTableTh>{t('publicNetwork.nad')}</PageTableTh>
                   <PageTableTh>{t('common.state')}</PageTableTh>
+                  <PageTableTh>{t('tags.column')}</PageTableTh>
                 </PageTableHead>
                 <PageTableBody>
                   <PageTableRow>
@@ -95,6 +96,7 @@ export function PublicNetwork() {
                     <PageTableTd>
                       <StatusBadge status={publicNet.state || 'active'} pulse={false} />
                     </PageTableTd>
+                    <PageTableTd><TagPills tags={publicNet.tags} /></PageTableTd>
                   </PageTableRow>
                 </PageTableBody>
               </PageTable>

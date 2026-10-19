@@ -23,6 +23,15 @@ func VPCToUnstructured(v *platform.VPC, tenantSlug string) *unstructured.Unstruc
 		"name": v.Name,
 		"cidr": v.CIDR,
 	}
+	tags := make([]interface{}, 0, len(v.Tags))
+	for _, tag := range v.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -40,6 +49,22 @@ func VPCFromUnstructured(obj *unstructured.Unstructured, tenantID string) *platf
 	v.CIDR = cidr
 	if ns, ok, _ := unstructured.NestedString(obj.Object, "status", "namespace"); ok {
 		v.Namespace = ns
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			v.Tags = tags
+		}
 	}
 	return v
 }
@@ -75,6 +100,15 @@ func SGToUnstructured(sg *platform.SecurityGroup, tenantSlug, vpcCRName string) 
 		}
 		spec["rules"] = rules
 	}
+	tags := make([]interface{}, 0, len(sg.Tags))
+	for _, tag := range sg.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -108,6 +142,22 @@ func SGFromUnstructured(obj *unstructured.Unstructured, tenantID string, vpcID s
 			rule.PortTo = int(v)
 		}
 		sg.Rules = append(sg.Rules, rule)
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			sg.Tags = tags
+		}
 	}
 	return sg
 }
@@ -151,6 +201,15 @@ func NetworkToUnstructured(n *platform.Network, tenantSlug, vpcCRName string) *u
 	if imp := importMeta(n.ExternalUUID, n.ImportSource); imp != nil {
 		spec["import"] = imp
 	}
+	tags := make([]interface{}, 0, len(n.Tags))
+	for _, tag := range n.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -182,6 +241,22 @@ func NetworkFromUnstructured(obj *unstructured.Unstructured, tenantID string, vp
 	}
 	if src, ok, _ := unstructured.NestedString(obj.Object, "spec", "import", "source"); ok {
 		net.ImportSource = src
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			net.Tags = tags
+		}
 	}
 	return net
 }

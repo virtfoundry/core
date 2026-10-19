@@ -62,6 +62,73 @@ func TestDeleteVolume_NotFound(t *testing.T) {
 	}
 }
 
+func TestUpdateVolume_TagsReplaceAndClear(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	tenantID := store.NewID()
+	vol := &platform.Volume{ID: "vol-1", TenantID: tenantID, Name: "data", Tags: []string{"old"}}
+	st.SaveVolume(vol)
+
+	tags := []string{"prod", " db ", ""}
+	got, err := svc.UpdateVolume(context.Background(), tenantID, vol.ID, &tags)
+	if err != nil {
+		t.Fatalf("UpdateVolume: %v", err)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "prod" || got.Tags[1] != "db" {
+		t.Fatalf("tags not normalized: %#v", got.Tags)
+	}
+
+	empty := []string{}
+	if _, err := svc.UpdateVolume(context.Background(), tenantID, vol.ID, &empty); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	stored, _ := st.GetVolume(vol.ID)
+	if len(stored.Tags) != 0 {
+		t.Fatalf("tags should be cleared: %#v", stored.Tags)
+	}
+
+	if _, err := svc.UpdateVolume(context.Background(), tenantID, vol.ID, nil); err != nil {
+		t.Fatalf("nil tags: %v", err)
+	}
+}
+
+func TestUpdateVolume_NotFound(t *testing.T) {
+	svc := New(store.NewMemory(), nil)
+	tags := []string{"x"}
+	_, err := svc.UpdateVolume(context.Background(), store.NewID(), "missing", &tags)
+	var iaErr *iaerrors.IaaSError
+	if !errors.As(err, &iaErr) || iaErr.HTTPStatus() != http.StatusNotFound {
+		t.Fatalf("expected 404 IaaSError, got %v", err)
+	}
+}
+
+func TestUpdateSnapshot_TagsReplace(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	tenantID := store.NewID()
+	snap := &platform.Snapshot{ID: "snap-1", TenantID: tenantID, VolumeID: "vol-1", Name: "snap"}
+	st.SaveSnapshot(snap)
+
+	tags := []string{"gold"}
+	got, err := svc.UpdateSnapshot(context.Background(), tenantID, snap.ID, &tags)
+	if err != nil {
+		t.Fatalf("UpdateSnapshot: %v", err)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "gold" {
+		t.Fatalf("tags not applied: %#v", got.Tags)
+	}
+}
+
+func TestUpdateSnapshot_NotFound(t *testing.T) {
+	svc := New(store.NewMemory(), nil)
+	tags := []string{"x"}
+	_, err := svc.UpdateSnapshot(context.Background(), store.NewID(), "missing", &tags)
+	var iaErr *iaerrors.IaaSError
+	if !errors.As(err, &iaErr) || iaErr.HTTPStatus() != http.StatusNotFound {
+		t.Fatalf("expected 404 IaaSError, got %v", err)
+	}
+}
+
 func TestListSnapshots_DoesNotPersistReadiness(t *testing.T) {
 	mem := store.NewMemory()
 	rec := &recordingSnapshotStore{Memory: mem}

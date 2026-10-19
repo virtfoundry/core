@@ -58,6 +58,7 @@ export interface Volume {
   namespace: string;
   pvc_name: string;
   vm_id?: string;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -67,6 +68,7 @@ export interface VPC {
   cidr: string;
   namespace: string;
   state: string;
+  tags?: string[];
 }
 
 export interface Network {
@@ -79,6 +81,7 @@ export interface Network {
   nad_namespace?: string;
   nad_name?: string;
   state: string;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -114,6 +117,7 @@ export interface SecurityGroup {
     port_to?: number;
     cidr: string;
   }>;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -122,6 +126,7 @@ export interface Snapshot {
   name: string;
   volume_id: string;
   state: string;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -132,6 +137,7 @@ export interface VMSnapshot {
   vm_name: string;
   phase: string;
   namespace: string;
+  tags?: string[];
   created_at?: string;
 }
 
@@ -142,6 +148,7 @@ export interface SSHKeyPair {
   /** Public OpenSSH authorized_keys line — safe to list/display. */
   public_key: string;
   fingerprint: string;
+  tags?: string[];
   created_at?: string;
   // private_key_pem is intentionally absent: only returned once on createSSHKey().
 }
@@ -241,14 +248,14 @@ export async function fetchNetworkCIDRPlan(vpcId: string, prefix = 24) {
   return platformFetch<SubnetCIDRPlan>(`/networks/cidr-plan?vpc_id=${encodeURIComponent(vpcId)}&prefix=${prefix}`);
 }
 
-export async function createVPC(data: { name: string; cidr?: string }) {
+export async function createVPC(data: { name: string; cidr?: string; tags?: string[] }) {
   return platformFetch<{ vpc: VPC }>('/vpcs', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateVPC(id: string, data: { name: string }) {
+export async function updateVPC(id: string, data: { name: string; tags?: string[] }) {
   return platformFetch<{ vpc: VPC }>(`/vpcs/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -361,9 +368,16 @@ export async function listVolumes() {
   return platformFetch<{ volumes: Volume[] }>('/volumes');
 }
 
-export async function createVolume(data: { name: string; size_gi: number }) {
+export async function createVolume(data: { name: string; size_gi: number; tags?: string[] }) {
   return platformFetch<{ volume: Volume }>('/volumes', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVolume(id: string, data: { tags?: string[] }) {
+  return platformFetch<{ volume: Volume }>(`/volumes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
@@ -395,14 +409,14 @@ export async function listNetworks() {
   return { networks: res.networks ?? [] };
 }
 
-export async function createNetwork(data: { name: string; cidr?: string; vpc_id: string; prefix?: number }) {
+export async function createNetwork(data: { name: string; cidr?: string; vpc_id: string; prefix?: number; tags?: string[] }) {
   return platformFetch<{ network: Network }>('/networks', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateNetwork(id: string, data: { name: string }) {
+export async function updateNetwork(id: string, data: { name?: string; tags?: string[] }) {
   return platformFetch<{ network: Network }>(`/networks/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -423,6 +437,7 @@ export async function createSecurityGroup(data: {
   description?: string;
   vpc_id?: string;
   rules?: SecurityGroup['rules'];
+  tags?: string[];
 }) {
   return platformFetch<{ security_group: SecurityGroup }>('/security-groups', {
     method: 'POST',
@@ -434,6 +449,7 @@ export async function updateSecurityGroup(id: string, data: {
   name?: string;
   description?: string;
   rules?: SecurityGroup['rules'];
+  tags?: string[];
 }) {
   return platformFetch<{ security_group: SecurityGroup }>(`/security-groups/${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -449,9 +465,16 @@ export async function listSnapshots() {
   return platformFetch<{ snapshots: Snapshot[] }>('/snapshots');
 }
 
-export async function createSnapshot(data: { volume_id: string; name: string }) {
+export async function createSnapshot(data: { volume_id: string; name: string; tags?: string[] }) {
   return platformFetch<{ snapshot: Snapshot }>('/snapshots', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSnapshot(id: string, data: { tags?: string[] }) {
+  return platformFetch<{ snapshot: Snapshot }>(`/snapshots/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
@@ -460,9 +483,16 @@ export async function listVMSnapshots() {
   return platformFetch<{ vm_snapshots: VMSnapshot[] }>('/vm-snapshots');
 }
 
-export async function createVMSnapshot(data: { vm_name: string; name: string }) {
+export async function createVMSnapshot(data: { vm_name: string; name: string; tags?: string[] }) {
   return platformFetch<{ vm_snapshot: VMSnapshot }>('/vm-snapshots', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVMSnapshot(id: string, data: { tags?: string[] }) {
+  return platformFetch<{ vm_snapshot: VMSnapshot }>(`/vm-snapshots/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
@@ -480,7 +510,7 @@ export async function listSSHKeys() {
   return { ssh_keys: res.ssh_keys ?? [] };
 }
 
-export async function createSSHKey(data: { name: string }) {
+export async function createSSHKey(data: { name: string; tags?: string[] }) {
   // private_key_pem is one-shot (API key secret pattern); never available on list/get.
   return platformFetch<{ key: SSHKeyPair; private_key_pem: string }>('/ssh-keys', {
     method: 'POST',
@@ -488,9 +518,16 @@ export async function createSSHKey(data: { name: string }) {
   });
 }
 
-export async function registerSSHKey(data: { name: string; public_key: string }) {
+export async function registerSSHKey(data: { name: string; public_key: string; tags?: string[] }) {
   return platformFetch<{ key: SSHKeyPair }>('/ssh-keys/register', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSSHKey(id: string, data: { tags?: string[] }) {
+  return platformFetch<{ key: SSHKeyPair }>(`/ssh-keys/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
@@ -629,6 +666,7 @@ export interface IAMUser {
   tenant_id?: string;
   email?: string;
   state?: string;
+  tags?: string[];
 }
 
 export interface IAMRole {
@@ -638,6 +676,7 @@ export interface IAMRole {
   description?: string;
   is_system?: boolean;
   permissions?: string[];
+  tags?: string[];
 }
 
 export interface IAMAPIKey {
@@ -647,6 +686,7 @@ export interface IAMAPIKey {
   name: string;
   prefix: string;
   scopes?: string[];
+  tags?: string[];
   expires_at?: string;
   last_used_at?: string;
   revoked_at?: string;
@@ -658,8 +698,12 @@ export async function listIAMUsers() {
   return { users: res.users ?? [] };
 }
 
-export async function createIAMUser(data: { username: string; password: string; email?: string; role_name?: string; role_id?: string }) {
+export async function createIAMUser(data: { username: string; password: string; email?: string; role_name?: string; role_id?: string; tags?: string[] }) {
   return platformFetch<{ user: IAMUser }>('/users', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateIAMUser(id: string, data: { email?: string; role_id?: string; state?: string; tags?: string[] }) {
+  return platformFetch<{ user: IAMUser }>(`/users/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
 export async function deleteIAMUser(id: string) {
@@ -671,8 +715,12 @@ export async function listIAMRoles() {
   return { roles: res.roles ?? [] };
 }
 
-export async function createIAMRole(data: { name: string; description?: string; permissions: string[] }) {
+export async function createIAMRole(data: { name: string; description?: string; permissions: string[]; tags?: string[] }) {
   return platformFetch<{ role: IAMRole }>('/roles', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateIAMRole(id: string, data: { description?: string; permissions?: string[]; tags?: string[] }) {
+  return platformFetch<{ role: IAMRole }>(`/roles/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
 export async function deleteIAMRole(id: string) {
@@ -684,8 +732,12 @@ export async function listIAMAPIKeys() {
   return { api_keys: res.api_keys ?? [] };
 }
 
-export async function createIAMAPIKey(data: { name: string; expires_in_days?: number; scopes?: string[] }) {
+export async function createIAMAPIKey(data: { name: string; expires_in_days?: number; scopes?: string[]; tags?: string[] }) {
   return platformFetch<{ api_key: IAMAPIKey; secret: string }>('/api-keys', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateIAMAPIKey(id: string, data: { tags?: string[] }) {
+  return platformFetch<{ api_key: IAMAPIKey }>(`/api-keys/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
 export async function revokeIAMAPIKey(id: string) {
@@ -810,6 +862,7 @@ export interface VKSCluster {
   kubeconfig_secret_ref?: string;
   tcp_namespace?: string;
   tcp_name?: string;
+  tags?: string[];
   created_at?: string;
   conditions?: VKSCondition[];
 }
@@ -853,6 +906,7 @@ export interface CreateVKSClusterInput {
     network_ref: { name: string };
     ssh_key_refs?: Array<{ name: string }>;
   };
+  tags?: string[];
 }
 
 export async function listVKSClusters() {
@@ -873,6 +927,13 @@ export async function getVKSClusterSummary(name: string) {
 export async function createVKSCluster(data: CreateVKSClusterInput) {
   return platformFetch<{ cluster: VKSCluster }>('/vks/clusters', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVKSCluster(name: string, data: { tags: string[] }) {
+  return platformFetch<{ cluster: VKSCluster }>(`/vks/clusters/${encodeURIComponent(name)}`, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }

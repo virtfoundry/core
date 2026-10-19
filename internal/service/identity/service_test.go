@@ -128,7 +128,7 @@ func TestTenantAdminCannotAssignPlatformRoot(t *testing.T) {
 
 	target := &platform.User{ID: store.NewID(), Username: "target", TenantID: tenantID, Role: platform.RoleUser}
 	st.SaveUser(target)
-	if _, err := svc.UpdateUser(tenantID, target.ID, "", store.SystemRoleIDRoot, "", admin); err == nil {
+	if _, err := svc.UpdateUser(tenantID, target.ID, "", store.SystemRoleIDRoot, "", nil, admin); err == nil {
 		t.Fatal("tenant admin updated a user to platform root")
 	}
 }
@@ -152,7 +152,7 @@ func TestTenantRolePermissionsAreBoundedByActor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create legitimate tenant role: %v", err)
 	}
-	if _, err := svc.UpdateRole(tenantID, role.ID, "", []string{auth.PermTenantsWrite}, admin); err == nil {
+	if _, err := svc.UpdateRole(tenantID, role.ID, "", []string{auth.PermTenantsWrite}, nil, admin); err == nil {
 		t.Fatal("updated tenant role with tenants:write")
 	}
 }
@@ -187,7 +187,7 @@ func TestTenantAdminCanAssignTenantRoleAndRootCanManageSystemRole(t *testing.T) 
 	if rootUser.Role != platform.RoleRoot {
 		t.Fatalf("role = %q, want %q", rootUser.Role, platform.RoleRoot)
 	}
-	if _, err := svc.UpdateRole(tenantID, store.SystemRoleIDTenantViewer, "root managed", []string{auth.PermVMsRead}, root); err != nil {
+	if _, err := svc.UpdateRole(tenantID, store.SystemRoleIDTenantViewer, "root managed", []string{auth.PermVMsRead}, nil, root); err != nil {
 		t.Fatalf("root updated system role: %v", err)
 	}
 }

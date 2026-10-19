@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Added
 
+- **Resource tags (API + UI):** `VPC`, `SecurityGroup`, `VKSCluster`, IAM (`User`, `Role`, `APIKey`), `Network`, `Volume`, `Snapshot`, `VMSnapshot` and `SSHKeyPair` now carry a `tags` list, mirroring the existing VM `Instance.spec.tags`. Create endpoints accept `tags` (`POST /vpcs`, `/security-groups`, `/vks/clusters`, `/users`, `/roles`, `/api-keys`, `/networks`, `/volumes`, `/snapshots`, `/vm-snapshots`, `/ssh-keys`, `/ssh-keys/register`). New tag-only `PATCH` endpoints were added (`/vks/clusters/{name}`, `/api-keys/{id}`, `/volumes/{id}`, `/snapshots/{id}`, `/vm-snapshots/{id}`, `/ssh-keys/{id}`) and the existing `PATCH /vpcs/{id}`, `/security-groups/{id}`, `/users/{id}`, `/roles/{id}` and `/networks/{id}` now also accept `tags` while keeping every other field optional. Tags are normalized server-side (trim, drop blanks, dedupe) and persisted on each CR's `spec.tags`. The UI adds a reusable `TagsInput` / `TagPills` / `TagsEditorModal` and a Tags column with an "Edit tags" action on the VPCs, Security Groups, Clusters, IAM, Networks (incl. public network), Volumes, Snapshots, VM Snapshots and SSH Keys pages.
+
 - **Dashboard:** the `/dashboard` page now surfaces Kubernetes host telemetry (node count, ready nodes, allocatable CPU and memory, distinct kubelet versions and OS image) sourced from `core/v1/nodes` via the `KubeVirtDriver`. The new `GET /api/v1/dashboard/summary` field `hosts` is additive; older clients keep working. The section renders a disabled state when the cluster is unreachable (Forbidden, RBAC, no kubeconfig) so the endpoint never 500s. Tier 1 only — no new dependency.
 
 ### Changed

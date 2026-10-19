@@ -14,6 +14,7 @@ type Cluster struct {
 	KubeconfigSecretRef  string           `json:"kubeconfig_secret_ref,omitempty"`
 	TCPNamespace         string           `json:"tcp_namespace,omitempty"`
 	TCPName              string           `json:"tcp_name,omitempty"`
+	Tags                 []string         `json:"tags,omitempty"`
 	CreatedAt            string           `json:"created_at,omitempty"`
 	Conditions           []Condition      `json:"conditions,omitempty"`
 }
@@ -50,6 +51,7 @@ type CreateInput struct {
 	KubernetesVersion string
 	ControlPlane      ControlPlaneSpec
 	Workers           WorkersSpec
+	Tags              []string
 }
 
 // Summary is the guest-cluster overview (namespaces, pods, nodes) for the console.

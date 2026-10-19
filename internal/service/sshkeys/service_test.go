@@ -13,7 +13,7 @@ func TestCreate_PrivateKeyOnceAndNeverStored(t *testing.T) {
 	svc := New(st)
 	tenantID := store.NewID()
 
-	out, err := svc.Create(tenantID, "lab-key")
+	out, err := svc.Create(tenantID, "lab-key", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -62,19 +62,49 @@ func TestCreate_PrivateKeyOnceAndNeverStored(t *testing.T) {
 	}
 }
 
+func TestCreate_TagsNormalized(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st)
+	tenantID := store.NewID()
+
+	out, err := svc.Create(tenantID, "tagged", []string{"prod", " lab ", ""})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if len(out.Key.Tags) != 2 || out.Key.Tags[0] != "prod" || out.Key.Tags[1] != "lab" {
+		t.Fatalf("tags not normalized: %#v", out.Key.Tags)
+	}
+
+	updated, err := svc.UpdateTags(tenantID, out.Key.ID, &[]string{"edge"})
+	if err != nil {
+		t.Fatalf("UpdateTags: %v", err)
+	}
+	if len(updated.Tags) != 1 || updated.Tags[0] != "edge" {
+		t.Fatalf("tags not replaced: %#v", updated.Tags)
+	}
+
+	if _, err := svc.UpdateTags(tenantID, out.Key.ID, nil); err != nil {
+		t.Fatalf("nil tags: %v", err)
+	}
+	got, _ := svc.Get(tenantID, out.Key.ID)
+	if len(got.Tags) != 1 || got.Tags[0] != "edge" {
+		t.Fatalf("nil tags must keep existing: %#v", got.Tags)
+	}
+}
+
 func TestRegister_NoPrivateKeyMaterial(t *testing.T) {
 	st := store.NewMemory()
 	svc := New(st)
 	tenantID := store.NewID()
 
-	generated, err := svc.Create(tenantID, "seed")
+	generated, err := svc.Create(tenantID, "seed", nil)
 	if err != nil {
 		t.Fatalf("Create seed: %v", err)
 	}
 	pub := generated.Key.PublicKey
 	_ = svc.Delete(tenantID, generated.Key.ID)
 
-	key, err := svc.Register(tenantID, "byo", pub)
+	key, err := svc.Register(tenantID, "byo", pub, nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
