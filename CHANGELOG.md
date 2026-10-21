@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-16
+
+### Added
+
+- **UI:** redesigned console. New shell (grouped sidebar, topbar with tenant switcher, `Ctrl/Cmd+K` command palette, PT/EN switch, light and dark theme), shared tables and pill tabs, and every page and the deploy wizard rebuilt on the new design. Blocks the API cannot fill yet (CPU chart, quotas, events, public IP table) stay hidden ([#259](https://github.com/virtfoundry/core/pull/259)).
+- **UI:** dashboard **Cluster overview** (host usage bars, CRD addons strip) ([#261](https://github.com/virtfoundry/core/pull/261)). Needs the two read-only RBAC rules shipped in the API ClusterRole of chart 0.12.0.
+- **UI:** VM tags on the redesigned console (list, detail, deploy wizard), stored in `spec.tags` of the Instance ([#260](https://github.com/virtfoundry/core/pull/260)).
+- **UI:** the login page shows the remaining attempts and a lockout countdown ([#258](https://github.com/virtfoundry/core/pull/258)).
+
+### Changed
+
+- Dependabot no longer opens npm major-version PRs for `ui` ([#257](https://github.com/virtfoundry/core/pull/257)).
+- Docs: VKS moved out of the CNCF Sandbox application scope ([#254](https://github.com/virtfoundry/core/pull/254)).
+
 ### Added
 
 - **Resource tags (API + UI):** `VPC`, `SecurityGroup`, `VKSCluster`, IAM (`User`, `Role`, `APIKey`), `Network`, `Volume`, `Snapshot`, `VMSnapshot` and `SSHKeyPair` now carry a `tags` list, mirroring the existing VM `Instance.spec.tags`. Create endpoints accept `tags` (`POST /vpcs`, `/security-groups`, `/vks/clusters`, `/users`, `/roles`, `/api-keys`, `/networks`, `/volumes`, `/snapshots`, `/vm-snapshots`, `/ssh-keys`, `/ssh-keys/register`). New tag-only `PATCH` endpoints were added (`/vks/clusters/{name}`, `/api-keys/{id}`, `/volumes/{id}`, `/snapshots/{id}`, `/vm-snapshots/{id}`, `/ssh-keys/{id}`) and the existing `PATCH /vpcs/{id}`, `/security-groups/{id}`, `/users/{id}`, `/roles/{id}` and `/networks/{id}` now also accept `tags` while keeping every other field optional. Tags are normalized server-side (trim, drop blanks, dedupe) and persisted on each CR's `spec.tags`. The UI adds a reusable `TagsInput` / `TagPills` / `TagsEditorModal` and a Tags column with an "Edit tags" action on the VPCs, Security Groups, Clusters, IAM, Networks (incl. public network), Volumes, Snapshots, VM Snapshots and SSH Keys pages.
