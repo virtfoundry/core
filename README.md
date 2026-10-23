@@ -17,11 +17,14 @@ Leaving Proxmox (or avoiding raw KubeVirt YAML)? Start with [Why VirtFoundry](ht
 ## Key features
 
 - **Multi-tenancy** — isolated namespaces per tenant
-- **Networking** — VPCs, private subnets, optional public IP pool, security groups (NetworkPolicy)
+- **Networking** — VPCs, private subnets, optional public IP pool, security groups (NetworkPolicy), L4 load balancers (VIP, listener, target group)
 - **Compute** — KubeVirt VMs, templates, offerings, VM snapshots, noVNC console
 - **Storage** — PVC volumes; volume snapshots (CSI `VolumeSnapshot` required — not `local-path`)
 - **IAM** — users, roles, API keys (`vfd_live_...`)
-- **Packaging** — official Helm chart
+- **Kubernetes as a service (VKS)** — tenant clusters with a [Kamaji](https://kamaji.clastix.io/) control plane and KubeVirt VM workers
+- **State in CRDs** — `virtfoundry.io` objects are the source of truth, no external database
+- **Terraform** — official [provider](https://virtfoundry.github.io/helm-charts/docs/guide/terraform/)
+- **Packaging** — official Helm charts
 
 ## Quick start
 
@@ -33,18 +36,20 @@ Full prerequisites and platform setup: [installation guide](https://virtfoundry.
 helm repo add virtfoundry https://virtfoundry.github.io/helm-charts
 helm repo update
 
-# 1. CRDs + operator
-helm install virtfoundry-operator virtfoundry/virtfoundry-operator \
-  --version 0.9.0 \
+# 1. CRDs (separate release: they hold your data, Helm never deletes them)
+helm install virtfoundry-crds virtfoundry/virtfoundry-crds \
+  --version 0.12.0 \
   -n virtfoundry-system --create-namespace
 
-# 2. API + UI
-helm install virtfoundry virtfoundry/virtfoundry \
-  --version 0.9.0 \
+# 2. Operator + API + UI in one release
+helm install virtfoundry virtfoundry/virtfoundry-platform \
+  --version 0.12.0 \
   -n virtfoundry-system \
-  --set secrets.rootPassword='change-me' \
-  --set secrets.jwtSecret='change-me'
+  --set-string core.secrets.rootPassword='choose-a-strong-password' \
+  --set-string core.secrets.jwtSecret="$(openssl rand -hex 32)"
 ```
+
+Needs Linux nodes with `/dev/kvm`. The chart refuses to install without a root password (12+ chars) and a JWT secret (32+ chars).
 
 Login: `root` / your root password. For volume snapshots, set `platform.storage.snapshotClass` (e.g. `longhorn`) — see [Configuration — Snapshots](https://virtfoundry.github.io/helm-charts/docs/guide/configuration/#snapshots-vm-vs-volume).
 
@@ -54,6 +59,8 @@ Login: `root` / your root password. For volume snapshots, set `platform.storage.
 |------------|---------|
 | [virtfoundry/core](https://github.com/virtfoundry/core) | REST API, UI (this repo) |
 | [virtfoundry/operator](https://github.com/virtfoundry/operator) | `virtfoundry.io` CRDs and Kubernetes operator |
+| [virtfoundry/vks](https://github.com/virtfoundry/vks) | VKS operator: `VKSCluster` to Kamaji control plane and worker Instances |
+| [virtfoundry/vks-image-factory](https://github.com/virtfoundry/vks-image-factory) | Node images (KubeVirt containerDisk) for VKS workers |
 | [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) | Helm charts, docs, deploy scripts |
 | [virtfoundry/terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Terraform provider |
 
