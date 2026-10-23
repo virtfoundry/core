@@ -43,11 +43,12 @@ func (h *IAMHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Email    string `json:"email"`
-		RoleID   string `json:"role_id"`
-		RoleName string `json:"role_name"`
+		Username string   `json:"username"`
+		Password string   `json:"password"`
+		Email    string   `json:"email"`
+		RoleID   string   `json:"role_id"`
+		RoleName string   `json:"role_name"`
+		Tags     []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -56,7 +57,7 @@ func (h *IAMHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	actor := middleware.GetActor(r.Context())
 	u, err := h.svc.CreateUser(tid, identity.CreateUserInput{
 		Username: req.Username, Password: req.Password, Email: req.Email,
-		RoleID: req.RoleID, RoleName: req.RoleName,
+		RoleID: req.RoleID, RoleName: req.RoleName, Tags: req.Tags,
 	}, actor)
 	if err != nil {
 		respondError(w, err)
@@ -73,15 +74,16 @@ func (h *IAMHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	id := mux.Vars(r)["id"]
 	var req struct {
-		Email  string `json:"email"`
-		RoleID string `json:"role_id"`
-		State  string `json:"state"`
+		Email  string    `json:"email"`
+		RoleID string    `json:"role_id"`
+		State  string    `json:"state"`
+		Tags   *[]string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	u, err := h.svc.UpdateUser(tid, id, req.Email, req.RoleID, req.State, middleware.GetActor(r.Context()))
+	u, err := h.svc.UpdateUser(tid, id, req.Email, req.RoleID, req.State, req.Tags, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
 		return
@@ -121,13 +123,14 @@ func (h *IAMHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 		Name        string   `json:"name"`
 		Description string   `json:"description"`
 		Permissions []string `json:"permissions"`
+		Tags        []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
 	role, err := h.svc.CreateRole(tid, identity.CreateRoleInput{
-		Name: req.Name, Description: req.Description, Permissions: req.Permissions,
+		Name: req.Name, Description: req.Description, Permissions: req.Permissions, Tags: req.Tags,
 	}, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
@@ -143,14 +146,15 @@ func (h *IAMHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Description string   `json:"description"`
-		Permissions []string `json:"permissions"`
+		Description string    `json:"description"`
+		Permissions []string  `json:"permissions"`
+		Tags        *[]string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	role, err := h.svc.UpdateRole(tid, mux.Vars(r)["id"], req.Description, req.Permissions, middleware.GetActor(r.Context()))
+	role, err := h.svc.UpdateRole(tid, mux.Vars(r)["id"], req.Description, req.Permissions, req.Tags, middleware.GetActor(r.Context()))
 	if err != nil {
 		respondError(w, err)
 		return
@@ -198,13 +202,14 @@ func (h *IAMHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Name          string   `json:"name"`
 		ExpiresInDays int      `json:"expires_in_days"`
 		Scopes        []string `json:"scopes"`
+		Tags          []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
 	res, err := h.svc.CreateAPIKey(actor.UserID, tid, identity.CreateAPIKeyInput{
-		Name: req.Name, ExpiresInDays: req.ExpiresInDays, Scopes: req.Scopes,
+		Name: req.Name, ExpiresInDays: req.ExpiresInDays, Scopes: req.Scopes, Tags: req.Tags,
 	}, actor)
 	if err != nil {
 		respondError(w, err)
@@ -232,6 +237,30 @@ func (h *IAMHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *IAMHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
+	actor := middleware.GetActor(r.Context())
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	admin := auth.HasPermission(actor.Permissions, auth.PermUsersWrite)
+	root := actor.Role == platform.RoleRoot
+	k, err := h.svc.UpdateAPIKeyTags(actor.UserID, mux.Vars(r)["id"], tid, req.Tags, admin, root)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"api_key": publicAPIKey(k)})
+}
+
 func (h *IAMHandler) tenantID(r *http.Request) (string, error) {
 	claims := middleware.GetClaims(r.Context())
 	tid := middleware.GetTenantID(r.Context())
@@ -247,7 +276,7 @@ func publicAPIKey(k *platform.APIKey) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id": k.ID, "user_id": k.UserID, "tenant_id": k.TenantID, "name": k.Name,
-		"prefix": k.Prefix, "scopes": k.Scopes, "expires_at": k.ExpiresAt,
+		"prefix": k.Prefix, "scopes": k.Scopes, "tags": k.Tags, "expires_at": k.ExpiresAt,
 		"last_used_at": k.LastUsedAt, "revoked_at": k.RevokedAt, "created_at": k.CreatedAt,
 	}
 }

@@ -199,14 +199,15 @@ func (h *PlatformHandler) CreateVPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name string `json:"name"`
-		CIDR string `json:"cidr"`
+		Name string   `json:"name"`
+		CIDR string   `json:"cidr"`
+		Tags []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	vpc, defNet, err := h.svc.CreateVPCWithDefaultNet(r.Context(), tid, req.Name, req.CIDR)
+	vpc, defNet, err := h.svc.CreateVPCWithDefaultNet(r.Context(), tid, req.Name, req.CIDR, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -222,13 +223,14 @@ func (h *PlatformHandler) UpdateVPC(w http.ResponseWriter, r *http.Request) {
 	}
 	id := mux.Vars(r)["id"]
 	var req struct {
-		Name string `json:"name"`
+		Name string    `json:"name"`
+		Tags *[]string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	vpc, err := h.svc.UpdateVPC(r.Context(), tid, id, req.Name)
+	vpc, err := h.svc.UpdateVPC(r.Context(), tid, id, req.Name, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -270,12 +272,13 @@ func (h *PlatformHandler) CreateSecurityGroup(w http.ResponseWriter, r *http.Req
 		Description string                       `json:"description"`
 		VPCID       string                       `json:"vpc_id"`
 		Rules       []platform.SecurityGroupRule `json:"rules"`
+		Tags        []string                     `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	sg, err := h.svc.CreateSecurityGroup(r.Context(), tid, req.VPCID, req.Name, req.Description, req.Rules)
+	sg, err := h.svc.CreateSecurityGroup(r.Context(), tid, req.VPCID, req.Name, req.Description, req.Rules, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -292,14 +295,15 @@ func (h *PlatformHandler) UpdateSecurityGroup(w http.ResponseWriter, r *http.Req
 	id := mux.Vars(r)["id"]
 	var req struct {
 		Name        string                       `json:"name"`
-		Description string                       `json:"description"`
+		Description *string                      `json:"description"`
 		Rules       []platform.SecurityGroupRule `json:"rules"`
+		Tags        *[]string                    `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	sg, err := h.svc.UpdateSecurityGroup(r.Context(), tid, id, req.Name, req.Description, req.Rules)
+	sg, err := h.svc.UpdateSecurityGroup(r.Context(), tid, id, req.Name, req.Description, req.Rules, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -337,16 +341,17 @@ func (h *PlatformHandler) CreateNetwork(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req struct {
-		Name   string `json:"name"`
-		CIDR   string `json:"cidr"`
-		VPCID  string `json:"vpc_id"`
-		Prefix int    `json:"prefix"`
+		Name   string   `json:"name"`
+		CIDR   string   `json:"cidr"`
+		VPCID  string   `json:"vpc_id"`
+		Prefix int      `json:"prefix"`
+		Tags   []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	net, err := h.svc.CreateNetwork(r.Context(), tid, req.VPCID, req.Name, req.CIDR, req.Prefix)
+	net, err := h.svc.CreateNetwork(r.Context(), tid, req.VPCID, req.Name, req.CIDR, req.Prefix, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -362,13 +367,14 @@ func (h *PlatformHandler) UpdateNetwork(w http.ResponseWriter, r *http.Request) 
 	}
 	id := mux.Vars(r)["id"]
 	var req struct {
-		Name string `json:"name"`
+		Name string    `json:"name"`
+		Tags *[]string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	net, err := h.svc.UpdateNetwork(r.Context(), tid, id, req.Name)
+	net, err := h.svc.UpdateNetwork(r.Context(), tid, id, req.Name, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -406,8 +412,9 @@ func (h *PlatformHandler) CreateVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name   string `json:"name"`
-		SizeGi int    `json:"size_gi"`
+		Name   string   `json:"name"`
+		SizeGi int      `json:"size_gi"`
+		Tags   []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -416,12 +423,34 @@ func (h *PlatformHandler) CreateVolume(w http.ResponseWriter, r *http.Request) {
 	if req.SizeGi <= 0 {
 		req.SizeGi = 10
 	}
-	vol, err := h.svc.CreateVolume(r.Context(), tid, req.Name, req.SizeGi)
+	vol, err := h.svc.CreateVolume(r.Context(), tid, req.Name, req.SizeGi, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"volume": vol})
+}
+
+func (h *PlatformHandler) UpdateVolume(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	vol, err := h.svc.UpdateVolume(r.Context(), tid, id, req.Tags)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"volume": vol})
 }
 
 func (h *PlatformHandler) DeleteVolume(w http.ResponseWriter, r *http.Request) {
@@ -501,19 +530,42 @@ func (h *PlatformHandler) CreateSnapshot(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req struct {
-		VolumeID string `json:"volume_id"`
-		Name     string `json:"name"`
+		VolumeID string   `json:"volume_id"`
+		Name     string   `json:"name"`
+		Tags     []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	snap, err := h.svc.CreateSnapshot(r.Context(), tid, req.VolumeID, req.Name)
+	snap, err := h.svc.CreateSnapshot(r.Context(), tid, req.VolumeID, req.Name, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"snapshot": snap})
+}
+
+func (h *PlatformHandler) UpdateSnapshot(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	snap, err := h.svc.UpdateSnapshot(r.Context(), tid, id, req.Tags)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"snapshot": snap})
 }
 
 func (h *PlatformHandler) ListVMSnapshots(w http.ResponseWriter, r *http.Request) {
@@ -537,19 +589,42 @@ func (h *PlatformHandler) CreateVMSnapshot(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		VMName string `json:"vm_name"`
-		Name   string `json:"name"`
+		VMName string   `json:"vm_name"`
+		Name   string   `json:"name"`
+		Tags   []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	snap, err := h.svc.CreateVMSnapshot(r.Context(), tid, req.VMName, req.Name)
+	snap, err := h.svc.CreateVMSnapshot(r.Context(), tid, req.VMName, req.Name, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"vm_snapshot": snap})
+}
+
+func (h *PlatformHandler) UpdateVMSnapshot(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	snap, err := h.svc.UpdateVMSnapshot(r.Context(), tid, id, req.Tags)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"vm_snapshot": snap})
 }
 
 func (h *PlatformHandler) DeleteVMSnapshot(w http.ResponseWriter, r *http.Request) {
@@ -990,13 +1065,14 @@ func (h *PlatformHandler) CreateSSHKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name string `json:"name"`
+		Name string   `json:"name"`
+		Tags []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
 		http.Error(w, `{"error":"name required"}`, http.StatusBadRequest)
 		return
 	}
-	out, err := h.svc.CreateSSHKey(tid, req.Name)
+	out, err := h.svc.CreateSSHKey(tid, req.Name, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
@@ -1014,19 +1090,42 @@ func (h *PlatformHandler) RegisterSSHKey(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req struct {
-		Name      string `json:"name"`
-		PublicKey string `json:"public_key"`
+		Name      string   `json:"name"`
+		PublicKey string   `json:"public_key"`
+		Tags      []string `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" || req.PublicKey == "" {
 		http.Error(w, `{"error":"name and public_key required"}`, http.StatusBadRequest)
 		return
 	}
-	key, err := h.svc.RegisterSSHKey(tid, req.Name, req.PublicKey)
+	key, err := h.svc.RegisterSSHKey(tid, req.Name, req.PublicKey, req.Tags)
 	if err != nil {
 		respondError(w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"key": publicSSHKey(key)})
+}
+
+func (h *PlatformHandler) UpdateSSHKey(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	key, err := h.svc.UpdateSSHKey(tid, id, req.Tags)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"key": publicSSHKey(key)})
 }
 
 func (h *PlatformHandler) DeleteSSHKey(w http.ResponseWriter, r *http.Request) {
@@ -1142,6 +1241,7 @@ func publicUser(u *platform.User) map[string]interface{} {
 	return map[string]interface{}{
 		"id": u.ID, "username": u.Username, "role": u.Role,
 		"role_id": u.RoleID, "tenant_id": u.TenantID, "email": u.Email, "state": u.State,
+		"tags": u.Tags,
 	}
 }
 
@@ -1153,7 +1253,7 @@ func publicSSHKey(k *platform.SSHKeyPair) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id": k.ID, "tenant_id": k.TenantID, "name": k.Name,
-		"public_key": k.PublicKey, "fingerprint": k.Fingerprint, "created_at": k.CreatedAt,
+		"public_key": k.PublicKey, "fingerprint": k.Fingerprint, "tags": k.Tags, "created_at": k.CreatedAt,
 	}
 }
 

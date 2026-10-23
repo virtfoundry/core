@@ -135,6 +135,9 @@ func (k *Kubernetes) SaveVolume(v *platform.Volume) {
 			v.VMID = prior.VMID
 			v.State = prior.State
 		}
+		if len(v.Tags) == 0 && len(prior.Tags) > 0 {
+			v.Tags = prior.Tags
+		}
 	})
 }
 
@@ -207,6 +210,9 @@ func (k *Kubernetes) SaveSnapshot(s *platform.Snapshot) {
 		*s = *fromCR
 		if s.State == "" && prior.State != "" {
 			s.State = prior.State
+		}
+		if len(s.Tags) == 0 && len(prior.Tags) > 0 {
+			s.Tags = prior.Tags
 		}
 	})
 }
@@ -283,10 +289,14 @@ func (k *Kubernetes) SaveSSHKeyPair(key *platform.SSHKeyPair) {
 		return
 	}
 	slug := k.tenantSlug(key.TenantID)
+	prior := *key
 	k.saveNamespacedMapped(mapping.SSHKeyGVR, ns, func() *unstructured.Unstructured {
 		return mapping.SSHKeyToUnstructured(key, slug)
 	}, func(saved *unstructured.Unstructured) {
 		*key = *mapping.SSHKeyFromUnstructured(saved, key.TenantID)
+		if len(key.Tags) == 0 && len(prior.Tags) > 0 {
+			key.Tags = prior.Tags
+		}
 	})
 }
 

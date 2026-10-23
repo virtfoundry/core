@@ -603,7 +603,7 @@ func mapVMSnapshotPhase(phase string) string {
 	}
 }
 
-func (s *Service) CreateVMSnapshot(ctx context.Context, tenantID, vmName, name string) (*platform.VMSnapshot, error) {
+func (s *Service) CreateVMSnapshot(ctx context.Context, tenantID, vmName, name string, tags []string) (*platform.VMSnapshot, error) {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -622,7 +622,21 @@ func (s *Service) CreateVMSnapshot(ctx context.Context, tenantID, vmName, name s
 	}
 	snap := &platform.VMSnapshot{
 		ID: store.NewID(), TenantID: tenantID, VMID: vm.ID, VMName: vmName,
-		Name: snapName, Namespace: ns, Phase: "creating", CreatedAt: store.Now(),
+		Name: snapName, Namespace: ns, Phase: "creating", Tags: shared.NormalizeTags(tags), CreatedAt: store.Now(),
+	}
+	s.store.SaveVMSnapshot(snap)
+	return snap, nil
+}
+
+// UpdateVMSnapshot applies tag changes to an existing VM snapshot. A nil tags
+// pointer leaves the current tags untouched.
+func (s *Service) UpdateVMSnapshot(ctx context.Context, tenantID, snapshotID string, tags *[]string) (*platform.VMSnapshot, error) {
+	snap, ok := s.store.GetVMSnapshot(snapshotID)
+	if !ok || snap.TenantID != tenantID {
+		return nil, iaerrors.NewNotFoundError("vm_snapshot", snapshotID)
+	}
+	if tags != nil {
+		snap.Tags = shared.NormalizeTags(*tags)
 	}
 	s.store.SaveVMSnapshot(snap)
 	return snap, nil

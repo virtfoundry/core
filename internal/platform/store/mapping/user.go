@@ -45,6 +45,15 @@ func UserToUnstructured(u *platform.User, roleCRName, tenantCRName string) *unst
 	if tenantCRName != "" {
 		spec["tenantRef"] = map[string]interface{}{"name": tenantCRName}
 	}
+	tags := make([]interface{}, 0, len(u.Tags))
+	for _, tag := range u.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -64,6 +73,22 @@ func UserFromUnstructured(obj *unstructured.Unstructured, passwordHash string) *
 	u.State = state
 	u.RoleID = roleIDFromCRName(roleRef)
 	u.Role = legacyRoleFromCRName(roleRef)
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			u.Tags = tags
+		}
+	}
 	return u
 }
 

@@ -4,21 +4,23 @@ import (
 	"context"
 	"fmt"
 
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
-	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
 )
 
-func (s *Service) UpdateVPC(ctx context.Context, tenantID, vpcID, name string) (*platform.VPC, error) {
+func (s *Service) UpdateVPC(ctx context.Context, tenantID, vpcID, name string, tags *[]string) (*platform.VPC, error) {
 	vpc, ok := s.findVPC(tenantID, vpcID)
 	if !ok {
 		return nil, errVPCNotFound
 	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
+	if name != "" {
+		vpc.Name = name
 	}
-	vpc.Name = name
+	if tags != nil {
+		vpc.Tags = shared.NormalizeTags(*tags)
+	}
 	s.store.SaveVPC(vpc)
 	return vpc, nil
 }
@@ -46,15 +48,17 @@ func (s *Service) DeleteVPC(ctx context.Context, tenantID, vpcID string) error {
 	return nil
 }
 
-func (s *Service) UpdateNetwork(ctx context.Context, tenantID, networkID, name string) (*platform.Network, error) {
+func (s *Service) UpdateNetwork(ctx context.Context, tenantID, networkID, name string, tags *[]string) (*platform.Network, error) {
 	net, ok := s.store.GetNetwork(networkID)
 	if !ok || net.TenantID != tenantID {
 		return nil, fmt.Errorf("network not found")
 	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
+	if name != "" {
+		net.Name = name
 	}
-	net.Name = name
+	if tags != nil {
+		net.Tags = shared.NormalizeTags(*tags)
+	}
 	s.store.SaveNetwork(net)
 	return net, nil
 }
@@ -88,7 +92,7 @@ func (s *Service) refuseProtectedDefaultNetwork(tenantID string, net *platform.N
 	return iaerrors.NewBadRequestError("cannot delete the default subnet of the default VPC")
 }
 
-func (s *Service) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name, desc string, rules []platform.SecurityGroupRule) (*platform.SecurityGroup, error) {
+func (s *Service) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name string, desc *string, rules []platform.SecurityGroupRule, tags *[]string) (*platform.SecurityGroup, error) {
 	sg, ok := s.store.GetSG(sgID)
 	if !ok || sg.TenantID != tenantID {
 		return nil, fmt.Errorf("security group not found")
@@ -96,9 +100,14 @@ func (s *Service) UpdateSecurityGroup(ctx context.Context, tenantID, sgID, name,
 	if name != "" {
 		sg.Name = name
 	}
-	sg.Description = desc
+	if desc != nil {
+		sg.Description = *desc
+	}
 	if rules != nil {
 		sg.Rules = rules
+	}
+	if tags != nil {
+		sg.Tags = shared.NormalizeTags(*tags)
 	}
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {

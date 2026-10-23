@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
+	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform/store"
 	"github.com/virtfoundry/core/internal/service/shared"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,7 @@ func (s *Service) EnsureDefaultSecurityGroup(ctx context.Context, tenantID strin
 		}
 	}
 	return s.CreateSecurityGroup(ctx, tenantID, "", branding.DefaultSecurityGroupName,
-		"Default security group — HTTP (port 80) ingress", defaultSecurityGroupRules())
+		"Default security group — HTTP (port 80) ingress", defaultSecurityGroupRules(), nil)
 }
 
 // Service manages VPCs, private networks and security groups.
@@ -57,7 +57,7 @@ func (s *Service) ConfigureBridges(isolated string) {
 	}
 }
 
-func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string) (*platform.VPC, *platform.Network, error) {
+func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string, tags []string) (*platform.VPC, *platform.Network, error) {
 	if _, ok := s.store.GetTenant(tenantID); !ok {
 		return nil, nil, fmt.Errorf("tenant not found")
 	}
@@ -110,7 +110,7 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 
 	vpc := &platform.VPC{
 		ID: vpcID, TenantID: tenantID, Name: name, CIDR: vpcCIDR,
-		Namespace: tenantNS, State: "active", CreatedAt: store.Now(),
+		Namespace: tenantNS, State: "active", Tags: shared.NormalizeTags(tags), CreatedAt: store.Now(),
 	}
 	s.store.SaveVPC(vpc)
 
@@ -138,11 +138,11 @@ func (s *Service) EnsureDefaultVPC(ctx context.Context, tenantID string) (*platf
 		return net, nil
 	}
 	if vpc := s.findDefaultVPC(tenantID); vpc != nil {
-		return s.CreateNetwork(ctx, tenantID, vpc.ID, "default", "", 24)
+		return s.CreateNetwork(ctx, tenantID, vpc.ID, "default", "", 24, nil)
 	}
-	_, defNet, err := s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, branding.DefaultVPCCIDR)
+	_, defNet, err := s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, branding.DefaultVPCCIDR, nil)
 	if err != nil {
-		_, defNet, err = s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, "")
+		_, defNet, err = s.CreateVPC(ctx, tenantID, branding.DefaultVPCName, "", nil)
 	}
 	if err != nil {
 		return nil, err
@@ -186,7 +186,7 @@ func (s *Service) ListNetworksByVPC(tenantID, vpcID string) []*platform.Network 
 	return out
 }
 
-func (s *Service) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name, desc string, rules []platform.SecurityGroupRule) (*platform.SecurityGroup, error) {
+func (s *Service) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name, desc string, rules []platform.SecurityGroupRule, tags []string) (*platform.SecurityGroup, error) {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func (s *Service) CreateSecurityGroup(ctx context.Context, tenantID, vpcID, name
 
 	sg := &platform.SecurityGroup{
 		ID: store.NewID(), TenantID: tenantID, VPCID: vpcID,
-		Name: name, Description: desc, Rules: rules, CreatedAt: store.Now(),
+		Name: name, Description: desc, Rules: rules, Tags: shared.NormalizeTags(tags), CreatedAt: store.Now(),
 	}
 	if len(sg.Rules) == 0 {
 		sg.Rules = defaultSecurityGroupRules()
@@ -227,7 +227,7 @@ func (s *Service) AddSGRules(ctx context.Context, tenantID, sgID string, rules [
 	return sg, nil
 }
 
-func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subnetCIDR string, prefix int) (*platform.Network, error) {
+func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subnetCIDR string, prefix int, tags []string) (*platform.Network, error) {
 	if vpcID == "" {
 		return nil, fmt.Errorf("vpc_id is required")
 	}
@@ -270,7 +270,7 @@ func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subn
 	labels := platformk8s.NADLabels{
 		platformk8s.LabelTenantID: tenantID,
 		platformk8s.LabelVPCID:    vpcID,
-		branding.LabelVPCName: vpc.Name,
+		branding.LabelVPCName:     vpc.Name,
 	}
 	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, s.isolatedBridge, labels); err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subn
 		ID: store.NewID(), TenantID: tenantID, VPCID: vpcID,
 		Name: name, CIDR: subnetCIDR, NetworkType: platform.NetworkTypeIsolated,
 		NADNamespace: tenantNS, NADName: nadName,
-		State: "active", CreatedAt: store.Now(),
+		State: "active", Tags: shared.NormalizeTags(tags), CreatedAt: store.Now(),
 	}
 	s.store.SaveNetwork(net)
 	return net, nil

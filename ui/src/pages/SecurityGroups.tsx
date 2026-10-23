@@ -11,8 +11,8 @@ import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { SGRulesEditor, defaultSGRules, type SGRule } from '../components/SGRulesEditor';
+import { TagsInput, TagPills, mergeTags } from '../components/TagsInput';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { ago } from '../lib/ago';
@@ -22,7 +22,7 @@ import {
   formInputClass, formTextareaClass,
 } from '../components/shell';
 
-const emptyForm = () => ({ name: '', description: '', rules: defaultSGRules() });
+const emptyForm = () => ({ name: '', description: '', rules: defaultSGRules(), tags: [] as string[] });
 
 export function SecurityGroups() {
   const { t, dateLocale } = useI18n();
@@ -31,10 +31,11 @@ export function SecurityGroups() {
   const [editSg, setEditSg] = useState<SecurityGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [tagDraft, setTagDraft] = useState('');
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.securityGroups,
     queryFn: listSecurityGroups,
     enabled: !needsTenant,
@@ -48,13 +49,14 @@ export function SecurityGroups() {
       invalidate();
       setCreateModal(false);
       setForm(emptyForm());
+      setTagDraft('');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name, description, rules }: {
-      id: string; name: string; description: string; rules: SGRule[];
-    }) => updateSecurityGroup(id, { name, description, rules }),
+    mutationFn: ({ id, name, description, rules, tags }: {
+      id: string; name: string; description: string; rules: SGRule[]; tags: string[];
+    }) => updateSecurityGroup(id, { name, description, rules, tags }),
     onSuccess: () => {
       invalidate();
       setEditSg(null);
@@ -107,14 +109,15 @@ export function SecurityGroups() {
             <PageTableHead>
               <PageTableTh>{t('common.name')}</PageTableTh>
               <PageTableTh>{t('sg.rulesInOut')}</PageTableTh>
+              <PageTableTh>{t('tags.column')}</PageTableTh>
               <PageTableTh>{t('common.created')}</PageTableTh>
               <PageTableTh className="text-right">{t('common.actions')}</PageTableTh>
             </PageTableHead>
             <PageTableBody>
               {isLoading ? (
-                <TableMessageRow cols={4}>{t('common.loading')}</TableMessageRow>
+                <TableMessageRow cols={5}>{t('common.loading')}</TableMessageRow>
               ) : filtered.length === 0 ? (
-                <TableMessageRow cols={4}>{t('sg.empty')}</TableMessageRow>
+                <TableMessageRow cols={5}>{t('sg.empty')}</TableMessageRow>
               ) : (
                 rows.map((sg) => {
                   const rules = sg.rules ?? [];
@@ -135,6 +138,7 @@ export function SecurityGroups() {
                         </div>
                       </PageTableTd>
                       <PageTableTd mono>{ingress} / {rules.length - ingress}</PageTableTd>
+                      <PageTableTd><TagPills tags={sg.tags} /></PageTableTd>
                       <PageTableTd className="text-on-surface-variant whitespace-nowrap">{ago(sg.created_at, dateLocale)}</PageTableTd>
                       <PageTableTd className="text-right">
                         <OverflowMenu
@@ -145,7 +149,7 @@ export function SecurityGroups() {
                               id: 'edit',
                               label: t('common.edit'),
                               icon: <Pencil size={14} />,
-                              onSelect: () => setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] }),
+                              onSelect: () => { setTagDraft(''); setEditSg({ ...sg, rules: sg.rules ? [...sg.rules] : [] }); },
                             },
                             {
                               id: 'delete',
@@ -187,6 +191,7 @@ export function SecurityGroups() {
               name: form.name,
               description: form.description,
               rules: form.rules,
+              tags: mergeTags(form.tags, tagDraft),
             });
           }}
           className="space-y-4"
@@ -202,6 +207,16 @@ export function SecurityGroups() {
               className={formTextareaClass} rows={2} />
           </div>
           <SGRulesEditor rules={form.rules} onChange={(rules) => setForm({ ...form, rules })} />
+          <div>
+            <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+            <TagsInput
+              tags={form.tags}
+              onTagsChange={(tags) => setForm({ ...form, tags })}
+              draft={tagDraft}
+              onDraftChange={setTagDraft}
+              placeholder={t('common.tagsPlaceholder')}
+            />
+          </div>
           {createMutation.isError && (
             <p className="text-error text-sm">{(createMutation.error as Error).message}</p>
           )}
@@ -222,6 +237,7 @@ export function SecurityGroups() {
                 name: editSg.name,
                 description: editSg.description || '',
                 rules: editSg.rules || [],
+                tags: mergeTags(editSg.tags || [], tagDraft),
               });
             }}
             className="space-y-4"
@@ -240,6 +256,16 @@ export function SecurityGroups() {
               rules={editSg.rules || []}
               onChange={(rules) => setEditSg({ ...editSg, rules })}
             />
+            <div>
+              <label className="block text-sm font-medium mb-1">{t('tags.column')}</label>
+              <TagsInput
+                tags={editSg.tags || []}
+                onTagsChange={(tags) => setEditSg({ ...editSg, tags })}
+                draft={tagDraft}
+                onDraftChange={setTagDraft}
+                placeholder={t('common.tagsPlaceholder')}
+              />
+            </div>
             {updateMutation.isError && (
               <p className="text-error text-sm">{(updateMutation.error as Error).message}</p>
             )}

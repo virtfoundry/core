@@ -88,6 +88,38 @@ func (s *Service) Create(ctx context.Context, tenantID string, in CreateInput) (
 	return &c, nil
 }
 
+// UpdateTags replaces the cluster tag list (spec.tags). A nil slice leaves the
+// tags untouched; an empty slice clears them.
+func (s *Service) UpdateTags(ctx context.Context, tenantID, name string, tags *[]string) (*Cluster, error) {
+	ns, err := shared.TenantNamespace(s.store, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := s.dyn.Resource(mapping.VKSClusterGVR).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil, iaerrors.NewNotFoundError("vkscluster", name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get vkscluster: %w", err)
+	}
+	if tags != nil {
+		normalized := shared.NormalizeTags(*tags)
+		vals := make([]interface{}, 0, len(normalized))
+		for _, tag := range normalized {
+			vals = append(vals, tag)
+		}
+		if err := unstructured.SetNestedSlice(obj.Object, vals, "spec", "tags"); err != nil {
+			return nil, fmt.Errorf("set cluster tags: %w", err)
+		}
+	}
+	updated, err := s.dyn.Resource(mapping.VKSClusterGVR).Namespace(ns).Update(ctx, obj, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("update vkscluster: %w", err)
+	}
+	c := fromUnstructured(tenantID, updated)
+	return &c, nil
+}
+
 func (s *Service) Delete(ctx context.Context, tenantID, name string) error {
 	ns, err := shared.TenantNamespace(s.store, tenantID)
 	if err != nil {
@@ -220,6 +252,11 @@ func toUnstructured(ns string, in CreateInput) *unstructured.Unstructured {
 	if len(cp) > 0 {
 		spec["controlPlane"] = cp
 	}
+	tags := make([]interface{}, 0, len(in.Tags))
+	for _, tag := range shared.NormalizeTags(in.Tags) {
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	return &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": mapping.Group + "/" + mapping.Version,
 		"kind":       "VKSCluster",
@@ -238,6 +275,9 @@ func fromUnstructured(tenantID string, obj *unstructured.Unstructured) Cluster {
 		Namespace: obj.GetNamespace(),
 	}
 	c.KubernetesVersion, _, _ = unstructured.NestedString(obj.Object, "spec", "kubernetesVersion")
+	if tagsRaw, ok, _ := unstructured.NestedStringSlice(obj.Object, "spec", "tags"); ok && len(tagsRaw) > 0 {
+		c.Tags = shared.NormalizeTags(tagsRaw)
+	}
 	c.ControlPlane.ServiceType, _, _ = unstructured.NestedString(obj.Object, "spec", "controlPlane", "serviceType")
 	c.ControlPlane.Address, _, _ = unstructured.NestedString(obj.Object, "spec", "controlPlane", "address")
 	if p, ok, _ := unstructured.NestedInt64(obj.Object, "spec", "controlPlane", "port"); ok {
