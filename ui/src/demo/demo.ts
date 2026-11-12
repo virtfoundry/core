@@ -26,13 +26,13 @@ const vpcs = [
   { id: 'vpc-lab', name: 'vpc-lab', cidr: '10.2.0.0/16', namespace: ns, state: 'Ready' },
 ];
 const networks = [
-  { id: 'vpc-prod-a', name: 'vpc-prod-a', cidr: '10.0.1.0/24', vpc_id: 'vpc-prod', network_type: 'isolated', gateway: '10.0.1.1', state: 'Ready', created_at: ago(30000), nad_name: 'vpc-prod-a' },
-  { id: 'vpc-dev-a', name: 'vpc-dev-a', cidr: '10.0.2.0/24', vpc_id: 'vpc-dev', network_type: 'isolated', gateway: '10.0.2.1', state: 'Ready' },
+  { id: 'vpc-prod-a', name: 'vpc-prod-a', cidr: '10.0.1.0/24', vpc_id: 'vpc-prod', network_type: 'isolated', gateway: '10.0.1.1', state: 'Ready', created_at: ago(30000), nad_name: 'vpc-prod-a', tags: ['prod', 'web'] },
+  { id: 'vpc-dev-a', name: 'vpc-dev-a', cidr: '10.0.2.0/24', vpc_id: 'vpc-dev', network_type: 'isolated', gateway: '10.0.2.1', state: 'Ready', tags: ['dev'] },
   { id: 'vks-lab', name: 'vks-lab', cidr: '10.0.30.0/24', vpc_id: 'vpc-lab', network_type: 'isolated', gateway: '10.0.30.1', state: 'Ready' },
 ];
 const volumes = [
-  { id: 'v1', name: 'pgdata-primary', size_gi: 500, state: 'Bound', namespace: ns, pvc_name: 'pgdata-primary', vm_id: 'vm-db-primary', created_at: ago(44640) },
-  { id: 'v2', name: 'uploads-prod', size_gi: 200, state: 'Bound', namespace: ns, pvc_name: 'uploads-prod', vm_id: 'vm-web-prod-01', created_at: ago(20000) },
+  { id: 'v1', name: 'pgdata-primary', size_gi: 500, state: 'Bound', namespace: ns, pvc_name: 'pgdata-primary', vm_id: 'vm-db-primary', created_at: ago(44640), tags: ['prod', 'database'] },
+  { id: 'v2', name: 'uploads-prod', size_gi: 200, state: 'Bound', namespace: ns, pvc_name: 'uploads-prod', vm_id: 'vm-web-prod-01', created_at: ago(20000), tags: ['prod'] },
   { id: 'v3', name: 'archive-2025', size_gi: 1024, state: 'Bound', namespace: ns, pvc_name: 'archive-2025', created_at: ago(9000) },
 ];
 const rule = (direction: string, port: number | undefined, cidr: string) => ({ direction, protocol: port ? 'tcp' : 'all', port_from: port, port_to: port, cidr });
@@ -48,8 +48,8 @@ const offerings = [['small', 1, 2048], ['medium', 4, 8192], ['large', 8, 32768],
   id: n, name: n, display_name: n, cpu: c, memory_mi: m, state: 'Active',
 }));
 const sshKeys = [
-  { id: 'k1', tenant_id: 'default', name: 'matheus-mac', public_key: 'ssh-ed25519 AAAAC3Nza…demo', fingerprint: 'SHA256:9f2a…c41e', created_at: ago(57600) },
-  { id: 'k2', tenant_id: 'default', name: 'ci-deploy', public_key: 'ssh-ed25519 AAAAC3Nza…demo', fingerprint: 'SHA256:1be7…a09d', created_at: ago(31680) },
+  { id: 'k1', tenant_id: 'default', name: 'matheus-mac', public_key: 'ssh-ed25519 AAAAC3Nza…demo', fingerprint: 'SHA256:9f2a…c41e', created_at: ago(57600), tags: ['personal'] },
+  { id: 'k2', tenant_id: 'default', name: 'ci-deploy', public_key: 'ssh-ed25519 AAAAC3Nza…demo', fingerprint: 'SHA256:1be7…a09d', created_at: ago(31680), tags: ['ci', 'prod'] },
 ];
 const clusters = [
   { name: 'lab-vks', tenant_id: 'default', namespace: ns, kubernetes_version: 'v1.36.5', control_plane: { service_type: 'LoadBalancer', address: '10.0.50.101', port: 443 }, workers: { count: 1, template_ref: { name: 'node-1-36-5' }, offering_ref: { name: 'medium' }, network_ref: { name: 'vks-lab' } }, phase: 'Ready', control_plane_endpoint: 'https://10.0.50.101:443', ready_workers: 1, created_at: ago(4320), conditions: [{ type: 'Ready', status: 'True' }] },
@@ -60,8 +60,8 @@ const ROUTES: Record<string, unknown> = {
   '/auth/me': { id: 'root', username: 'root', role: 'root', tenant_id: 'default' },
   '/tenants': { tenants: ['default', 'smoke', 'lab'].map((s) => ({ id: s, name: s, slug: s, namespace: `virtfoundry-tenant-${s}`, state: 'Active', created_at: ago(129600) })) },
   '/vms': { vms }, '/vpcs': { vpcs }, '/networks': { networks }, '/volumes': { volumes }, '/security-groups': { security_groups: sgs },
-  '/snapshots': { snapshots: [{ id: 's1', name: 'pgdata-0930', volume_id: 'v1', state: 'Ready', created_at: ago(23040) }] },
-  '/vm-snapshots': { vm_snapshots: [{ id: 'vs1', name: 'db-primary-0930', vm_id: 'vm-db-primary', vm_name: 'db-primary', phase: 'Succeeded', namespace: ns, created_at: ago(23040) }] },
+  '/snapshots': { snapshots: [{ id: 's1', name: 'pgdata-0930', volume_id: 'v1', state: 'Ready', created_at: ago(23040), tags: ['prod', 'backup'] }] },
+  '/vm-snapshots': { vm_snapshots: [{ id: 'vs1', name: 'db-primary-0930', vm_id: 'vm-db-primary', vm_name: 'db-primary', phase: 'Succeeded', namespace: ns, created_at: ago(23040), tags: ['before-upgrade'] }] },
   '/ssh-keys': { ssh_keys: sshKeys }, '/service-offerings': { service_offerings: offerings }, '/vm-templates': { vm_templates: templates },
   '/users': { users: [{ id: 'u1', username: 'root', role: 'root', email: 'root@virtfoundry.homelab', state: 'Active' }, { id: 'u2', username: 'matheus', role: 'tenant_admin', tenant_id: 'default', email: 'matheus@homelab', state: 'Active' }] },
   '/roles': { roles: [{ id: 'r1', name: 'admin', is_system: true, permissions: ['*'] }, { id: 'r2', name: 'viewer', is_system: true, permissions: ['read'] }] },

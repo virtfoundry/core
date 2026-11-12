@@ -2,6 +2,7 @@ package mapping
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/virtfoundry/core/internal/platform"
@@ -47,6 +48,15 @@ func APIKeyToUnstructured(k *platform.APIKey, userCR, crName string) *unstructur
 	if k.ExpiresAt != nil {
 		spec["expiresAt"] = k.ExpiresAt.Format(time.RFC3339)
 	}
+	tags := make([]interface{}, 0, len(k.Tags))
+	for _, tag := range k.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -68,6 +78,22 @@ func APIKeyFromUnstructured(obj *unstructured.Unstructured) *platform.APIKey {
 	if used, ok, _ := unstructured.NestedString(obj.Object, "status", "lastUsedAt"); ok && used != "" {
 		if t, err := time.Parse(time.RFC3339, used); err == nil {
 			k.LastUsedAt = &t
+		}
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			k.Tags = tags
 		}
 	}
 	return k

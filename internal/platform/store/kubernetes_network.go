@@ -172,6 +172,7 @@ func (k *Kubernetes) SaveNetwork(n *platform.Network) {
 	}
 	vpcCR := k.resolveVPCCRName(n.TenantID, n.VPCID)
 	slug := k.tenantSlug(n.TenantID)
+	prior := *n
 	// Preserve existing CR metadata.name when found by legacy ID so a naming
 	// formula change does not create a second object (upsert keys on name).
 	existingName := ""
@@ -189,6 +190,9 @@ func (k *Kubernetes) SaveNetwork(n *platform.Network) {
 		return obj
 	}, func(saved *unstructured.Unstructured) {
 		*n = *mapping.NetworkFromUnstructured(saved, n.TenantID, n.VPCID)
+		if len(n.Tags) == 0 && len(prior.Tags) > 0 {
+			n.Tags = prior.Tags
+		}
 	})
 }
 

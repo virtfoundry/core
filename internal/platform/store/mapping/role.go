@@ -33,6 +33,15 @@ func RoleToUnstructured(r *platform.RoleRecord, namespace string) *unstructured.
 		}
 		spec["permissions"] = perms
 	}
+	tags := make([]interface{}, 0, len(r.Tags))
+	for _, tag := range r.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	spec["tags"] = tags
 	_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	return obj
 }
@@ -58,6 +67,22 @@ func RoleFromUnstructured(obj *unstructured.Unstructured) *platform.RoleRecord {
 	}
 	if !r.IsSystem {
 		r.TenantID = obj.GetNamespace()
+	}
+	if tagsRaw, found, err := unstructured.NestedSlice(obj.Object, "spec", "tags"); err == nil && found && len(tagsRaw) > 0 {
+		tags := make([]string, 0, len(tagsRaw))
+		for _, raw := range tagsRaw {
+			tag, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > 0 {
+			r.Tags = tags
+		}
 	}
 	return r
 }

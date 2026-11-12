@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"testing"
 
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	"github.com/virtfoundry/core/internal/platform/store"
-	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 )
 
 func TestDeleteNetwork_RefusesDefaultOnDefaultVPC(t *testing.T) {
@@ -97,5 +97,75 @@ func TestDeleteVPC_RefusesDefaultVPC(t *testing.T) {
 	}
 	if _, ok := st.GetVPC(vpcID); !ok {
 		t.Fatal("default VPC must remain after refused delete")
+	}
+}
+
+func TestUpdateNetwork_TagsReplaceAndKeepsName(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	tenantID := store.NewID()
+	net := &platform.Network{ID: "net-1", TenantID: tenantID, Name: "app", CIDR: "10.0.0.0/24"}
+	st.SaveNetwork(net)
+
+	tags := []string{"frontend", " web ", ""}
+	got, err := svc.UpdateNetwork(context.Background(), tenantID, net.ID, "", &tags)
+	if err != nil {
+		t.Fatalf("UpdateNetwork: %v", err)
+	}
+	if got.Name != "app" {
+		t.Fatalf("name should be preserved when omitted: %q", got.Name)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "frontend" || got.Tags[1] != "web" {
+		t.Fatalf("tags not normalized: %#v", got.Tags)
+	}
+
+	renamed, err := svc.UpdateNetwork(context.Background(), tenantID, net.ID, "web-tier", nil)
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if renamed.Name != "web-tier" {
+		t.Fatalf("name not updated: %q", renamed.Name)
+	}
+	if len(renamed.Tags) != 2 {
+		t.Fatalf("nil tags must keep existing: %#v", renamed.Tags)
+	}
+}
+
+func TestUpdateNetwork_NotFound(t *testing.T) {
+	svc := New(store.NewMemory(), nil)
+	tags := []string{"x"}
+	if _, err := svc.UpdateNetwork(context.Background(), store.NewID(), "missing", "", &tags); err == nil {
+		t.Fatal("expected error for missing network")
+	}
+}
+
+func TestUpdateVPC_TagsOnlyKeepsName(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	tenantID := store.NewID()
+	vpc := &platform.VPC{ID: "vpc-1", TenantID: tenantID, Name: "prod", CIDR: "10.0.0.0/16"}
+	st.SaveVPC(vpc)
+
+	tags := []string{"prod", " edge ", ""}
+	got, err := svc.UpdateVPC(context.Background(), tenantID, vpc.ID, "", &tags)
+	if err != nil {
+		t.Fatalf("UpdateVPC: %v", err)
+	}
+	if got.Name != "prod" {
+		t.Fatalf("name should be preserved when omitted: %q", got.Name)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "prod" || got.Tags[1] != "edge" {
+		t.Fatalf("tags not normalized: %#v", got.Tags)
+	}
+
+	renamed, err := svc.UpdateVPC(context.Background(), tenantID, vpc.ID, "staging", nil)
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if renamed.Name != "staging" {
+		t.Fatalf("name not updated: %q", renamed.Name)
+	}
+	if len(renamed.Tags) != 2 {
+		t.Fatalf("nil tags must keep existing: %#v", renamed.Tags)
 	}
 }

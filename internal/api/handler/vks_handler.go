@@ -56,10 +56,11 @@ func (h *VKSHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name              string                   `json:"name"`
-		KubernetesVersion string                   `json:"kubernetes_version"`
-		ControlPlane      vkssvc.ControlPlaneSpec  `json:"control_plane"`
-		Workers           vkssvc.WorkersSpec       `json:"workers"`
+		Name              string                  `json:"name"`
+		KubernetesVersion string                  `json:"kubernetes_version"`
+		ControlPlane      vkssvc.ControlPlaneSpec `json:"control_plane"`
+		Workers           vkssvc.WorkersSpec      `json:"workers"`
+		Tags              []string                `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -70,12 +71,35 @@ func (h *VKSHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
 		KubernetesVersion: req.KubernetesVersion,
 		ControlPlane:      req.ControlPlane,
 		Workers:           req.Workers,
+		Tags:              req.Tags,
 	})
 	if err != nil {
 		respondError(w, err)
 		return
 	}
 	respondJSON(w, http.StatusCreated, map[string]interface{}{"cluster": c})
+}
+
+func (h *VKSHandler) UpdateCluster(w http.ResponseWriter, r *http.Request) {
+	tid, err := h.tenantID(r)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	name := mux.Vars(r)["name"]
+	var req struct {
+		Tags *[]string `json:"tags"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+	c, err := h.vks.UpdateTags(r.Context(), tid, name, req.Tags)
+	if err != nil {
+		respondError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"cluster": c})
 }
 
 func (h *VKSHandler) DeleteCluster(w http.ResponseWriter, r *http.Request) {

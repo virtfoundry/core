@@ -8,6 +8,7 @@ import (
 	"github.com/virtfoundry/core/internal/auth"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
+	"github.com/virtfoundry/core/internal/service/shared"
 )
 
 type CreateUserInput struct {
@@ -16,18 +17,21 @@ type CreateUserInput struct {
 	Email    string
 	RoleID   string
 	RoleName string
+	Tags     []string
 }
 
 type CreateRoleInput struct {
 	Name        string
 	Description string
 	Permissions []string
+	Tags        []string
 }
 
 type CreateAPIKeyInput struct {
 	Name          string
 	ExpiresInDays int
 	Scopes        []string
+	Tags          []string
 }
 
 type CreateAPIKeyResult struct {
@@ -57,7 +61,7 @@ func (s *Service) CreateUser(tenantID string, in CreateUserInput, actor *auth.Ac
 	u := &platform.User{
 		ID: store.NewID(), Username: username, PasswordHash: hash,
 		Role: role, RoleID: roleID, TenantID: tenantID,
-		Email: in.Email, State: "active", CreatedAt: store.Now(),
+		Email: in.Email, State: "active", Tags: shared.NormalizeTags(in.Tags), CreatedAt: store.Now(),
 	}
 	s.store.SaveUser(u)
 	return u, nil
@@ -70,7 +74,7 @@ func (s *Service) ListUsers(tenantID string) []*platform.User {
 	return s.store.ListUsersByTenant(tenantID)
 }
 
-func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string, actor *auth.Actor) (*platform.User, error) {
+func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string, tags *[]string, actor *auth.Actor) (*platform.User, error) {
 	u, ok := s.store.GetUser(userID)
 	if !ok || u.TenantID != tenantID {
 		return nil, fmt.Errorf("user not found")
@@ -83,6 +87,9 @@ func (s *Service) UpdateUser(tenantID, userID, email, roleID, state string, acto
 	}
 	if state != "" {
 		u.State = state
+	}
+	if tags != nil {
+		u.Tags = shared.NormalizeTags(*tags)
 	}
 	if roleID != "" {
 		role, err := s.roleForTenant(tenantID, roleID, actor)
@@ -121,7 +128,7 @@ func (s *Service) CreateRole(tenantID string, in CreateRoleInput, actor *auth.Ac
 	}
 	r := &platform.RoleRecord{
 		ID: store.NewID(), TenantID: tenantID, Name: name,
-		Description: in.Description, CreatedAt: store.Now(),
+		Description: in.Description, Tags: shared.NormalizeTags(in.Tags), CreatedAt: store.Now(),
 	}
 	s.store.SaveRole(r)
 	s.store.SetRolePermissions(r.ID, in.Permissions)
@@ -133,7 +140,7 @@ func (s *Service) ListRoles(tenantID string) []*platform.RoleRecord {
 	return s.store.ListRoles(tenantID)
 }
 
-func (s *Service) UpdateRole(tenantID, roleID string, desc string, perms []string, actor *auth.Actor) (*platform.RoleRecord, error) {
+func (s *Service) UpdateRole(tenantID, roleID string, desc string, perms []string, tags *[]string, actor *auth.Actor) (*platform.RoleRecord, error) {
 	r, ok := s.store.GetRole(roleID)
 	if !ok || (r.IsSystem && !isRoot(actor)) || (!r.IsSystem && r.TenantID != tenantID) {
 		return nil, fmt.Errorf("role not found")
@@ -145,6 +152,9 @@ func (s *Service) UpdateRole(tenantID, roleID string, desc string, perms []strin
 	}
 	if desc != "" {
 		r.Description = desc
+	}
+	if tags != nil {
+		r.Tags = shared.NormalizeTags(*tags)
 	}
 	s.store.SaveRole(r)
 	if perms != nil {
@@ -191,7 +201,7 @@ func (s *Service) CreateAPIKey(userID, tenantID string, in CreateAPIKeyInput, ac
 	k := &platform.APIKey{
 		ID: store.NewID(), UserID: userID, TenantID: u.TenantID,
 		Name: strings.TrimSpace(in.Name), Prefix: prefix, SecretHash: hash,
-		Scopes: scopes, ExpiresAt: expires, CreatedAt: store.Now(),
+		Scopes: scopes, ExpiresAt: expires, Tags: shared.NormalizeTags(in.Tags), CreatedAt: store.Now(),
 	}
 	if k.Name == "" {
 		k.Name = "default"
@@ -220,6 +230,26 @@ func (s *Service) RevokeAPIKey(userID, keyID, tenantID string, admin, root bool)
 	}
 	s.store.DeleteAPIKey(keyID)
 	return nil
+}
+
+// UpdateAPIKeyTags replaces the key tag list. A nil slice leaves tags
+// untouched; an empty slice clears them.
+func (s *Service) UpdateAPIKeyTags(userID, keyID, tenantID string, tags *[]string, admin, root bool) (*platform.APIKey, error) {
+	k, ok := s.store.GetAPIKey(keyID)
+	if !ok {
+		return nil, fmt.Errorf("api key not found")
+	}
+	if !admin && k.UserID != userID {
+		return nil, fmt.Errorf("forbidden")
+	}
+	if admin && !root && tenantID != "" && k.TenantID != tenantID {
+		return nil, fmt.Errorf("forbidden")
+	}
+	if tags != nil {
+		k.Tags = shared.NormalizeTags(*tags)
+	}
+	s.store.SaveAPIKey(k)
+	return k, nil
 }
 
 func (s *Service) AuthenticateAPIKey(token string) (*auth.Actor, error) {

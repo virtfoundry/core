@@ -76,3 +76,22 @@ export function mergeTags(tags: string[], draft: string): string[] {
   const extra = draft.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
   return Array.from(new Set([...tags, ...extra]));
 }
+
+/** Read-only tag pills for tables and detail views. */
+export function TagPills({ tags }: { tags?: string[] }) {
+  if (!tags || tags.length === 0) {
+    return <span className="text-on-surface-variant">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="inline-flex items-center text-xs px-2 py-0.5 rounded border border-outline-variant bg-sunk text-on-surface"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
