@@ -66,4 +66,7 @@ func TestCreateNetworkAttachmentIsolatesTenants(t *testing.T) {
 	if a["name"] == b["name"] || a["name"] != "virtfoundry-tenant-default-default-default" {
 		t.Fatalf("cni name=%v / %v", a["name"], b["name"])
 	}
+	if a["isGateway"] != true || a["ipMasq"] != true {
+		t.Fatalf("egress flags missing: %v", a)
+	}
 }
