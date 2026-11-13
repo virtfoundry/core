@@ -50,14 +50,23 @@ func New(st store.Repository, k8s *platformk8s.Manager) *Service {
 	return &Service{store: st, k8s: k8s}
 }
 
+// allVPCCIDRs lists VPC CIDRs of every tenant: isolated networks share the host
+// (per-tenant bridge with the gateway on the node), so overlap across tenants breaks routing.
+func (s *Service) allVPCCIDRs() []string {
+	var out []string
+	for _, t := range s.store.ListTenants() {
+		for _, v := range s.store.ListVPCs(t.ID) {
+			out = append(out, v.CIDR)
+		}
+	}
+	return out
+}
+
 func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string) (*platform.VPC, *platform.Network, error) {
 	if _, ok := s.store.GetTenant(tenantID); !ok {
 		return nil, nil, fmt.Errorf("tenant not found")
 	}
-	var existing []string
-	for _, v := range s.store.ListVPCs(tenantID) {
-		existing = append(existing, v.CIDR)
-	}
+	existing := s.allVPCCIDRs()
 	if vpcCIDR == "" {
 		plan := cidrutil.PlanVPC(existing)
 		for _, s := range plan.Suggestions {

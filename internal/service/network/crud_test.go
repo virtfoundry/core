@@ -8,6 +8,7 @@ import (
 
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/branding"
+	"github.com/virtfoundry/core/internal/platform/cidr"
 	"github.com/virtfoundry/core/internal/platform/store"
 	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 )
@@ -97,5 +98,24 @@ func TestDeleteVPC_RefusesDefaultVPC(t *testing.T) {
 	}
 	if _, ok := st.GetVPC(vpcID); !ok {
 		t.Fatal("default VPC must remain after refused delete")
+	}
+}
+
+// Isolated networks of all tenants meet on the same host (gateway on the
+// per-tenant bridge), so VPC CIDRs must not overlap across tenants.
+func TestAllVPCCIDRs_SpansTenants(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	for _, c := range []string{"10.0.0.0/16", "10.1.0.0/16"} {
+		tid := store.NewID()
+		st.SaveTenant(&platform.Tenant{ID: tid, Name: "t", Slug: "t", Namespace: "vf-t", State: "active", CreatedAt: store.Now()})
+		st.SaveVPC(&platform.VPC{ID: store.NewID(), TenantID: tid, Name: "v", CIDR: c, Namespace: "vf-t", State: "active", CreatedAt: store.Now()})
+	}
+	got := svc.allVPCCIDRs()
+	if len(got) != 2 {
+		t.Fatalf("want CIDRs of both tenants, got %v", got)
+	}
+	if err := cidr.ValidateVPC("10.0.0.0/16", got); err == nil {
+		t.Fatal("overlap with another tenant's VPC must be rejected")
 	}
 }
