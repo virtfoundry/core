@@ -517,10 +517,11 @@ func (m *Memory) DeleteVMSnapshot(id string) {
 	delete(m.vmSnapshots, id)
 }
 
-func (m *Memory) SaveVM(vm *platform.PlatformVM) {
+func (m *Memory) SaveVM(vm *platform.PlatformVM) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.vms[vm.ID] = vm
+	return nil
 }
 
 func (m *Memory) GetVM(id string) (*platform.PlatformVM, bool) {

@@ -75,3 +75,24 @@ func TestLooksLikeInsecureDefaultUbuntuUserData(t *testing.T) {
 		t.Fatal("must not treat non-ubuntu password as insecure default")
 	}
 }
+
+func TestDeployVMRejectsUnknownServiceOffering(t *testing.T) {
+	mem := store.NewMemory()
+	tenant := &platform.Tenant{
+		ID: store.NewID(), Name: "t", Slug: "t", Namespace: "vf-t", State: "active", CreatedAt: store.Now(),
+	}
+	mem.SaveTenant(tenant)
+
+	svc := New(mem, nil, nil, nil)
+	_, err := svc.DeployVM(t.Context(), tenant.ID, DeployVMInput{
+		Name:              "bad-offering",
+		ServiceOfferingID: "does-not-exist",
+	})
+	iaErr, ok := err.(*iaerrors.IaaSError)
+	if !ok {
+		t.Fatalf("expected IaaSError, got %T: %v", err, err)
+	}
+	if iaErr.HTTPStatusVal != 400 {
+		t.Fatalf("expected 400, got %d", iaErr.HTTPStatusVal)
+	}
+}

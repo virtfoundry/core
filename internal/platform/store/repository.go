@@ -80,7 +80,7 @@ type Repository interface {
 	GetVMSnapshot(id string) (*platform.VMSnapshot, bool)
 	DeleteVMSnapshot(id string)
 
-	SaveVM(vm *platform.PlatformVM)
+	SaveVM(vm *platform.PlatformVM) error
 	GetVM(id string) (*platform.PlatformVM, bool)
 	GetVMByName(tenantID, name string) (*platform.PlatformVM, bool)
 	GetVMByExternalUUID(source, externalUUID string) (*platform.PlatformVM, bool)

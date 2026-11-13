@@ -7,6 +7,7 @@ import (
 
 	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform"
+	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/platform/branding"
 	cidrutil "github.com/virtfoundry/core/internal/platform/cidr"
 	"github.com/virtfoundry/core/internal/platform/store"
@@ -92,6 +93,11 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 	vpcSlug := shared.SanitizeSlug(name)
 	if vpcSlug == "" {
 		return nil, nil, fmt.Errorf("invalid vpc name")
+	}
+	for _, v := range s.store.ListVPCs(tenantID) {
+		if shared.SanitizeSlug(v.Name) == vpcSlug {
+			return nil, nil, iaerrors.NewResourceInUseError("vpc", fmt.Sprintf("vpc %q already exists in this tenant", v.Name))
+		}
 	}
 
 	defaultNetCIDR, err := cidrutil.AllocateSubnet(vpcCIDR, nil, 24)
