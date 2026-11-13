@@ -38,12 +38,12 @@ helm repo update
 
 # 1. CRDs (separate release: they hold your data, Helm never deletes them)
 helm install virtfoundry-crds virtfoundry/virtfoundry-crds \
-  --version 0.12.0 \
+  --version 0.13.0 \
   -n virtfoundry-system --create-namespace
 
 # 2. Operator + API + UI in one release
 helm install virtfoundry virtfoundry/virtfoundry-platform \
-  --version 0.12.0 \
+  --version 0.13.0 \
   -n virtfoundry-system \
   --set-string core.secrets.rootPassword='choose-a-strong-password' \
   --set-string core.secrets.jwtSecret="$(openssl rand -hex 32)"

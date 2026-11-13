@@ -38,6 +38,7 @@ Enterprise code lives outside the public `virtfoundry` GitHub organization.
 
 ## Versioning
 
+- **0.13.0** — Per-tenant network isolation (P0) plus API and VKS correctness fixes
 - **0.12.0** — Redesigned console, VM tags, cluster overview
 - **0.11.3** — VKS network name fix, WebSocket behind the UI proxy, /api/v1/healthz
 - **0.11.2** — UI fixes: honest login page, Copy ssh over HTTP
