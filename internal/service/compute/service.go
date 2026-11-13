@@ -123,11 +123,13 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 	var tmplDisplay, osType, cloudInitExtra string
 	var deployTmpl *platform.VMTemplate
 	if in.ServiceOfferingID != "" {
-		if off, ok := s.store.GetServiceOffering(in.ServiceOfferingID); ok {
-			cpu, memMi = off.CPU, off.MemoryMi
-			if off.DedicatedCPU {
-				dedicated = true
-			}
+		off, ok := s.store.GetServiceOffering(in.ServiceOfferingID)
+		if !ok {
+			return nil, iaerrors.NewBadRequestError("service_offering_id not found")
+		}
+		cpu, memMi = off.CPU, off.MemoryMi
+		if off.DedicatedCPU {
+			dedicated = true
 		}
 	}
 	if in.TemplateID != "" {
