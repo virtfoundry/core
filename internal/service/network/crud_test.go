@@ -119,3 +119,22 @@ func TestAllVPCCIDRs_SpansTenants(t *testing.T) {
 		t.Fatal("overlap with another tenant's VPC must be rejected")
 	}
 }
+
+func TestCreateVPC_RejectsDuplicateNameInTenant(t *testing.T) {
+	st := store.NewMemory()
+	svc := New(st, nil)
+	tenantID := store.NewID()
+	st.SaveTenant(&platform.Tenant{
+		ID: tenantID, Name: "t", Slug: "t", Namespace: "vf-t", State: "active", CreatedAt: store.Now(),
+	})
+	st.SaveVPC(&platform.VPC{
+		ID: store.NewID(), TenantID: tenantID, Name: "prod", CIDR: "10.5.0.0/16",
+		Namespace: "vf-t", State: "active", CreatedAt: store.Now(),
+	})
+
+	_, _, err := svc.CreateVPC(context.Background(), tenantID, "prod", "10.6.0.0/16")
+	var iaErr *iaerrors.IaaSError
+	if !errors.As(err, &iaErr) || iaErr.HTTPStatus() != http.StatusConflict {
+		t.Fatalf("expected 409 conflict, got %v", err)
+	}
+}
