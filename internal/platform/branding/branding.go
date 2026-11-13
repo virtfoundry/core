@@ -1,7 +1,11 @@
 // Package branding holds VirtFoundry naming used across API and K8s integration.
 package branding
 
-import "strings"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+)
 
 const (
 	Domain = "virtfoundry.io"
@@ -67,4 +71,11 @@ func SGPodLabelKey(sgID string) string {
 		id = id[:8]
 	}
 	return LabelSG + "-" + strings.ToLower(id)
+}
+
+// TenantBridge returns the per-tenant Linux bridge for isolated networks
+// ("vfb"+8 hex, <=15 chars). Must match the operator's bridgeForNamespace.
+func TenantBridge(namespace string) string {
+	h := sha256.Sum256([]byte(namespace))
+	return "vfb" + hex.EncodeToString(h[:4])
 }
