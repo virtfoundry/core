@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-13
+
+### Fixed
+
+- Isolated networks of different tenants no longer share a bridge: each tenant gets its own bridge (`vfb` + 8 hex of the namespace hash) and its own CNI network name, and core refuses a VPC CIDR that overlaps any other tenant's VPC. Before, a VM in one tenant could reach a VM of another tenant on the same node ([#272](https://github.com/virtfoundry/core/pull/272)).
+- Deploying with an unknown `service_offering_id` returns 400 instead of silently using 1 vCPU / 1024 Mi.
+- `SaveVM` returns the error: a failed Instance write no longer answers 201 for a VM that exists only in the cache.
+- Creating a VPC whose name already exists in the tenant returns 409 instead of overwriting it ([#273](https://github.com/virtfoundry/core/pull/273)).
+
+### Changed
+
+- Version aligned with the VirtFoundry 0.13.0 release.
+
 ## [0.12.0] - 2026-10-16
 
 ### Added
