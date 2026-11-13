@@ -25,11 +25,9 @@ type SharedNetworkAttachment struct {
 	Labels     NADLabels
 }
 
-func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, cidr, bridgeName string, extra NADLabels) error {
-	if bridgeName == "" {
-		bridgeName = branding.BridgeName
-	}
-	return m.createBridgeNAD(ctx, namespace, name, cidr, bridgeName, "", "", "", extra)
+// CreateNetworkAttachment writes an isolated NAD on the tenant's own bridge.
+func (m *Manager) CreateNetworkAttachment(ctx context.Context, namespace, name, cidr string, extra NADLabels) error {
+	return m.createBridgeNAD(ctx, namespace, name, cidr, branding.TenantBridge(namespace), "", "", "", extra)
 }
 
 func (m *Manager) CreateSharedNetworkAttachment(ctx context.Context, spec SharedNetworkAttachment) error {
@@ -71,8 +69,10 @@ func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, br
   "name": %q,
   "type": "bridge",
   "bridge": %q,
+  "isGateway": true,
+  "ipMasq": true,
   "ipam": %s
-}`, name, bridge, ipam)
+}`, namespace+"-"+name, bridge, ipam)
 
 	return m.applyBridgeNAD(ctx, namespace, name, config, extra)
 }

@@ -151,7 +151,6 @@ func (s *PlatformService) RevokeAPIKey(userID, keyID, tenantID string, admin, ro
 }
 
 func (s *PlatformService) BootstrapNetworking(ctx context.Context, cfg config.NetworkingConfig) error {
-	s.network.ConfigureBridges(cfg.Isolated.BridgeName)
 	s.compute.ConfigureVMNetworking(cfg.VM.DefaultNetwork, cfg.VM.AllowPodNetwork)
 	return s.network.BootstrapSharedNetwork(ctx, cfg.Public)
 }

@@ -42,19 +42,12 @@ func (s *Service) EnsureDefaultSecurityGroup(ctx context.Context, tenantID strin
 
 // Service manages VPCs, private networks and security groups.
 type Service struct {
-	store          store.Repository
-	k8s            *platformk8s.Manager
-	isolatedBridge string
+	store store.Repository
+	k8s   *platformk8s.Manager
 }
 
 func New(st store.Repository, k8s *platformk8s.Manager) *Service {
-	return &Service{store: st, k8s: k8s, isolatedBridge: branding.BridgeName}
-}
-
-func (s *Service) ConfigureBridges(isolated string) {
-	if isolated != "" {
-		s.isolatedBridge = isolated
-	}
+	return &Service{store: st, k8s: k8s}
 }
 
 func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string) (*platform.VPC, *platform.Network, error) {
@@ -104,7 +97,7 @@ func (s *Service) CreateVPC(ctx context.Context, tenantID, name, vpcCIDR string)
 		branding.LabelVPCName:     name,
 		branding.LabelNetworkRole: "default",
 	}
-	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, defaultNetCIDR, s.isolatedBridge, labels); err != nil {
+	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, defaultNetCIDR, labels); err != nil {
 		return nil, nil, err
 	}
 
@@ -272,7 +265,7 @@ func (s *Service) CreateNetwork(ctx context.Context, tenantID, vpcID, name, subn
 		platformk8s.LabelVPCID:    vpcID,
 		branding.LabelVPCName: vpc.Name,
 	}
-	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, s.isolatedBridge, labels); err != nil {
+	if err := s.k8s.CreateNetworkAttachment(ctx, tenantNS, nadName, subnetCIDR, labels); err != nil {
 		return nil, err
 	}
 
