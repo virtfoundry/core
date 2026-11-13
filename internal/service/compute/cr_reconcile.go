@@ -160,7 +160,9 @@ func (s *Service) deployVMViaOperator(
 	if tenant != nil {
 		vm.Zone = tenant.Slug
 	}
-	s.store.SaveVM(vm)
+	if err := s.store.SaveVM(vm); err != nil {
+		return nil, fmt.Errorf("save instance: %w", err)
+	}
 	s.invalidateVMListCache(tenantID)
 	s.broadcastVM(tenantID, "vm.created", vm)
 	return vm, nil
@@ -208,7 +210,9 @@ func (s *Service) setVMPowerState(ctx context.Context, tenantID, vmName, power s
 	}
 	vm.PowerState = power
 	vm.UpdatedAt = store.Now()
-	s.store.SaveVM(vm)
+	if err := s.store.SaveVM(vm); err != nil {
+		return nil, fmt.Errorf("save instance: %w", err)
+	}
 	s.invalidateVMListCache(tenantID)
 	merged, err := s.GetVM(ctx, tenantID, vmName)
 	if err != nil {

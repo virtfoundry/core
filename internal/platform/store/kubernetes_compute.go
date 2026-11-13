@@ -1,16 +1,18 @@
 package store
 
 import (
+	"fmt"
+
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store/mapping"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func (k *Kubernetes) SaveVM(vm *platform.PlatformVM) {
+func (k *Kubernetes) SaveVM(vm *platform.PlatformVM) error {
 	ns, ok := k.tenantNamespace(vm.TenantID)
 	if !ok {
-		return
+		return fmt.Errorf("tenant namespace not found for %q", vm.TenantID)
 	}
 	offeringCR := ""
 	if vm.ServiceOfferingID != "" {
@@ -30,7 +32,7 @@ func (k *Kubernetes) SaveVM(vm *platform.PlatformVM) {
 	}
 	slug := k.tenantSlug(vm.TenantID)
 	prior := *vm
-	k.saveNamespacedMapped(mapping.InstanceGVR, ns, func() *unstructured.Unstructured {
+	return k.saveNamespacedMapped(mapping.InstanceGVR, ns, func() *unstructured.Unstructured {
 		return mapping.InstanceToUnstructured(vm, slug, offeringCR, templateCR, networkRefs)
 	}, func(saved *unstructured.Unstructured) {
 		fromCR, err := mapping.InstanceFromUnstructured(saved, vm.TenantID, nil)

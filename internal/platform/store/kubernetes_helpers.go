@@ -127,9 +127,13 @@ func (k *Kubernetes) saveClusterMapped(gvr schema.GroupVersionResource, build fu
 	}
 }
 
-func (k *Kubernetes) saveNamespacedMapped(gvr schema.GroupVersionResource, ns string, build func() *unstructured.Unstructured, apply func(*unstructured.Unstructured)) {
-	obj := build()
-	if saved, err := k.upsertNamespaced(gvr, ns, obj); err == nil && saved != nil {
+func (k *Kubernetes) saveNamespacedMapped(gvr schema.GroupVersionResource, ns string, build func() *unstructured.Unstructured, apply func(*unstructured.Unstructured)) error {
+	saved, err := k.upsertNamespaced(gvr, ns, build())
+	if err != nil {
+		return err
+	}
+	if saved != nil {
 		apply(saved)
 	}
+	return nil
 }

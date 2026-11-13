@@ -280,7 +280,7 @@ func (s *Service) DeployVM(ctx context.Context, tenantID string, in DeployVMInpu
 			// NodePort created; IP sync will refresh state on next poll.
 		}
 	}
-	s.store.SaveVM(vm)
+	_ = s.store.SaveVM(vm) // hypervisor path: VM already exists in KubeVirt
 	if in.DataVolumeID != "" {
 		if vol, ok := s.store.GetVolume(in.DataVolumeID); ok {
 			s.markVolumeAttached(vol, vm)
@@ -354,7 +354,7 @@ func (s *Service) UpdateVM(ctx context.Context, tenantID, name string, in Update
 		vm.Tags = *in.Tags
 	}
 	vm.UpdatedAt = store.Now()
-	s.store.SaveVM(vm)
+	_ = s.store.SaveVM(vm) // hypervisor path: VM already exists in KubeVirt
 	s.invalidateVMListCache(tenantID)
 	merged, _ := s.GetVM(ctx, tenantID, name)
 	if merged != nil {
@@ -725,13 +725,13 @@ func (s *Service) ReconcileAll(ctx context.Context) {
 				}
 			}
 			s.applyVMInfo(vm, info, tenant)
-			s.store.SaveVM(vm)
+			_ = s.store.SaveVM(vm) // hypervisor path: VM already exists in KubeVirt
 		}
 		for _, stored := range s.store.ListVMs(tenant.ID) {
 			if !seen[stored.Name] && stored.State != "Destroyed" {
 				stored.State = "Destroyed"
 				stored.UpdatedAt = store.Now()
-				s.store.SaveVM(stored)
+				_ = s.store.SaveVM(stored)
 				s.broadcastVM(tenant.ID, "vm.updated", stored)
 			}
 		}
