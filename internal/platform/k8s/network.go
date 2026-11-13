@@ -69,8 +69,6 @@ func (m *Manager) createBridgeNAD(ctx context.Context, namespace, name, cidr, br
   "name": %q,
   "type": "bridge",
   "bridge": %q,
-  "isGateway": true,
-  "ipMasq": true,
   "ipam": %s
 }`, namespace+"-"+name, bridge, ipam)
 
