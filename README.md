@@ -90,7 +90,7 @@ Requires `KUBECONFIG` pointing at a cluster with `virtfoundry.io` CRDs installed
 
 See [docs/superpowers/specs/2026-09-01-crd-operator-design.md](docs/superpowers/specs/2026-09-01-crd-operator-design.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**gRPC spike (experimental):** `InstanceService` behind cmux on the same `:8080` as REST — see [docs/GRPC-SPIKE.md](docs/GRPC-SPIKE.md). REST remains canonical for UI/TF; set `VIRTFOUNDRY_GRPC=0` to disable.
+**gRPC spike (experimental):** `InstanceService` behind cmux on the same `:8080` as REST — see [docs/GRPC-SPIKE.md](docs/GRPC-SPIKE.md). REST remains canonical for UI/TF; disabled by default; set `VIRTFOUNDRY_GRPC=1` to enable.
 
 ## Documentation
 

@@ -328,9 +328,9 @@ func main() {
 	}
 
 	// gRPC spike (#135): cmux dual-stack on the same :8080 as REST.
-	// Set VIRTFOUNDRY_GRPC=0 to disable and keep HTTP-only (fail-soft).
+	// Opt-in: set VIRTFOUNDRY_GRPC=1 to enable; default is HTTP-only.
 	// Timeouts from #161 apply to HTTP-only, cmux HTTP, and fallback paths.
-	grpcEnabled := os.Getenv("VIRTFOUNDRY_GRPC") != "0"
+	grpcEnabled := os.Getenv("VIRTFOUNDRY_GRPC") == "1"
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           router,
