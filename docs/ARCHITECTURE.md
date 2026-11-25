@@ -208,6 +208,12 @@ Local `go run` without a cluster uses the in-memory store with seeded catalog.
 
 ---
 
+### CRD-first migration status
+
+Only Tenant, Instance and Network have controllers; the rest of the cluster objects are still
+created by the API. Plan and per-step status: [CRD-FIRST-MIGRATION.md](CRD-FIRST-MIGRATION.md).
+Running more than one API replica: [MULTI-REPLICA.md](MULTI-REPLICA.md).
+
 ## Kubernetes deploy
 
 Manifests and Helm values live in [helm-charts](https://github.com/virtfoundry/helm-charts):
