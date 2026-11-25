@@ -38,7 +38,7 @@ prefer informers over polling.** This keeps the "CRs are the source of truth" ru
 
 ### A. Move ephemeral objects to CRs (fixes #1, #2, #3)
 
-- Load balancer family: the operator already owns the LB-related CRDs? **No.** Item 6 of the
+- Load balancer family: the operator has no LoadBalancer controller yet. Item 6 of the
   roadmap (CRD-first migration) covers moving `LoadBalancer` to a CRD + controller. Multi-replica
   for LBs therefore depends on that migration; until then, `api.replicas > 1` must be refused
   (see "Guard rail").
