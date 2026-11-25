@@ -12,11 +12,10 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { CIDRPicker, SubnetPrefixSelect } from '../components/CIDRPicker';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isIsolatedNetwork } from '../lib/networks';
-import type { Network, VPC } from '../lib/platform-api';
+import type { Network } from '../lib/platform-api';
 import {
   PageHeader, SurfaceCard, TenantRequiredNotice, TableToolbar, TableFilter, TablePager, usePagination, TableMessageRow,
   PageTable, PageTableHead, PageTableTh, PageTableBody, PageTableRow, PageTableTd,
@@ -38,7 +37,7 @@ export function Networks() {
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.networks,
     queryFn: listNetworks,
     enabled: !needsTenant,

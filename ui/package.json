@@ -8,7 +8,8 @@
     "dev:demo": "VITE_DEMO=1 vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@novnc/novnc": "^1.7.0",
