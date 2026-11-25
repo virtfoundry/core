@@ -45,9 +45,11 @@ KubeVirt is an excellent **hypervisor API**. VirtFoundry is the **product layer*
 
 If you only need a few VMs and are happy applying CRDs by hand, you may not need VirtFoundry.
 
-## VirtFoundry vs Harvester / similar
+## VirtFoundry vs Harvester / Cozystack
 
 Harvester is a full HCI appliance experience. VirtFoundry assumes **you bring the cluster** (kubespray, kubeadm, managed Kubernetes, …) and focuses on the **IaaS control plane** and tenant UX.
+
+[Cozystack](https://cozystack.io/) builds a bare-metal private cloud and PaaS as its own distribution, with a catalog of managed services (Kubernetes, databases, applications) alongside KubeVirt VMs. Choose it when you are starting from bare metal and want that catalog. Choose VirtFoundry when you already run Kubernetes and want AWS/CloudStack-style IaaS primitives (VPCs, security groups, L4 load balancers, IAM, API keys) behind a REST API and a Terraform provider.
 
 ## Design principles
 

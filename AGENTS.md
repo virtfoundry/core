@@ -18,7 +18,7 @@ Rules: `typescript-exhaustive-switch`, `no-inline-imports`.
 
 ## VirtFoundry
 
-- SemVer produto **0.9.x** (alinhar CHANGELOG / RELEASES).
+- SemVer produto **0.13.x** (alinhar CHANGELOG / RELEASES; fonte da verdade: `ui/package.json` e CHANGELOG.md).
 - Testes no **homelab Linux** (cluster real ou Kind/Linux com KubeVirt). Gate de produto = homelab; **não** Kind no macOS (KubeVirt não funciona).
 - Preview sem commit só com pedido explícito.
 - Não taguear / mergear release sem OK do maintainer.

@@ -64,13 +64,11 @@ Login: `root` / your root password. For volume snapshots, set `platform.storage.
 | [virtfoundry/helm-charts](https://github.com/virtfoundry/helm-charts) | Helm charts, docs, deploy scripts |
 | [virtfoundry/terraform-provider-virtfoundry](https://github.com/virtfoundry/terraform-provider-virtfoundry) | Terraform provider |
 
-## Product model
+## Project and commercial offerings
 
-Open-source **core** (Apache 2.0) + optional **enterprise** components from Thurler IT. See [docs/PRODUCT.md](docs/PRODUCT.md).
+Everything in the [`virtfoundry`](https://github.com/virtfoundry) GitHub organization is Apache 2.0 and is the complete product: no core feature is held back for a paid edition. Project decisions follow [GOVERNANCE.md](GOVERNANCE.md).
 
-## Enterprise support
-
-Migration from CloudStack/VMware, SSO, billing, and SLA support: **Thurler IT Consultancy** — [thurlerit.com](https://thurlerit.com)
+Separately, **Thurler IT** (owned by the lead maintainer) sells services and add-ons around VirtFoundry: migration from CloudStack/VMware, SSO, billing and SLA support ([thurlerit.com](https://thurlerit.com)). That code lives outside this organization and uses only the public API and CRDs. Details: [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ## Development
 
