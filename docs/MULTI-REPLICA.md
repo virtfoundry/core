@@ -125,3 +125,13 @@ flips what `multiReplica.enabled` is allowed to turn on.
 2. **Async jobs:** delete the `async: true` deploy path (nothing processes it today; REST behavior change) or persist and process it behind the leader Lease?
 3. **Console tickets:** is the documented 30 s replay window acceptable, or do you want strict single use (extra Lease write per console connect)?
 4. **Audit log:** Kubernetes `Event` + stdout acceptable as the audit store, or do you want an `AuditEvent` CR with retention?
+
+## Findings before coding (2026-11-25)
+
+- `ReconcileAll` is only reachable from `service/jobs`, which `cmd/server` never starts. No background loop
+  writes today, so rollout step 1 (Lease leader election around `ReconcileAll`) would guard nothing.
+  Decision: drop that step. Add the Lease only if a writing loop is introduced later.
+- Consequence: the only real blockers for `replicas > 1` are LB and audit state (CRD-first migration) and the
+  read path (step 2). Order of work: CRD-first migration of the LoadBalancer first, then step 2, then the chart guard.
+- Q1 and Q4 answered "yes" by the maintainer's delegation (LB CRD first; Events + stdout for audit).
+  Q3: keep the documented 30 s replay window. Q2 (delete `async: true`) is a REST behavior change and still needs an explicit OK.
