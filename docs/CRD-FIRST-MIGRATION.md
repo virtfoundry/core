@@ -102,3 +102,24 @@ user-visible change per step and is called out in each PR.
 2. **Order:** OK with steps 1-2 first (retire the two dual writers), or do you want LoadBalancer earlier because of multi-replica?
 3. **LoadBalancer CRDs:** one `LoadBalancer` CR with inline listeners and targets, or separate `TargetGroup`/`Listener`/`Target` CRs? Proposal: `LoadBalancer` and `TargetGroup` only, listeners and targets inline.
 4. **Secrets:** move API-key Secret handling into a controller in this effort, or leave for later?
+
+## Findings before coding step 1 (2026-11-25)
+
+Retiring the Tenant dual writer is **not** behavior-neutral. The API and the Tenant controller each create a
+ResourceQuota and NetworkPolicy in the tenant namespace, with different contents:
+
+| | API (`EnsureTenantNamespace`) | Operator (`ensureTenantIsolation`) |
+|---|---|---|
+| Quota name | `branding.ResourceQuotaName` | `virtfoundry-default` |
+| Pods | `MaxVMs*2+10` = 50 | 50 |
+| PVCs | 50 | 20 |
+| CPU / memory | limits-less `cpu` 32, `memory` 64Gi | requests 20 / 40Gi, limits 40 / 80Gi |
+| Services | not limited | 20 |
+| Extra policy | CDI importer egress NetworkPolicy | default-deny + DNS + 80/443 egress |
+
+Both quotas are enforced today (the stricter value wins per resource). Removing the API side changes effective
+limits for live tenants (PVC 50 to 20; CPU/memory become the operator's requests/limits) and drops the CDI
+importer policy unless the operator covers it. Needs a maintainer decision on the target quota values, then:
+operator PR (quota values + CDI egress rule, additive), then core PR (stop creating namespace/quota/policy, wait for
+`Tenant.status.namespace`), verified on the homelab with an import DataVolume in a fresh tenant.
+No code was changed.
