@@ -4,7 +4,6 @@ import { listNetworks } from '../lib/platform-api';
 import { RefreshButton } from '../components/RefreshButton';
 import { RefreshingPanel } from '../components/RefreshingPanel';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { isPublicNetwork } from '../lib/networks';
@@ -19,7 +18,7 @@ export function PublicNetwork() {
   const { t } = useI18n();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.networks,
     queryFn: listNetworks,
     enabled: !needsTenant,

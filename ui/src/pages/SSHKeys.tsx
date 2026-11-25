@@ -39,7 +39,7 @@ export function SSHKeys() {
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.sshKeys,
     queryFn: listSSHKeys,
     enabled: !needsTenant,

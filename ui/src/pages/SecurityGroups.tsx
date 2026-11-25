@@ -12,7 +12,6 @@ import { RefreshingPanel } from '../components/RefreshingPanel';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { SGRulesEditor, defaultSGRules, type SGRule } from '../components/SGRulesEditor';
 import { queryKeys } from '../lib/query-keys';
-import { authService } from '../lib/auth';
 import { useNeedsTenant } from '../store/hooks';
 import { useI18n } from '../lib/i18n';
 import { ago } from '../lib/ago';
@@ -34,7 +33,7 @@ export function SecurityGroups() {
   const queryClient = useQueryClient();
   const needsTenant = useNeedsTenant();
 
-  const { data, isLoading, isFetching, isRefetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.securityGroups,
     queryFn: listSecurityGroups,
     enabled: !needsTenant,
