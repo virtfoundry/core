@@ -90,7 +90,15 @@ N/A — VirtFoundry is an implementation (control plane + CRDs), not a standards
 
 ### Business product or service to project separation
 
-This project is unrelated to any commercial product or service of the maintainers’ employers. Maintainers contribute as individuals. There is no proprietary “enterprise fork” controlling the roadmap; optional future enterprise-adjacent features (e.g. SSO) are called out as non-blocking and kept out of the open core unless contributed under Apache-2.0.
+> **DRAFT — maintainer to confirm before submitting.** The previous answer said the project was unrelated to any commercial offering, which contradicted [PRODUCT.md](PRODUCT.md) and the README. Reviewers compare these documents.
+
+The lead maintainer owns **Thurler IT**, a consultancy that offers paid services around VirtFoundry (migration from CloudStack/VMware, support with SLA) and plans separately licensed add-ons (SSO, billing/showback, managed databases), listed in [PRODUCT.md](PRODUCT.md). The separation is:
+
+- **Everything in the `virtfoundry` GitHub organization is Apache-2.0** and is the complete, usable IaaS: tenants, VPCs, security groups, load balancers, VMs, volumes, snapshots, IAM, UI, Helm charts and Terraform provider. No core feature is withheld or gated on a commercial component.
+- **Commercial code lives outside the organization** and integrates only through the public REST API and CRDs, the same interfaces any third party can use.
+- **Roadmap and merges** follow [GOVERNANCE.md](../GOVERNANCE.md); Thurler IT has no veto. Features contributed under Apache-2.0 are accepted on technical merit even when they overlap a planned commercial add-on.
+- **Employers.** Two maintainers work at CI&T and one at SYS MANAGER INFORMATICA; neither company sponsors or directs the project. Written confirmation that no employer claims rights over the contributions is tracked in [#200](https://github.com/virtfoundry/core/issues/200).
+- **Trademark and domains** (name, GitHub organization, `virtfoundry.dev` if registered) transfer to the Linux Foundation with the Contribution Agreement.
 
 ### Why CNCF?
 
@@ -115,11 +123,13 @@ VirtFoundry is cloud native by composition: declarative CRDs, operator pattern, 
 ### Cloud native overlap
 
 - **KubeVirt** — VirtFoundry *depends on* KubeVirt; it does not replace it. Overlap is intentional layering (product/control plane vs hypervisor API).  
+- **Cozystack** — overlaps on KubeVirt VMs for tenants and (through `vks`) on Kamaji-based managed Kubernetes. See *Why not contribute to Cozystack?* below.
 - **Kamaji and Cluster API** — the experimental `vks` component (managed Kubernetes clusters on top of the IaaS) touches cluster lifecycle tooling. It is out of scope for this application; we will ask both communities for feedback before proposing it later.
 - Other CNCF projects may provide pieces (networking, storage, observability); VirtFoundry orchestrates tenant-facing IaaS resources on top.
 
 ### Similar projects
 
+- **Cozystack** (CNCF Sandbox since 2025) — the closest project: a bare-metal private cloud / PaaS platform with KubeVirt VMs, managed Kubernetes on Kamaji, databases and applications as a service, and a bundled observability stack, typically installed as its own Talos-based distribution. VirtFoundry differs in scope and install model; see *Why not contribute to Cozystack?* below.  
 - **Harvester** — full HCI appliance; VirtFoundry assumes BYO Kubernetes.  
 - **Proxmox VE** — hypervisor appliance (not CNCF); primary migration narrative.  
 - **OpenStack** — full IaaS; VirtFoundry targets a thinner, K8s-native control plane.  
@@ -153,11 +163,26 @@ Not yet. Planned: Day 0 of the [General Technical Review](https://github.com/cnc
 
 VirtFoundry is a multi-repo product (API, UI, Helm docs, Terraform) with its own tenant model and governance. It *consumes* KubeVirt as the hypervisor API rather than extending a single KubeVirt controller. We will engage the KubeVirt community for alignment; if maintainers there prefer a tighter relationship later, we remain open — but Sandbox as an independent project matches the current scope and contributor surface.
 
+### Why not contribute to Cozystack? (for TOC / comments)
+
+> **DRAFT — verify the Cozystack facts against its current docs and, ideally, talk to its maintainers before submitting.** The TOC is likely to ask this first, because both projects put tenant VMs on KubeVirt and Cozystack is already in the Sandbox.
+
+The projects answer different questions:
+
+| | Cozystack | VirtFoundry |
+|--|--|--|
+| Starting point | Bare metal; ships the platform as a distribution (Talos Linux based) | An existing Kubernetes cluster of any distribution (kubeadm, k3s, RKE2, managed) |
+| Product shape | PaaS catalog: managed Kubernetes, databases and applications as a service, plus VMs | IaaS primitives in an AWS/CloudStack mental model: tenant, VPC, subnet, security group, L4 load balancer (VIP, listener, target group), offering, template, volume, snapshot, IAM users/roles/API keys |
+| Interface | Kubernetes resources and dashboard | First-party REST API (also used by the UI) and Terraform provider; state in `virtfoundry.io` CRDs |
+| Install | Platform installer | Two Helm charts added to a cluster that already runs KubeVirt, Multus and CDI |
+
+Overlap is real for "VMs for tenants on KubeVirt" and for managed Kubernetes on Kamaji, which is why `vks` is out of scope for this application. Where the projects can share work (KubeVirt networking, Kamaji integration, node images), we will contribute upstream rather than fork.
+
 ---
 
 ## Known gaps before submitting
 
-Tracked in [#200](https://github.com/virtfoundry/core/issues/200). In short: no external adopters yet, contributor concentration, positioning answers still to be validated with the KubeVirt community and TAG Runtime, signatory and contact emails unfilled. The README says reviewers weigh employer diversity (not required), so keep the affiliations in `MAINTAINERS.md` current.
+Tracked in [#200](https://github.com/virtfoundry/core/issues/200). In short: no external adopters yet, contributor concentration, the Cozystack positioning answer above (unvalidated), the business-separation answer above (to confirm), positioning answers still to be validated with the KubeVirt community and TAG Runtime, signatory and contact emails unfilled. The README says reviewers weigh employer diversity (not required), so keep the affiliations in `MAINTAINERS.md` current.
 
 ## After TOC approval
 
