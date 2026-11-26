@@ -24,6 +24,23 @@ func (k *Kubernetes) invalidateTenantCache() {
 	k.tenantCacheMu.Unlock()
 }
 
+// lookupTenant reads the tenant cache and reloads it once on a miss, because
+// another API replica may have created the tenant after this one cached the list.
+// ponytail: an unknown key costs one List per call; add a negative cache if that
+// shows up in API server load.
+func (k *Kubernetes) lookupTenant(pick func(*tenantSnapshot) *platform.Tenant) *platform.Tenant {
+	if t := pick(k.tenantSnapshot()); t != nil {
+		return t
+	}
+	k.tenantCacheMu.Lock()
+	if k.tenantCache != nil {
+		// Expire instead of dropping: a failed reload keeps serving the old list.
+		k.tenantCache.expires = time.Time{}
+	}
+	k.tenantCacheMu.Unlock()
+	return pick(k.tenantSnapshot())
+}
+
 func (k *Kubernetes) invalidateRolePermCache() {
 	k.rolePermCacheMu.Lock()
 	k.rolePermCache = nil

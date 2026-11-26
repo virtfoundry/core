@@ -69,6 +69,12 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	}
 
 	obj.SetResourceVersion(existing.GetResourceVersion())
+	if tenantCRName == "" && u.TenantID != "" {
+		// The tenant could not be resolved: keep the link instead of erasing it.
+		if ref, ok, _ := unstructured.NestedMap(existing.Object, "spec", "tenantRef"); ok {
+			_ = unstructured.SetNestedMap(obj.Object, ref, "spec", "tenantRef")
+		}
+	}
 	updated, updateErr := k.dyn.Resource(mapping.UserGVR).Update(ctx, obj, metav1.UpdateOptions{})
 	if updateErr == nil {
 		*u = *k.userFromCR(ctx, updated, true)
@@ -187,7 +193,7 @@ func (k *Kubernetes) userFromCR(ctx context.Context, obj *unstructured.Unstructu
 	tenantRef, _, _ := unstructured.NestedString(obj.Object, "spec", "tenantRef", "name")
 	if tenantRef != "" {
 		// Tenant CR name == slug; use tenant snapshot cache (no live Get per user hydration).
-		if t, ok := k.tenantSnapshot().bySlug[tenantRef]; ok {
+		if t := k.lookupTenant(func(s *tenantSnapshot) *platform.Tenant { return s.bySlug[tenantRef] }); t != nil {
 			u.TenantID = t.ID
 		}
 	}

@@ -45,13 +45,15 @@ func (s *Service) provision(ctx context.Context, name, slug string) (*platform.T
 	}
 	t.Namespace = platformk8s.TenantNamespace(slug)
 	s.store.SaveTenant(t) // the store rewrites t with the CR identity
-	if _, ok := s.store.GetTenantBySlug(slug); !ok {
+	// Re-read: if another replica created the CR first, t still holds a local ID.
+	saved, ok := s.store.GetTenantBySlug(slug)
+	if !ok {
 		return nil, fmt.Errorf("save tenant %s: record was not persisted", slug)
 	}
 	if err := s.k8s.WaitNamespace(ctx, t.Namespace, s.namespaceTimeout); err != nil {
 		return nil, fmt.Errorf("tenant %s: %w (is virtfoundry-operator running?)", slug, err)
 	}
-	return t, nil
+	return saved, nil
 }
 
 func (s *Service) CreateTenant(ctx context.Context, name, slug, adminPassword string) (*platform.Tenant, *platform.User, error) {
