@@ -39,10 +39,10 @@ rules:
     verbs: [get]
   - apiGroup: ""
     resource: services
-    verbs: [get, create, update, delete]
+    verbs: [get, create, update]
   - apiGroup: ""
     resource: endpoints
-    verbs: [create, update, delete]
+    verbs: [create, update]
   - apiGroup: ""
     resource: persistentvolumeclaims
     verbs: [list, create, delete]

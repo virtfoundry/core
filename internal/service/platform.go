@@ -56,7 +56,7 @@ func NewPlatformService(st store.Repository, k8s *platformk8s.Manager, kv *hyper
 		compute:  computeSvc,
 		jobs:     jobs.New(st, computeSvc),
 		sshkeys:  sshkeys.New(st),
-		lb:       loadbalancer.New(st, k8s),
+		lb:       loadbalancer.New(st),
 		kv:       kv,
 	}
 }

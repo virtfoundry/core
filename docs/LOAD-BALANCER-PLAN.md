@@ -13,6 +13,13 @@ LoadBalancer          → VIP (MetalLB LoadBalancer Service)
               └── Target → VM (public and/or private NIC IP when reachable)
 ```
 
+## State (since the LoadBalancer CRD)
+
+The API writes `LoadBalancer` (listeners inline) and `TargetGroup` (targets inline) CRs in the tenant
+namespace. The operator reconciles a `LoadBalancer` into a `type=LoadBalancer` Service `lb-<name>` and one
+EndpointSlice per listener, and reports `status.phase` and `status.vip`. The API no longer creates Services or
+Endpoints, so any API replica serves the same state. `GET` shows `Creating` until the VIP is assigned.
+
 ## Why AWS-style
 
 | Concern | CloudStack-like | AWS-style (chosen) |
