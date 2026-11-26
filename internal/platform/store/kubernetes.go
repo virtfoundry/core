@@ -22,7 +22,6 @@ type Kubernetes struct {
 
 	mu              sync.RWMutex
 	jobs            map[string]*platform.AsyncJob
-	auditEvents     []*platform.AuditEvent
 	tenantCacheMu   sync.RWMutex
 	tenantCache     *cachedTenants
 	rolePermCacheMu sync.RWMutex
@@ -77,7 +76,6 @@ func NewKubernetes(opts KubernetesOptions) (*Kubernetes, error) {
 		dyn:         dyn,
 		clientset:   cs,
 		jobs:        make(map[string]*platform.AsyncJob),
-		auditEvents: make([]*platform.AuditEvent, 0),
 	}, nil
 }
 

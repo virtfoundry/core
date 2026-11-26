@@ -12,6 +12,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Changed
 
+- Root impersonation audit records are written to stdout as JSON with `audit=true`, whatever the configured log level. They were kept only in API memory, with no endpoint to read them and no size limit. Collect them from the API pod logs.
 - With the Kubernetes store, the API no longer creates tenant namespaces, quotas or the CDI egress policy: it writes the Tenant CR and waits up to 60s for `virtfoundry-operator` to create the namespace. New tenants get only the operator quota (20 PVCs instead of 50, plus its CPU, memory and Service limits). Quotas the API created before stay until removed by hand. Needs an operator with the CDI egress policy (operator#84).
 - gRPC spike (cmux on `:8080`) is now disabled by default; set `VIRTFOUNDRY_GRPC=1` to enable.
 

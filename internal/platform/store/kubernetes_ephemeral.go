@@ -207,27 +207,6 @@ func (k *Kubernetes) apiKeyFromCR(obj *unstructured.Unstructured, ns string, wit
 	return key
 }
 
-func (k *Kubernetes) SaveAuditEvent(e *platform.AuditEvent) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.auditEvents = append(k.auditEvents, e)
-}
-
-func (k *Kubernetes) ListAuditEvents(targetTenantID string, limit int) []*platform.AuditEvent {
-	k.mu.RLock()
-	defer k.mu.RUnlock()
-	if limit <= 0 {
-		limit = 100
-	}
-	var out []*platform.AuditEvent
-	for i := len(k.auditEvents) - 1; i >= 0 && len(out) < limit; i-- {
-		if k.auditEvents[i].TargetTenantID == targetTenantID {
-			out = append(out, k.auditEvents[i])
-		}
-	}
-	return out
-}
-
 func (k *Kubernetes) SaveJob(j *platform.AsyncJob) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
