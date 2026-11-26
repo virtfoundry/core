@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ### Fixed
 
+- With more than one API replica, a replica with an outdated tenant cache could return `400 tenant_id required for root`, and could remove the tenant link from the root user at startup. A tenant missing from the cache is now reloaded.
 - With the Kubernetes store, VM reads no longer use the 20s in-process list cache, so a change made by the operator or another API replica shows on the next request. Catalog lookups now run once per distinct offering and template in a list.
 
 ### Changed
