@@ -5,14 +5,16 @@ import (
 	"net/http"
 	"strings"
 
+	"go.uber.org/zap"
+
+	"github.com/virtfoundry/core/internal/pkg/logger"
 	"github.com/virtfoundry/core/internal/platform"
-	"github.com/virtfoundry/core/internal/platform/store"
 )
 
 const ContextImpersonating ctxKey = "impersonating"
 
 // AuditRootImpersonation logs when root operates inside a tenant via X-Tenant-ID.
-func AuditRootImpersonation(st store.Repository) func(http.Handler) http.Handler {
+func AuditRootImpersonation() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims := GetClaims(r.Context())
@@ -26,17 +28,14 @@ func AuditRootImpersonation(st store.Repository) func(http.Handler) http.Handler
 			ctx := r.Context()
 			if impersonating {
 				ctx = contextWithImpersonating(ctx, true)
-				st.SaveAuditEvent(&platform.AuditEvent{
-					ID:             store.NewID(),
-					ActorUserID:    claims.UserID,
-					ActorRole:      string(claims.Role),
-					TargetTenantID: targetTenant,
-					Action:         "api.request",
-					Method:         r.Method,
-					Path:           r.URL.Path,
-					ResourceType:   resourceFromPath(r.URL.Path),
-					CreatedAt:      store.Now(),
-				})
+				logger.Audit("api.request",
+					zap.String("actor_user_id", claims.UserID),
+					zap.String("actor_role", string(claims.Role)),
+					zap.String("target_tenant_id", targetTenant),
+					zap.String("method", r.Method),
+					zap.String("path", r.URL.Path),
+					zap.String("resource_type", resourceFromPath(r.URL.Path)),
+				)
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

@@ -58,8 +58,6 @@ type Repository interface {
 	GetNetwork(id string) (*platform.Network, bool)
 	DeleteNetwork(id string)
 
-	SaveAuditEvent(e *platform.AuditEvent)
-	ListAuditEvents(targetTenantID string, limit int) []*platform.AuditEvent
 
 	AllocateIPAddress(networkID string) (*platform.IPAddress, error)
 	ReleaseIPAddressByVMNic(vmNicID string)

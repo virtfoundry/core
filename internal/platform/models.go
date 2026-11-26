@@ -114,19 +114,6 @@ const (
 	SharedNetworkID     = "00000000-0000-4000-8000-000000000001"
 )
 
-type AuditEvent struct {
-	ID             string    `json:"id"`
-	ActorUserID    string    `json:"actor_user_id"`
-	ActorRole      string    `json:"actor_role"`
-	TargetTenantID string    `json:"target_tenant_id"`
-	Action         string    `json:"action"`
-	Method         string    `json:"method"`
-	Path           string    `json:"path"`
-	ResourceType   string    `json:"resource_type,omitempty"`
-	ResourceID     string    `json:"resource_id,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-}
-
 type IPAddress struct {
 	ID        string    `json:"id"`
 	NetworkID string    `json:"network_id"`
