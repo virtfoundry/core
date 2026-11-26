@@ -2,31 +2,27 @@ package loadbalancer
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	platformk8s "github.com/virtfoundry/core/internal/platform/k8s"
 	"github.com/virtfoundry/core/internal/platform"
 	"github.com/virtfoundry/core/internal/platform/store"
 	iaerrors "github.com/virtfoundry/core/internal/pkg/errors"
 	"github.com/virtfoundry/core/internal/service/shared"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	stateActive   = "Active"
 	stateCreating = "Creating"
-	stateError    = "Error"
 )
 
-// Service manages AWS-style L4 load balancers backed by MetalLB Services.
+// Service manages AWS-style L4 load balancers. It writes LoadBalancer and
+// TargetGroup CRs; the operator reconciles them into a Service and EndpointSlices.
 type Service struct {
 	store store.Repository
-	k8s   *platformk8s.Manager
 }
 
-func New(st store.Repository, k8s *platformk8s.Manager) *Service {
-	return &Service{store: st, k8s: k8s}
+func New(st store.Repository) *Service {
+	return &Service{store: st}
 }
 
 func (s *Service) CreateTargetGroup(tenantID, name, protocol string, port int) (*platform.TargetGroup, error) {
@@ -103,12 +99,8 @@ func (s *Service) DeleteLoadBalancer(ctx context.Context, tenantID, id string) e
 	if !ok || lb.TenantID != tenantID {
 		return iaerrors.NewNotFoundError("load balancer", id)
 	}
-	for _, l := range s.store.ListLBListeners(id) {
-		s.store.DeleteLBListener(l.ID)
-	}
-	if err := s.k8s.DeleteLBService(ctx, lb.Namespace, lb.ServiceName); err != nil {
-		return err
-	}
+	// Listeners are part of the CR; the operator-owned Service and EndpointSlices
+	// are garbage-collected with it.
 	s.store.DeleteLoadBalancer(id)
 	return nil
 }
@@ -139,10 +131,6 @@ func (s *Service) CreateListener(ctx context.Context, tenantID, lbID, protocol s
 		CreatedAt:      store.Now(),
 	}
 	s.store.SaveLBListener(listener)
-	if err := s.syncLBService(ctx, lb); err != nil {
-		return listener, err
-	}
-	_ = s.syncLBEndpoints(ctx, lb)
 	return listener, nil
 }
 
@@ -156,10 +144,7 @@ func (s *Service) DeleteListener(ctx context.Context, tenantID, lbID, listenerID
 		return iaerrors.NewNotFoundError("listener", listenerID)
 	}
 	s.store.DeleteLBListener(listenerID)
-	if err := s.syncLBService(ctx, lb); err != nil {
-		return err
-	}
-	return s.syncLBEndpoints(ctx, lb)
+	return nil
 }
 
 func (s *Service) RegisterTarget(ctx context.Context, tenantID, targetGroupID, vmID string) (*platform.LBTarget, error) {
@@ -186,99 +171,7 @@ func (s *Service) RegisterTarget(ctx context.Context, tenantID, targetGroupID, v
 		CreatedAt:     store.Now(),
 	}
 	s.store.SaveLBTarget(target)
-	if err := s.syncTargetsForTargetGroup(ctx, tenantID, targetGroupID); err != nil {
-		return target, err
-	}
 	return target, nil
-}
-
-func (s *Service) syncTargetsForTargetGroup(ctx context.Context, tenantID, targetGroupID string) error {
-	for _, lb := range s.store.ListLoadBalancers(tenantID) {
-		for _, l := range s.store.ListLBListeners(lb.ID) {
-			if l.TargetGroupID == targetGroupID {
-				if err := s.syncLBEndpoints(ctx, lb); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Service) syncLBService(ctx context.Context, lb *platform.LoadBalancer) error {
-	listeners := s.store.ListLBListeners(lb.ID)
-	ports := make([]platformk8s.LBServicePort, 0, len(listeners))
-	for _, l := range listeners {
-		tg, ok := s.store.GetTargetGroup(l.TargetGroupID)
-		if !ok {
-			continue
-		}
-		proto := corev1.ProtocolTCP
-		if strings.EqualFold(l.Protocol, "udp") {
-			proto = corev1.ProtocolUDP
-		}
-		ports = append(ports, platformk8s.LBServicePort{
-			Name:       fmt.Sprintf("%s-%d", strings.ToLower(l.Protocol), l.Port),
-			Port:       int32(l.Port),
-			TargetPort: int32(tg.Port),
-			Protocol:   proto,
-		})
-	}
-	vip, err := s.k8s.EnsureLBService(ctx, lb.Namespace, lb.ServiceName, lb.ID, ports)
-	if err != nil {
-		lb.State = stateError
-		s.store.SaveLoadBalancer(lb)
-		return err
-	}
-	if vip != "" {
-		lb.VIP = vip
-	}
-	if lb.State != stateError {
-		lb.State = stateActive
-	}
-	s.store.SaveLoadBalancer(lb)
-	return nil
-}
-
-func (s *Service) syncLBEndpoints(ctx context.Context, lb *platform.LoadBalancer) error {
-	listeners := s.store.ListLBListeners(lb.ID)
-	if len(listeners) == 0 {
-		return s.k8s.SyncLBEndpoints(ctx, lb.Namespace, lb.ServiceName, nil)
-	}
-	seenIP := make(map[string]struct{})
-	var addresses []corev1.EndpointAddress
-	portMap := map[string]corev1.EndpointPort{}
-	for _, l := range listeners {
-		tg, ok := s.store.GetTargetGroup(l.TargetGroupID)
-		if !ok {
-			continue
-		}
-		proto := corev1.ProtocolTCP
-		if strings.EqualFold(l.Protocol, "udp") {
-			proto = corev1.ProtocolUDP
-		}
-		portName := fmt.Sprintf("%s-%d", strings.ToLower(l.Protocol), l.Port)
-		portMap[portName] = corev1.EndpointPort{Name: portName, Port: int32(tg.Port), Protocol: proto}
-		for _, t := range s.store.ListLBTargets(l.TargetGroupID) {
-			if _, ok := seenIP[t.IP]; ok {
-				continue
-			}
-			seenIP[t.IP] = struct{}{}
-			addresses = append(addresses, corev1.EndpointAddress{IP: t.IP})
-		}
-	}
-	if len(addresses) == 0 {
-		return s.k8s.SyncLBEndpoints(ctx, lb.Namespace, lb.ServiceName, nil)
-	}
-	ports := make([]corev1.EndpointPort, 0, len(portMap))
-	for _, p := range portMap {
-		ports = append(ports, p)
-	}
-	subsets := []corev1.EndpointSubset{{
-		Addresses: addresses,
-		Ports:     ports,
-	}}
-	return s.k8s.SyncLBEndpoints(ctx, lb.Namespace, lb.ServiceName, subsets)
 }
 
 func resolveVMIP(vm *platform.PlatformVM) string {
