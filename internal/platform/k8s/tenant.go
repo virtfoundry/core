@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type TenantResources struct {
@@ -184,6 +186,24 @@ func isAlreadyExists(err error) bool {
 
 func isNotFound(err error) bool {
 	return errors.IsNotFound(err)
+}
+
+// WaitNamespace blocks until the namespace exists and is not terminating.
+func (m *Manager) WaitNamespace(ctx context.Context, name string, timeout time.Duration) error {
+	err := wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+		ns, err := m.Clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+		if isNotFound(err) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return ns.DeletionTimestamp == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("namespace %s is not ready: %w", name, err)
+	}
+	return nil
 }
 
 func (m *Manager) DeleteTenantNamespace(ctx context.Context, namespace string) error {

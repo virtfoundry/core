@@ -92,7 +92,7 @@ Tenant ────────────────────────�
 
 1. Handler validates JWT and resolves `tenant_id`
 2. `PlatformService.DeployVM` reads offering/template from catalog (optional)
-3. Ensures tenant namespace via `k8s.Manager`
+3. Resolves the tenant namespace (created by `virtfoundry-operator`; the API creates it only without the Kubernetes store)
 4. Builds NICs from `network_ids` → Multus NAD refs
 5. Creates `VirtualMachine` via `KubeVirtDriver` with guest `domain.cpu.cores` from the offering; shared VMs omit CPU request so KubeVirt `cpuAllocationRatio` can overcommit; `dedicated_cpu` (flag or dedicated offering) sets Guaranteed QoS (`request=limit`)
 6. Cloud-init / Multus static IP when public network is attached
