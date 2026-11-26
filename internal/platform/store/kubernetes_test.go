@@ -144,6 +144,8 @@ func newTestDynamicClient() *fake.FakeDynamicClient {
 		mapping.InstanceGVR:         "InstanceList",
 		mapping.APIKeyGVR:           "APIKeyList",
 		mapping.InstanceSnapshotGVR: "InstanceSnapshotList",
+		mapping.LoadBalancerGVR:     "LoadBalancerList",
+		mapping.TargetGroupGVR:      "TargetGroupList",
 	}
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
