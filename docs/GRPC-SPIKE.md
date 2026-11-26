@@ -37,8 +37,8 @@ Permission (parity with REST `AutoPermission` for `GET /vms`): non-root needs `v
 
 | Env | Effect |
 |-----|--------|
-| *(unset)* / any value except `0` | cmux dual-stack (default) |
-| `VIRTFOUNDRY_GRPC=0` | HTTP-only (fail-soft if you need to bisect) |
+| *(unset)* / any value except `1` | HTTP-only (default) |
+| `VIRTFOUNDRY_GRPC=1` | cmux dual-stack (HTTP + gRPC on `:8080`) |
 
 If cmux exits with error, the process logs and **falls back to HTTP-only** on `:8080`.
 

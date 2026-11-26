@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Changed
+
+- gRPC spike (cmux on `:8080`) is now disabled by default; set `VIRTFOUNDRY_GRPC=1` to enable.
+
 ## [0.13.0] - 2026-11-13
 
 ### Fixed
