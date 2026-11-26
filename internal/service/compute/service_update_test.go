@@ -16,7 +16,6 @@ func TestUpdateVMUsesGetVMWhenStoreLookupMisses(t *testing.T) {
 	const tenantID = "t-update"
 
 	s := New(mem, nil, nil, nil)
-	s.operatorReconcile = true
 
 	vm := &platform.PlatformVM{
 		ID: "id-1", TenantID: tenantID, Name: "web", DisplayName: "web",
