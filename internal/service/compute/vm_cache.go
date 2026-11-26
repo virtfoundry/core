@@ -13,7 +13,12 @@ type vmListCacheEntry struct {
 	at  time.Time
 }
 
+// getVMListCache never hits with operatorReconcile: the operator and other API
+// replicas change Instance CRs without invalidating this process's cache.
 func (s *Service) getVMListCache(tenantID string) ([]*platform.PlatformVM, bool) {
+	if s.operatorReconcile {
+		return nil, false
+	}
 	s.vmListCacheMu.RLock()
 	defer s.vmListCacheMu.RUnlock()
 	entry, ok := s.vmListCache[tenantID]

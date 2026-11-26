@@ -12,8 +12,8 @@ import (
 )
 
 func (s *Service) GetVM(ctx context.Context, tenantID, name string) (*platform.PlatformVM, error) {
-	// CRD-first, cache cold: ListVMs is store-backed, so a direct lookup is equivalent.
-	if _, cached := s.getVMListCache(tenantID); !cached && s.operatorReconcile {
+	// CRD-first: ListVMs is store-backed, so a direct lookup is equivalent.
+	if s.operatorReconcile {
 		stored, ok := s.store.GetVMByName(tenantID, name)
 		if !ok || stored == nil {
 			return nil, fmt.Errorf("vm not found")
@@ -65,12 +65,15 @@ func (s *Service) ListVMs(ctx context.Context, tenantID string) ([]*platform.Pla
 // refs. Instance CRs store offeringRef/templateRef names but not guest sizing,
 // so operator-reconcile ListVMs would otherwise show 0 vCPU / 0 MiB.
 func (s *Service) enrichVMsFromCatalog(vms []*platform.PlatformVM) {
+	// One store lookup per distinct ref, not per VM.
+	offering := memoize(s.lookupOffering)
+	template := memoize(s.lookupTemplate)
 	for _, vm := range vms {
 		if vm == nil {
 			continue
 		}
 		if (vm.CPU == 0 || vm.MemoryMi == 0) && vm.ServiceOfferingID != "" {
-			if off := s.lookupOffering(vm.ServiceOfferingID); off != nil {
+			if off := offering(vm.ServiceOfferingID); off != nil {
 				if vm.CPU == 0 {
 					vm.CPU = off.CPU
 				}
@@ -80,7 +83,7 @@ func (s *Service) enrichVMsFromCatalog(vms []*platform.PlatformVM) {
 			}
 		}
 		if vm.Template == "" && vm.TemplateRef != "" {
-			if tmpl := s.lookupTemplate(vm.TemplateRef); tmpl != nil {
+			if tmpl := template(vm.TemplateRef); tmpl != nil {
 				if tmpl.DisplayName != "" {
 					vm.Template = tmpl.DisplayName
 				} else {
@@ -90,6 +93,18 @@ func (s *Service) enrichVMsFromCatalog(vms []*platform.PlatformVM) {
 				vm.Template = vm.TemplateRef
 			}
 		}
+	}
+}
+
+func memoize[T any](lookup func(string) T) func(string) T {
+	seen := map[string]T{}
+	return func(key string) T {
+		v, ok := seen[key]
+		if !ok {
+			v = lookup(key)
+			seen[key] = v
+		}
+		return v
 	}
 }
 

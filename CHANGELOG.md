@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versioning: [Se
 
 ## [Unreleased]
 
+### Fixed
+
+- With the Kubernetes store, VM reads no longer use the 20s in-process list cache, so a change made by the operator or another API replica shows on the next request. Catalog lookups now run once per distinct offering and template in a list.
+
 ### Changed
 
 - With the Kubernetes store, the API no longer creates tenant namespaces, quotas or the CDI egress policy: it writes the Tenant CR and waits up to 60s for `virtfoundry-operator` to create the namespace. New tenants get only the operator quota (20 PVCs instead of 50, plus its CPU, memory and Service limits). Quotas the API created before stay until removed by hand. Needs an operator with the CDI egress policy (operator#84).
