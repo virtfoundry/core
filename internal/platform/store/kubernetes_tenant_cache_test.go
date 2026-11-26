@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/virtfoundry/core/internal/platform"
+	"github.com/virtfoundry/core/internal/platform/store/mapping"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -33,5 +34,16 @@ func TestTenantCreatedByAnotherReplicaIsVisible(t *testing.T) {
 	}
 	if _, ok := b.GetTenant(tenant.ID); !ok {
 		t.Fatal("GetTenant missed a tenant created by another replica")
+	}
+
+	a.SaveUser(&platform.User{Username: "root", TenantID: "unknown-id", State: "active"})
+	if got, _ := a.GetUserByUsername("root"); got.TenantID != tenant.ID {
+		t.Fatalf("unresolved tenant ID erased tenantRef: %+v", got)
+	}
+
+	dyn.ClearActions()
+	a.GetTenant("")
+	if n := countResourceVerbs(dyn.Actions(), mapping.TenantGVR.Resource, "list"); n != 0 {
+		t.Fatalf("empty tenant ID listed tenants %d times", n)
 	}
 }

@@ -37,6 +37,9 @@ func (k *Kubernetes) SaveTenant(t *platform.Tenant) {
 }
 
 func (k *Kubernetes) GetTenant(id string) (*platform.Tenant, bool) {
+	if id == "" {
+		return nil, false
+	}
 	t := k.lookupTenant(func(s *tenantSnapshot) *platform.Tenant { return s.byID[id] })
 	return t, t != nil
 }

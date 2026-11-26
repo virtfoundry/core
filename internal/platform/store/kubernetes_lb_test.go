@@ -11,7 +11,9 @@ import (
 )
 
 func TestKubernetesStore_LoadBalancerRoundTrip(t *testing.T) {
-	repo := &Kubernetes{dyn: newTestDynamicClient(), clientset: kubefake.NewSimpleClientset()}
+	dyn := newTestDynamicClient()
+	assignUIDsOnCreate(dyn)
+	repo := &Kubernetes{dyn: dyn, clientset: kubefake.NewSimpleClientset()}
 	repo.SaveTenant(&platform.Tenant{Name: "Acme", Slug: "acme", Namespace: "virtfoundry-tenant-acme", State: "active", CreatedAt: Now()})
 	tenant, _ := repo.GetTenantBySlug("acme")
 

@@ -69,6 +69,12 @@ func (k *Kubernetes) SaveUser(u *platform.User) {
 	}
 
 	obj.SetResourceVersion(existing.GetResourceVersion())
+	if tenantCRName == "" && u.TenantID != "" {
+		// The tenant could not be resolved: keep the link instead of erasing it.
+		if ref, ok, _ := unstructured.NestedMap(existing.Object, "spec", "tenantRef"); ok {
+			_ = unstructured.SetNestedMap(obj.Object, ref, "spec", "tenantRef")
+		}
+	}
 	updated, updateErr := k.dyn.Resource(mapping.UserGVR).Update(ctx, obj, metav1.UpdateOptions{})
 	if updateErr == nil {
 		*u = *k.userFromCR(ctx, updated, true)
